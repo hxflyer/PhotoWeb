@@ -82,6 +82,7 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
         },
         onPointerUp: (e, ctx) => {
             if (!state.drag) return;
+            state.drag.current = pointerToRect(e);
             const rect = computeMarqueeRect(state.drag, e.shift, e.alt);
             const path = rectToPath(rect);
             const store = ctx.getStore();

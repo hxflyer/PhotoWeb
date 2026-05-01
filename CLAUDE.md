@@ -159,8 +159,8 @@ Follow this loop without skipping steps. The point is reproducible quality.
 5. **Verify (in this order):**
    - `npx tsc -b` — must exit 0.
    - `npm run lint` — no new errors. (Existing pre-task errors stay; you don't fix unrelated lint debt unless asked.)
+   - **`npm test` — must pass, including a NEW test that exercises this feature.** Every feature/fix gets a simulator-driven test in `src/test/<area>.test.ts(x)`. The test scripts user input (mouse / keyboard / button click) via [src/test/simulator.ts](src/test/simulator.ts) and asserts on store state, layer pixels (real Canvas2D via node-canvas), or selection paths. Test names should read like the user's action ("clicking + adds a layer", "marquee drag with Shift constrains to a square", "paint bucket floods to primary color"). For UI-level tests, render the React component with `@testing-library/react` and dispatch events via `runScript`. For tool-level tests, call `getTool(id).onPointerXxx` directly with `makeToolPointerEvent(...)`. For visual results, compare specific pixels with `layerPixelAt` / `pixelAt`. Tests catch regressions and surface real bugs (the paint-bucket seed-color regression was caught this way).
    - For UI-affecting work: dev server is on `http://localhost:5173/` (background task). Reload, test the golden path *and* the most likely regression.
-   - For pure-logic work (filters, blend math, history): write a quick smoke test in a temp file or a one-shot Node script if no test runner is set up yet.
 6. **Update the checkbox.** Edit this CLAUDE.md. Tick the task. If you discovered new sub-tasks while working, add them as nested unchecked items rather than expanding scope silently.
 7. **Brief end-of-task summary** in chat: what changed, what was verified, anything punted.
 8. **Stop.** Do not start the next task without the user's go-ahead, unless the user has said "keep going" or set up a loop.
@@ -168,6 +168,7 @@ Follow this loop without skipping steps. The point is reproducible quality.
 ### Definition of done (per task)
 - TypeScript compiles.
 - Lint is no-worse-than-before.
+- `npm test` is green AND includes at least one new simulator-driven test for this feature.
 - Behavior verified (visual or logical) for the task's scope.
 - Checkbox ticked in CLAUDE.md.
 - No half-implementations, no `// TODO: implement later` left in the path.
@@ -290,9 +291,16 @@ npm run dev      # dev server, http://localhost:5173/  (already running as backg
 npm run build    # tsc -b && vite build
 npm run lint     # eslint .
 npx tsc -b       # type-check only
+npm test         # run the full simulator-driven suite once
+npm run test:watch  # watch mode while iterating on a test
 ```
 
-A test runner is **not** configured. When 0.1 / 0.6 land, add Vitest in the same task.
+Test infrastructure: Vitest + jsdom + node-canvas (real Canvas2D for pixel inspection) + @testing-library/react. The simulator at [src/test/simulator.ts](src/test/simulator.ts) exposes:
+- `runScript(commands, root)` — runs an ordered list of `mouseDown / mouseMove / mouseUp / click / dblclick / keyDown / keyUp / type / wait` against rendered DOM.
+- `pixelAt(canvas, x, y)` and `layerPixelAt(layer, x, y)` — read RGBA from the underlying real Canvas2D.
+- `makeToolPointerEvent({ canvasX, canvasY, modifiers, pressure })` — synthesize a `ToolPointerEvent` for tool-level tests that bypass React.
+
+The `src/test/setup.ts` file installs node-canvas as the backend for `HTMLCanvasElement.getContext('2d')` and exposes a global `ImageData`.
 
 ---
 
@@ -340,6 +348,7 @@ When a task ticks off, append a one-liner here so the history is recoverable wit
 2026-05-01  2.9  src/core/fillLayer.ts + addFillLayer in store (Solid Color, Gradient).
 2026-05-01  2.10 layersSlice: Layer via Copy/Cut, Merge Down/Visible, Stamp Visible, Flatten Image (via Layers panel context menu).
 2026-05-01  ext  Toolbar UI expanded: 8 grouped sections expose every registered tool ID (move, marquee rect/ellipse/lasso/poly, magic wand, quick selection, crop, eyedropper, brush, pencil, eraser, clone stamp, fill, gradient, dodge/burn/sponge, pen + freeform, path/direct selection, type H/V, 6 shape variants, hand, zoom). ToolId union extended in src/store/types.ts.
+2026-05-01  test Test infrastructure landed: Vitest + jsdom + node-canvas + Testing Library. src/test/simulator.ts (command-script runner + pixel reader + tool pointer-event factory). 38 baseline tests across layers / selection / paint / history / blend modes / adjustments / Toolbar UI / smoke. SOP §5 + DoD updated to require a simulator-driven test per feature. First real bug surfaced and fixed: paint-bucket flood-fill was sampling the seed pixel by index after mutating it; now captures `seedRef` once before the loop.
 ```
 
 ### Known follow-ups (not blockers for Phase 0–2 done)

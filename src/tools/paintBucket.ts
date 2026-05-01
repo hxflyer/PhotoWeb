@@ -25,11 +25,11 @@ export function setPaintBucketOptions(next: Partial<PaintBucketOptions>): void {
 
 function p(e: ToolPointerEvent) { return { x: Math.floor(e.canvasX), y: Math.floor(e.canvasY) }; }
 
-function colorMatch(a: Uint8ClampedArray, ai: number, b: Uint8ClampedArray, bi: number, t: number): boolean {
-    return Math.abs(a[ai] - b[bi]) <= t
-        && Math.abs(a[ai + 1] - b[bi + 1]) <= t
-        && Math.abs(a[ai + 2] - b[bi + 2]) <= t
-        && Math.abs(a[ai + 3] - b[bi + 3]) <= t;
+function colorMatch(a: Uint8ClampedArray, ai: number, ref: [number, number, number, number], t: number): boolean {
+    return Math.abs(a[ai] - ref[0]) <= t
+        && Math.abs(a[ai + 1] - ref[1]) <= t
+        && Math.abs(a[ai + 2] - ref[2]) <= t
+        && Math.abs(a[ai + 3] - ref[3]) <= t;
 }
 
 function hexToRgba(color: string): { r: number; g: number; b: number; a: number } {
@@ -58,6 +58,7 @@ export const paintBucketTool: Tool = {
         const image = lctx.getImageData(0, 0, w, h);
         const data = image.data;
         const seed = (point.y * w + point.x) * 4;
+        const seedRef: [number, number, number, number] = [data[seed], data[seed + 1], data[seed + 2], data[seed + 3]];
         const fill = hexToRgba(store.primaryColor);
 
         if (options.contiguous) {
@@ -70,7 +71,7 @@ export const paintBucketTool: Tool = {
                 const idx = y * w + x;
                 if (visited[idx]) continue;
                 const di = idx * 4;
-                if (!colorMatch(data, di, data, seed, options.tolerance)) continue;
+                if (!colorMatch(data, di, seedRef, options.tolerance)) continue;
                 visited[idx] = 1;
                 data[di] = fill.r;
                 data[di + 1] = fill.g;
@@ -85,7 +86,7 @@ export const paintBucketTool: Tool = {
             for (let y = 0; y < h; y++) {
                 for (let x = 0; x < w; x++) {
                     const di = (y * w + x) * 4;
-                    if (colorMatch(data, di, data, seed, options.tolerance)) {
+                    if (colorMatch(data, di, seedRef, options.tolerance)) {
                         data[di] = fill.r;
                         data[di + 1] = fill.g;
                         data[di + 2] = fill.b;
