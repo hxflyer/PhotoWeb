@@ -4,6 +4,7 @@ import { Toolbar } from './components/Panels/Toolbar';
 import { LayersPanel } from './components/Panels/LayersPanel';
 import { PropertiesPanel } from './components/Panels/PropertiesPanel';
 import { Viewport } from './components/Canvas/Viewport';
+import { TypeOverlayMount } from './components/Canvas/TypeOverlayMount';
 import { useEditorStore } from './store/editorStore';
 import { InputNumberDialog } from './components/Dialogs/InputNumberDialog';
 import './App.css'; // Ensure we have the global styles resetting body if not in index.css (done in index.css)
@@ -41,7 +42,7 @@ function App() {
         toolbar={<Toolbar />}
         propertiesPanel={<PropertiesPanel />}
         layersPanel={<LayersPanel />}
-        canvas={<Viewport />}
+        canvas={<><Viewport /><TypeOverlayMount /></>}
       />
       <InputNumberDialog
         isOpen={dialogs.isFeatherDialogOpen}

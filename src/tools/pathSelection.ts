@@ -1,6 +1,6 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
-import { getActivePath, getPaths, setActivePath } from './pen';
+import { getActivePath, getPaths, renderPathOverlay, setActivePath } from './pen';
 
 interface DragState {
     pathId: string;
@@ -59,6 +59,7 @@ export const pathSelectionTool: Tool = {
         drag.state.last = point;
     },
     onPointerUp: () => { drag.state = null; },
+    renderOverlay: (overlay) => renderPathOverlay(overlay),
 };
 
 export const directSelectionTool: Tool = {
@@ -97,6 +98,7 @@ export const directSelectionTool: Tool = {
         drag.state.last = point;
     },
     onPointerUp: () => { drag.state = null; },
+    renderOverlay: (overlay) => renderPathOverlay(overlay),
 };
 
 registerTool(pathSelectionTool);

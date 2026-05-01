@@ -174,6 +174,22 @@ export function Viewport() {
         compositor.render({ layers, activeLayerId, viewport: viewportInfo, target: canvas });
         compositor.present();
 
+        // Tool overlay pass: ask the active tool to draw its ephemeral UI.
+        const activeToolImpl = getTool(activeTool);
+        if (activeToolImpl?.renderOverlay) {
+            const overlayCtx = canvas.getContext('2d');
+            if (overlayCtx) {
+                activeToolImpl.renderOverlay(
+                    { ctx: overlayCtx, canvasWidth: width, canvasHeight: height, zoom },
+                    {
+                        store: useEditorStore.getState(),
+                        getStore: () => useEditorStore.getState(),
+                        requestRender: () => {},
+                    },
+                );
+            }
+        }
+
         // Floating-pixels preview is layered on top of the active layer composite.
         layers.forEach(layer => {
             if (layer.visible && layer.canvas) {

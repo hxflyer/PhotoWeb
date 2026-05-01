@@ -1,4 +1,4 @@
-import type { Tool, ToolPointerEvent } from './Tool';
+import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 
 export interface MarqueeRect {
@@ -97,8 +97,41 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
     };
 }
 
-export const marqueeRectTool = makeMarqueeTool('marquee-rect', 'Rectangular Marquee', stateRect);
-export const marqueeEllipseTool = makeMarqueeTool('marquee-ellipse', 'Elliptical Marquee', stateEllipse);
+function renderMarqueeOverlay(state: InternalState, overlay: OverlayRenderContext): void {
+    if (!state.drag) return;
+    const rect = computeMarqueeRect(state.drag, false, false);
+    if (rect.width === 0 && rect.height === 0) return;
+    const { ctx, zoom } = overlay;
+    ctx.save();
+    ctx.lineWidth = 1 / Math.max(0.0001, zoom);
+    ctx.setLineDash([4 / Math.max(0.0001, zoom), 4 / Math.max(0.0001, zoom)]);
+    ctx.strokeStyle = '#000';
+    if (state.shape === 'rect') {
+        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+        ctx.strokeStyle = '#fff';
+        ctx.lineDashOffset = 4 / Math.max(0.0001, zoom);
+        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    } else {
+        const cx = rect.x + rect.width / 2;
+        const cy = rect.y + rect.height / 2;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rect.width / 2, rect.height / 2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = '#fff';
+        ctx.lineDashOffset = 4 / Math.max(0.0001, zoom);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+export const marqueeRectTool: Tool = {
+    ...makeMarqueeTool('marquee-rect', 'Rectangular Marquee', stateRect),
+    renderOverlay: (overlay) => renderMarqueeOverlay(stateRect, overlay),
+};
+export const marqueeEllipseTool: Tool = {
+    ...makeMarqueeTool('marquee-ellipse', 'Elliptical Marquee', stateEllipse),
+    renderOverlay: (overlay) => renderMarqueeOverlay(stateEllipse, overlay),
+};
 
 registerTool(marqueeRectTool);
 registerTool(marqueeEllipseTool);

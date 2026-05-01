@@ -25,6 +25,31 @@ export function bindTypeOverlayHandlers(commit: (data: TypeLayerData) => void, c
     typeToolState.onCancel = cancel;
 }
 
+const typeListeners = new Set<() => void>();
+export function subscribeTypeTool(fn: () => void): () => void {
+    typeListeners.add(fn);
+    return () => { typeListeners.delete(fn); };
+}
+function notifyTypeChange(): void {
+    typeListeners.forEach(fn => fn());
+}
+export function setEditingType(data: TypeLayerData | null): void {
+    typeToolState.editing = data;
+    notifyTypeChange();
+}
+export function commitEditingType(text: string): void {
+    if (!typeToolState.editing) return;
+    const out: TypeLayerData = { ...typeToolState.editing, text };
+    typeToolState.onCommit?.(out);
+    typeToolState.editing = null;
+    notifyTypeChange();
+}
+export function cancelEditingType(): void {
+    typeToolState.onCancel?.();
+    typeToolState.editing = null;
+    notifyTypeChange();
+}
+
 export const defaultTextStyle: TextStyle = {
     fontFamily: 'system-ui',
     fontSize: 32,
@@ -47,7 +72,7 @@ function makeTypeTool(id: string, label: string, orientation: TypeOrientation): 
             if (e.button !== 0) return;
             const point = p(e);
             const store = ctx.getStore();
-            typeToolState.editing = {
+            setEditingType({
                 id: crypto.randomUUID(),
                 text: '',
                 style: { ...defaultTextStyle, color: store.primaryColor },
@@ -59,13 +84,10 @@ function makeTypeTool(id: string, label: string, orientation: TypeOrientation): 
                     height: defaultTextStyle.fontSize * 2,
                     rotation: 0,
                 },
-            };
+            });
         },
         onKeyDown: (e) => {
-            if (e.key === 'Escape') {
-                typeToolState.editing = null;
-                typeToolState.onCancel?.();
-            }
+            if (e.key === 'Escape') cancelEditingType();
         },
     };
 }

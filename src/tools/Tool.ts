@@ -32,6 +32,13 @@ export interface ToolContext {
     requestRender: () => void;
 }
 
+export interface OverlayRenderContext {
+    ctx: CanvasRenderingContext2D;
+    canvasWidth: number;
+    canvasHeight: number;
+    zoom: number;
+}
+
 export interface Tool {
     id: string;
     label: string;
@@ -44,4 +51,9 @@ export interface Tool {
     onPointerUp?: (e: ToolPointerEvent, ctx: ToolContext) => void;
     onKeyDown?: (e: ToolKeyEvent, ctx: ToolContext) => void;
     onKeyUp?: (e: ToolKeyEvent, ctx: ToolContext) => void;
+    // Called once per frame after layer compositing. Tools draw their own
+    // ephemeral UI here — pen anchors, marquee preview, transform handles, etc.
+    // The ctx is the on-screen canvas's 2D context; tools must not persist
+    // state on it (no leftover globalAlpha / lineDash, always save/restore).
+    renderOverlay?: (overlay: OverlayRenderContext, toolCtx: ToolContext) => void;
 }

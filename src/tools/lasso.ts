@@ -1,4 +1,4 @@
-import type { Tool, ToolPointerEvent } from './Tool';
+import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 
 const free: { points: { x: number; y: number }[] | null } = { points: null };
@@ -33,7 +33,24 @@ export const lassoTool: Tool = {
         store.setHasSelection(true);
         free.points = null;
     },
+    renderOverlay: (overlay) => renderLassoFreeOverlay(overlay),
 };
+
+function renderLassoFreeOverlay(overlay: OverlayRenderContext): void {
+    if (!free.points || free.points.length < 2) return;
+    const { ctx, zoom } = overlay;
+    ctx.save();
+    ctx.lineWidth = 1 / Math.max(0.0001, zoom);
+    ctx.setLineDash([4 / Math.max(0.0001, zoom), 4 / Math.max(0.0001, zoom)]);
+    ctx.strokeStyle = '#000';
+    ctx.beginPath();
+    ctx.moveTo(free.points[0].x, free.points[0].y);
+    for (let i = 1; i < free.points.length; i++) {
+        ctx.lineTo(free.points[i].x, free.points[i].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
 
 export const lassoPolyTool: Tool = {
     id: 'lasso-poly',
@@ -82,7 +99,36 @@ export const lassoPolyTool: Tool = {
             ctx.getStore().setPolyPoints([...poly.points]);
         }
     },
+    renderOverlay: (overlay) => renderLassoPolyOverlay(overlay),
 };
+
+function renderLassoPolyOverlay(overlay: OverlayRenderContext): void {
+    if (poly.points.length === 0) return;
+    const { ctx, zoom } = overlay;
+    const lineW = 1 / Math.max(0.0001, zoom);
+    const dotR = 3 / Math.max(0.0001, zoom);
+    ctx.save();
+    ctx.lineWidth = lineW;
+    ctx.setLineDash([4 / Math.max(0.0001, zoom), 4 / Math.max(0.0001, zoom)]);
+    ctx.strokeStyle = '#000';
+    ctx.beginPath();
+    ctx.moveTo(poly.points[0].x, poly.points[0].y);
+    for (let i = 1; i < poly.points.length; i++) {
+        ctx.lineTo(poly.points[i].x, poly.points[i].y);
+    }
+    if (poly.live) ctx.lineTo(poly.live.x, poly.live.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#000';
+    poly.points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, dotR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    });
+    ctx.restore();
+}
 
 registerTool(lassoTool);
 registerTool(lassoPolyTool);

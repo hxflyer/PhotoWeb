@@ -1,4 +1,4 @@
-import type { Tool, ToolPointerEvent } from './Tool';
+import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 
 export interface AnchorPoint {
@@ -35,6 +35,73 @@ export function addPath(path: PathShape): void {
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
 let dragHandle: { anchorIndex: number; pathId: string } | null = null;
+
+const ANCHOR_COLOR = '#ffffff';
+const ANCHOR_BORDER = '#0066ff';
+const HANDLE_COLOR = '#0066ff';
+const PATH_STROKE = '#0066ff';
+
+export function renderPathOverlay(overlay: OverlayRenderContext): void {
+    const { ctx, zoom } = overlay;
+    const paths = pathStore.paths;
+    if (paths.length === 0) return;
+    ctx.save();
+    const lineW = 1 / Math.max(0.0001, zoom);
+    const anchorR = 4 / Math.max(0.0001, zoom);
+    const handleR = 3 / Math.max(0.0001, zoom);
+
+    paths.forEach(path => {
+        if (path.anchors.length === 0) return;
+        ctx.beginPath();
+        ctx.lineWidth = lineW;
+        ctx.strokeStyle = PATH_STROKE;
+        const first = path.anchors[0];
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < path.anchors.length; i++) {
+            const prev = path.anchors[i - 1];
+            const a = path.anchors[i];
+            if (prev.outHandle && a.inHandle) {
+                ctx.bezierCurveTo(prev.outHandle.x, prev.outHandle.y, a.inHandle.x, a.inHandle.y, a.x, a.y);
+            } else {
+                ctx.lineTo(a.x, a.y);
+            }
+        }
+        if (path.closed) ctx.closePath();
+        ctx.stroke();
+
+        path.anchors.forEach(a => {
+            if (a.inHandle) {
+                ctx.beginPath();
+                ctx.strokeStyle = HANDLE_COLOR;
+                ctx.lineWidth = lineW;
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(a.inHandle.x, a.inHandle.y);
+                ctx.stroke();
+                drawCircle(ctx, a.inHandle.x, a.inHandle.y, handleR, HANDLE_COLOR, HANDLE_COLOR);
+            }
+            if (a.outHandle) {
+                ctx.beginPath();
+                ctx.strokeStyle = HANDLE_COLOR;
+                ctx.lineWidth = lineW;
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(a.outHandle.x, a.outHandle.y);
+                ctx.stroke();
+                drawCircle(ctx, a.outHandle.x, a.outHandle.y, handleR, HANDLE_COLOR, HANDLE_COLOR);
+            }
+            drawCircle(ctx, a.x, a.y, anchorR, ANCHOR_COLOR, ANCHOR_BORDER);
+        });
+    });
+    ctx.restore();
+}
+
+function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string, stroke: string): void {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+}
 
 export const penTool: Tool = {
     id: 'pen',
@@ -78,6 +145,7 @@ export const penTool: Tool = {
             pathStore.activeId = null;
         }
     },
+    renderOverlay: (overlay) => renderPathOverlay(overlay),
 };
 
 export const freeformPenTool: Tool = {
@@ -100,6 +168,7 @@ export const freeformPenTool: Tool = {
         path.anchors.push({ x: e.canvasX, y: e.canvasY, type: 'corner' });
     },
     onPointerUp: () => { dragHandle = null; },
+    renderOverlay: (overlay) => renderPathOverlay(overlay),
 };
 
 registerTool(penTool);
