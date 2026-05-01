@@ -1,0 +1,68 @@
+:root {
+  /* HSL Color Palette - Premium Dark Theme */
+  --bg-dark: 220 15% 10%;
+  --bg-panel: 220 15% 14%;
+  --bg-header: 220 15% 12%;
+  --bg-input: 220 15% 18%;
+
+  --accent-primary: 250 100% 65%;
+  /* Vivid Purple */
+  --accent-secondary: 190 100% 50%;
+  /* Cyan */
+
+  --text-main: 0 0% 95%;
+  --text-muted: 220 10% 65%;
+
+  --border-light: 220 15% 25%;
+  --border-active: 250 100% 65%;
+
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  /* Generally allows centering, but we might want full screen */
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: hsl(var(--bg-dark));
+  color: hsl(var(--text-main));
+  font-family: var(--font-sans);
+  overflow: hidden;
+  /* App-like feel */
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border-light));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--text-muted));
+}
+
+button {
+  font-family: inherit;
+}
