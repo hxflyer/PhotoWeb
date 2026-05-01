@@ -339,9 +339,10 @@ When a task ticks off, append a one-liner here so the history is recoverable wit
 2026-05-01  2.8  Auto Tone, Auto Contrast, Auto Color, Desaturate.
 2026-05-01  2.9  src/core/fillLayer.ts + addFillLayer in store (Solid Color, Gradient).
 2026-05-01  2.10 layersSlice: Layer via Copy/Cut, Merge Down/Visible, Stamp Visible, Flatten Image (via Layers panel context menu).
+2026-05-01  ext  Toolbar UI expanded: 8 grouped sections expose every registered tool ID (move, marquee rect/ellipse/lasso/poly, magic wand, quick selection, crop, eyedropper, brush, pencil, eraser, clone stamp, fill, gradient, dodge/burn/sponge, pen + freeform, path/direct selection, type H/V, 6 shape variants, hand, zoom). ToolId union extended in src/store/types.ts.
 ```
 
 ### Known follow-ups (not blockers for Phase 0–2 done)
 
-- The Toolbar still selects from the original `activeTool` ID set (`brush`, `eraser`, `select`, …). New tool IDs (`marquee-rect`, `marquee-ellipse`, `lasso-poly`, `magic-wand`, `quick-selection`, `pencil`, `dodge`, `burn`, `sponge`, `pen`, `freeform-pen`, `path-selection`, `direct-selection`, `shape-rectangle`, `shape-rounded-rectangle`, `shape-ellipse`, `shape-polygon`, `shape-line`, `shape-custom`, `type-horizontal`, `type-vertical`, `eyedropper`, `hand`, `zoom`) live in the registry and are dispatched by `Viewport`, but the toolbar UI must be expanded (planned for Phase 4 polish) for them to be reachable by click.
 - Adjustment layer Properties panel UI is the next concrete UI follow-up (Phase 4).
+- The new tool IDs are dispatchable by click and pointer events route to the Tool registry. The legacy inline branches in `Viewport.tsx` still handle the old IDs (`select`, `brush`, `eraser`, `fill`, `clone-stamp`, `gradient`, `crop`, `shape-rect`, `shape-circle`); selecting a new ID bypasses them and runs the registered Tool exclusively. Full deletion of legacy inline branches is Phase 5 polish.

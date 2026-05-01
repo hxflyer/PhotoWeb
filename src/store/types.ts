@@ -35,7 +35,33 @@ export type ToolId =
     | 'gradient'
     | 'crop'
     | 'shape-rect'
-    | 'shape-circle';
+    | 'shape-circle'
+    // Phase 1 tool registry IDs — pointer events dispatched via src/tools/registry.ts
+    | 'marquee-rect'
+    | 'marquee-ellipse'
+    | 'lasso'
+    | 'lasso-poly'
+    | 'magic-wand'
+    | 'quick-selection'
+    | 'pencil'
+    | 'dodge'
+    | 'burn'
+    | 'sponge'
+    | 'pen'
+    | 'freeform-pen'
+    | 'path-selection'
+    | 'direct-selection'
+    | 'eyedropper'
+    | 'type-horizontal'
+    | 'type-vertical'
+    | 'hand'
+    | 'zoom'
+    | 'shape-rectangle'
+    | 'shape-rounded-rectangle'
+    | 'shape-ellipse'
+    | 'shape-polygon'
+    | 'shape-line'
+    | 'shape-custom';
 
 export interface DocumentSlice {
     width: number;
