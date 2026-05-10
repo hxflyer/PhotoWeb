@@ -3,12 +3,20 @@ import { useEditorStore } from '../store/editorStore';
 import { getTool } from '../tools/registry';
 import { ensureStubsRegistered } from '../tools/stubs';
 import { layerPixelAt, makeToolPointerEvent } from './simulator';
+import { setCloneStampOptions } from '../tools/cloneStamp';
 
 ensureStubsRegistered();
 
 function reset() {
-    useEditorStore.setState((s) => ({ ...s, layers: [], activeLayerId: null, primaryColor: '#ff0000' }));
+    useEditorStore.setState((s) => ({
+        ...s,
+        layers: [],
+        activeLayerId: null,
+        primaryColor: '#ff0000',
+        brushSettings: { size: 5, hardness: 1, opacity: 1, flow: 1 },
+    }));
     useEditorStore.getState().addLayer();
+    setCloneStampOptions({ aligned: true, sample: 'current', mode: 'source-over' });
 }
 
 function ctx() {
@@ -83,5 +91,59 @@ describe('paint tools', () => {
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 50, canvasY: 50 }), ctx());
         const primary = useEditorStore.getState().primaryColor;
         expect(primary.toLowerCase()).toBe('#a0b0c0');
+    });
+
+    it('clone stamp: Alt-click sets source and click paints sampled pixels immediately', () => {
+        const layer = useEditorStore.getState().layers[0];
+        layer.ctx.fillStyle = '#ff0000';
+        layer.ctx.fillRect(8, 8, 8, 8);
+
+        const tool = getTool('clone-stamp')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 10, modifiers: { alt: true } }), ctx());
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 50, canvasY: 50 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 50, canvasY: 50 }), ctx());
+
+        expect(useEditorStore.getState().cloneSource).toEqual({ x: 10, y: 10 });
+        expect(layerPixelAt(layer, 50, 50)).toMatchObject({ r: 255, g: 0, b: 0, a: 255 });
+    });
+
+    it('clone stamp: non-aligned mode restarts from the original sample on each stroke', () => {
+        setCloneStampOptions({ aligned: false, sample: 'current' });
+        const layer = useEditorStore.getState().layers[0];
+        layer.ctx.fillStyle = '#ff0000';
+        layer.ctx.fillRect(8, 8, 5, 5);
+        layer.ctx.fillStyle = '#0000ff';
+        layer.ctx.fillRect(18, 8, 5, 5);
+
+        const tool = getTool('clone-stamp')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 10, modifiers: { alt: true } }), ctx());
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 50, canvasY: 50 }), ctx());
+        tool.onPointerMove!(makeToolPointerEvent({ canvasX: 60, canvasY: 50 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 60, canvasY: 50 }), ctx());
+
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 70, canvasY: 50 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 70, canvasY: 50 }), ctx());
+
+        expect(layerPixelAt(layer, 50, 50)).toMatchObject({ r: 255, g: 0, b: 0, a: 255 });
+        expect(layerPixelAt(layer, 60, 50)).toMatchObject({ r: 0, g: 0, b: 255, a: 255 });
+        expect(layerPixelAt(layer, 70, 50)).toMatchObject({ r: 255, g: 0, b: 0, a: 255 });
+    });
+
+    it('clone stamp: sample all layers lets a blank retouch layer clone visible content below', () => {
+        const store = useEditorStore.getState();
+        store.addLayer();
+        const [bottom, top] = useEditorStore.getState().layers;
+        bottom.ctx.fillStyle = '#00ff00';
+        bottom.ctx.fillRect(8, 8, 8, 8);
+        useEditorStore.getState().setActiveLayer(top.id);
+        setCloneStampOptions({ sample: 'all', aligned: true });
+
+        const tool = getTool('clone-stamp')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 10, modifiers: { alt: true } }), ctx());
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 80, canvasY: 80 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 80, canvasY: 80 }), ctx());
+
+        expect(layerPixelAt(bottom, 80, 80)).toMatchObject({ a: 0 });
+        expect(layerPixelAt(top, 80, 80)).toMatchObject({ r: 0, g: 255, b: 0, a: 255 });
     });
 });

@@ -1,0 +1,127 @@
+/**
+ * ParagraphPanel — mirrors Photoshop's 段落 (Paragraph) panel.
+ * Alignment, justification, indents, paragraph spacing, hyphenation toggle.
+ */
+import { useSyncExternalStore } from 'react';
+import { subscribeTypeTool, getTypeVersion, getEditingStyle, updateEditingStyle } from '../../tools/type';
+import type { TextStyle } from '../Canvas/TextEditOverlay';
+
+const inputStyle: React.CSSProperties = {
+    width: '100%',
+    fontSize: 11, padding: '2px 4px',
+    background: 'hsl(var(--bg-input))',
+    color: 'hsl(var(--text-main))',
+    border: '1px solid hsl(var(--border-light))',
+    borderRadius: 2,
+    boxSizing: 'border-box',
+};
+const toggleStyle = (active: boolean): React.CSSProperties => ({
+    width: 28, height: 22,
+    background: active ? 'hsl(var(--accent-primary))' : 'hsl(var(--bg-input))',
+    color: active ? '#fff' : 'hsl(var(--text-main))',
+    border: '1px solid hsl(var(--border-light))',
+    borderRadius: 2,
+    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 13, lineHeight: 1, padding: 0,
+});
+const labelStyle: React.CSSProperties = { fontSize: 11, color: 'hsl(var(--text-muted))', minWidth: 16 };
+
+const ALIGN_BTNS: { id: TextStyle['textAlign']; glyph: string; title: string }[] = [
+    { id: 'left',    glyph: '⫶≡', title: 'Left align' },
+    { id: 'center',  glyph: '≡',  title: 'Center align' },
+    { id: 'right',   glyph: '≡⫶', title: 'Right align' },
+];
+
+const JUSTIFY_BTNS: { id: 'last-left' | 'last-center' | 'last-right' | 'all'; glyph: string; title: string }[] = [
+    { id: 'last-left',   glyph: '☰', title: 'Justify last left' },
+    { id: 'last-center', glyph: '☰', title: 'Justify last center' },
+    { id: 'last-right',  glyph: '☰', title: 'Justify last right' },
+    { id: 'all',         glyph: '☰', title: 'Justify all' },
+];
+
+function NumField({ value, onChange, width = 60 }: { value: number; onChange: (v: number) => void; width?: number }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <input
+                type="number" value={value}
+                onChange={e => onChange(Number(e.target.value) || 0)}
+                style={{ ...inputStyle, width }}
+            />
+            <span style={{ fontSize: 10, color: 'hsl(var(--text-muted))' }}>点</span>
+        </div>
+    );
+}
+
+export function ParagraphPanel() {
+    useSyncExternalStore(subscribeTypeTool, getTypeVersion);
+    const s: TextStyle = getEditingStyle();
+    const update = (patch: Partial<TextStyle>) => updateEditingStyle(patch);
+
+    return (
+        <div style={{ padding: 8, fontSize: 11, color: 'hsl(var(--text-main))', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Alignment buttons */}
+            <div style={{ display: 'flex', gap: 2 }}>
+                {ALIGN_BTNS.map(b => (
+                    <button
+                        key={b.id}
+                        title={b.title}
+                        style={toggleStyle(s.textAlign === b.id)}
+                        onClick={() => update({ textAlign: b.id })}
+                    >{b.glyph}</button>
+                ))}
+                <div style={{ width: 6 }} />
+                {JUSTIFY_BTNS.map(b => (
+                    <button
+                        key={b.id}
+                        title={b.title}
+                        style={toggleStyle(s.textAlign === 'justify')}
+                        onClick={() => update({ textAlign: 'justify' })}
+                    >{b.glyph}</button>
+                ))}
+            </div>
+
+            {/* Indent left + right */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto 1fr', gap: 6, alignItems: 'center' }}>
+                <span style={labelStyle} title="Indent left margin">→|</span>
+                <NumField value={s.indentLeft}  onChange={v => update({ indentLeft: v })} />
+                <span style={labelStyle} title="Indent right margin">|←</span>
+                <NumField value={s.indentRight} onChange={v => update({ indentRight: v })} />
+            </div>
+
+            {/* First-line indent */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 6, alignItems: 'center' }}>
+                <span style={labelStyle} title="First line indent">↳</span>
+                <NumField value={s.indentFirst} onChange={v => update({ indentFirst: v })} />
+            </div>
+
+            {/* Space before / after */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto 1fr', gap: 6, alignItems: 'center' }}>
+                <span style={labelStyle} title="Space before paragraph">↑¶</span>
+                <NumField value={s.spaceBefore} onChange={v => update({ spaceBefore: v })} />
+                <span style={labelStyle} title="Space after paragraph">↓¶</span>
+                <NumField value={s.spaceAfter}  onChange={v => update({ spaceAfter: v })} />
+            </div>
+
+            {/* Hyphenate */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                    type="checkbox"
+                    checked={s.hyphenate}
+                    onChange={e => update({ hyphenate: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
+                Hyphenate
+            </label>
+
+            <div style={{ height: 1, background: 'hsl(var(--border-light))', margin: '4px 0' }} />
+
+            {/* Bullets / numbering header (visual only — list features deferred) */}
+            <div style={{ fontSize: 11, color: 'hsl(var(--text-muted))' }}>List</div>
+            <div style={{ display: 'flex', gap: 2 }}>
+                <button title="Bullets" style={toggleStyle(false)} disabled>•≡</button>
+                <button title="Numbered" style={toggleStyle(false)} disabled>1.≡</button>
+            </div>
+        </div>
+    );
+}

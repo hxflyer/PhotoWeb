@@ -26,9 +26,16 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
     addLayerFromImage: (img, name) => {
         const { width, height, layers } = get();
         const newLayer = new Layer(width, height, name);
-        const x = (width - img.width) / 2;
-        const y = (height - img.height) / 2;
-        newLayer.ctx.drawImage(img, x, y);
+        const sourceWidth = Math.max(1, img.naturalWidth || img.width);
+        const sourceHeight = Math.max(1, img.naturalHeight || img.height);
+        const scale = sourceWidth < width && sourceHeight < height
+            ? 1
+            : Math.min(width / sourceWidth, height / sourceHeight);
+        const drawWidth = Math.round(sourceWidth * scale);
+        const drawHeight = Math.round(sourceHeight * scale);
+        const x = Math.round((width - drawWidth) / 2);
+        const y = Math.round((height - drawHeight) / 2);
+        newLayer.ctx.drawImage(img, x, y, drawWidth, drawHeight);
         newLayer.markDirty(null);
         set({
             layers: [...layers, newLayer],
@@ -249,7 +256,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         const adj = getAdjustment(adjustmentId);
         if (!adj) return;
         const layer = new Layer(width, height, name ?? adj.label, 'adjustment') as LayerWithMeta;
-        layer.adjustment = { id: adjustmentId, params: params ?? adj.defaultParams };
+        layer.adjustment = { id: adjustmentId, params: { ...adj.defaultParams, ...(params ?? {}) } };
         layer.markDirty(null);
         set({ layers: [...layers, layer], activeLayerId: layer.id });
     },

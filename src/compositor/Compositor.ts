@@ -12,6 +12,8 @@ export interface CompositeRequest {
     activeLayerId: string | null;
     viewport: ViewportInfo;
     target: HTMLCanvasElement;
+    activeChannel?: 'rgb' | 'r' | 'g' | 'b';
+    skipTypeLayers?: boolean;
 }
 
 export interface DirtyRect {

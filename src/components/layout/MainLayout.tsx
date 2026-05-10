@@ -1,82 +1,94 @@
 import type { ReactNode } from 'react';
 
 interface MainLayoutProps {
-    toolbar: ReactNode;
-    propertiesPanel: ReactNode;
-    layersPanel: ReactNode;
-    canvas: ReactNode;
+  menuBar: ReactNode;
+  optionsBar: ReactNode;
+  toolbar: ReactNode;
+  canvas: ReactNode;
+  rightPanel: ReactNode;
+  statusBar: ReactNode;
 }
 
-export function MainLayout({ toolbar, propertiesPanel, layersPanel, canvas }: MainLayoutProps) {
-    return (
-        <div style={{
-            display: 'grid',
-            gridTemplateColumns: '50px 1fr 260px', /* Slimmer toolbar, slightly wider panel */
-            gridTemplateRows: '40px 1fr', /* Slimmer header */
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'hsl(var(--bg-dark))',
-            color: 'hsl(var(--text-main))',
-            fontFamily: 'var(--font-sans)'
-        }}>
-            {/* Top Header / Properties Panel */}
-            <div style={{
-                gridColumn: '1 / -1',
-                gridRow: '1',
-                backgroundColor: 'hsl(var(--bg-header))',
-                borderBottom: '1px solid hsl(var(--border-light))',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 12px',
-                zIndex: 20, /* Higher Z-index for menu/popups */
-                fontSize: '13px'
-            }}>
-                {propertiesPanel}
-            </div>
+export function MainLayout({ menuBar, optionsBar, toolbar, canvas, rightPanel, statusBar }: MainLayoutProps) {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '48px 1fr 260px',
+      gridTemplateRows: '24px 30px 1fr 22px',
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: 'hsl(var(--bg-dark))',
+      color: 'hsl(var(--text-main))',
+      fontFamily: 'var(--font-sans)',
+    }}>
+      {/* ── Row 1: Menu bar (full width) ── */}
+      <div style={{ gridColumn: '1 / -1', gridRow: 1, zIndex: 100 }}>
+        {menuBar}
+      </div>
 
-            {/* Left Toolbar */}
-            <div style={{
-                gridColumn: '1',
-                gridRow: '2',
-                backgroundColor: 'hsl(var(--bg-panel))',
-                borderRight: '1px solid hsl(var(--border-light))',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '8px 0',
-                gap: '8px',
-                zIndex: 10
-            }}>
-                {toolbar}
-            </div>
+      {/* ── Row 2: Options bar (full width) ── */}
+      <div style={{
+        gridColumn: '1 / -1',
+        gridRow: 2,
+        backgroundColor: 'hsl(var(--bg-header))',
+        borderBottom: '1px solid hsl(var(--border-light))',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 4px',
+        zIndex: 50,
+        overflow: 'hidden',
+      }}>
+        {optionsBar}
+      </div>
 
-            {/* Center Canvas Area */}
-            <div style={{
-                gridColumn: '2',
-                gridRow: '2',
-                position: 'relative',
-                overflow: 'hidden',
-                backgroundColor: '#121212', /* Almost black canvas bg */
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }}>
-                {/* Dot grid can be nice, but Photoshop is usually just flat dark gray. Keeping generic dark. */}
-                {canvas}
-            </div>
+      {/* ── Row 3: Left toolbar ── */}
+      <div style={{
+        gridColumn: 1,
+        gridRow: 3,
+        backgroundColor: 'hsl(var(--bg-panel))',
+        borderRight: '1px solid hsl(var(--border-light))',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '6px 0',
+        overflowY: 'auto',
+        zIndex: 10,
+      }}>
+        {toolbar}
+      </div>
 
-            {/* Right Layers/Properties Panel */}
-            <div style={{
-                gridColumn: '3',
-                gridRow: '2',
-                backgroundColor: 'hsl(var(--bg-panel))',
-                borderLeft: '1px solid hsl(var(--border-light))',
-                display: 'flex',
-                flexDirection: 'column',
-                zIndex: 10
-            }}>
-                {layersPanel}
-            </div>
-        </div>
-    );
+      {/* ── Row 3: Canvas area ── */}
+      <div style={{
+        gridColumn: 2,
+        gridRow: 3,
+        position: 'relative',
+        overflow: 'hidden',
+        backgroundColor: 'hsl(var(--bg-canvas))',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        {canvas}
+      </div>
+
+      {/* ── Row 3: Right panel ── */}
+      <div style={{
+        gridColumn: 3,
+        gridRow: 3,
+        backgroundColor: 'hsl(var(--bg-panel))',
+        borderLeft: '1px solid hsl(var(--border-light))',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        zIndex: 10,
+      }}>
+        {rightPanel}
+      </div>
+
+      {/* ── Row 4: Status bar (full width) ── */}
+      <div style={{ gridColumn: '1 / -1', gridRow: 4, zIndex: 20 }}>
+        {statusBar}
+      </div>
+    </div>
+  );
 }

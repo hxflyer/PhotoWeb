@@ -99,4 +99,35 @@ describe('tool overlays', () => {
         const px = pixelAt(canvas, 50, 50);
         expect(px.a).toBe(0);
     });
+
+    it('clone-stamp overlay: Alt/Option hover shows the sampling stamp marker', () => {
+        useEditorStore.setState(s => ({ ...s, brushSettings: { ...s.brushSettings, size: 20 } }));
+        const tool = getTool('clone-stamp')!;
+        tool.onPointerMove!(makeToolPointerEvent({ canvasX: 80, canvasY: 80, modifiers: { alt: true } }), ctxObj());
+
+        const { canvas, ctx } = makeOverlayCanvas(200, 200);
+        tool.renderOverlay!({ ctx, canvasWidth: 200, canvasHeight: 200, zoom: 1 }, ctxObj());
+
+        expect(pixelAt(canvas, 80, 80).a).toBeGreaterThan(0);
+        tool.onPointerUp?.(makeToolPointerEvent({ canvasX: 80, canvasY: 80 }), ctxObj());
+    });
+
+    it('clone-stamp overlay: active stroke shows the copied source circle', () => {
+        useEditorStore.setState(s => ({ ...s, brushSettings: { ...s.brushSettings, size: 20 } }));
+        const layer = useEditorStore.getState().layers[0];
+        layer.ctx.fillStyle = '#ff0000';
+        layer.ctx.fillRect(8, 8, 8, 8);
+        const tool = getTool('clone-stamp')!;
+
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 10, modifiers: { alt: true } }), ctxObj());
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 80, canvasY: 80 }), ctxObj());
+        tool.onPointerMove!(makeToolPointerEvent({ canvasX: 90, canvasY: 80 }), ctxObj());
+
+        const { canvas, ctx } = makeOverlayCanvas(200, 200);
+        tool.renderOverlay!({ ctx, canvasWidth: 200, canvasHeight: 200, zoom: 1 }, ctxObj());
+
+        // Destination moved +10px, so the visible source marker moves from x=10 to x=20.
+        expect(pixelAt(canvas, 20, 10).a).toBeGreaterThan(0);
+        tool.onPointerUp?.(makeToolPointerEvent({ canvasX: 90, canvasY: 80 }), ctxObj());
+    });
 });

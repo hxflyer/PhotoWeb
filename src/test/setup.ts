@@ -34,8 +34,12 @@ function patchCtx(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
     ctxPatched.add(ctx);
     const originalDrawImage = ctx.drawImage.bind(ctx);
     ctx.drawImage = function patchedDrawImage(this: CanvasRenderingContext2D, image: CanvasImageSource, ...rest: number[]) {
-        const wrapped = (image as AnyCanvas).__nodeCanvas ?? image;
-        // node-canvas's drawImage tolerates undefined for the unused trailing args.
+        const imageAsCanvas = image as AnyCanvas;
+        // If source is a jsdom canvas without a node-canvas backing, lazily create one.
+        if (!imageAsCanvas.__nodeCanvas && typeof imageAsCanvas.getContext === 'function') {
+            imageAsCanvas.getContext('2d'); // triggers ensureNodeCanvas via patchedGetContext
+        }
+        const wrapped = imageAsCanvas.__nodeCanvas ?? image;
         return (originalDrawImage as unknown as (img: CanvasImageSource, ...r: number[]) => void)(wrapped as CanvasImageSource, ...rest);
     } as typeof ctx.drawImage;
     return ctx;

@@ -1,5 +1,6 @@
 import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
+import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
 
 const free: { points: { x: number; y: number }[] | null } = { points: null };
 const poly: { points: { x: number; y: number }[]; live: { x: number; y: number } | null } = { points: [], live: null };
@@ -14,11 +15,10 @@ export const lassoTool: Tool = {
         if (e.button !== 0) return;
         free.points = [p(e)];
     },
-    onPointerMove: (e, ctx) => {
+    onPointerMove: (e) => {
         if (!free.points) return;
         free.points.push(p(e));
-        ctx.getStore().setSelectionMode('lasso');
-        ctx.getStore().setSelectionPath([...free.points]);
+        // Overlay RAF loop picks up free.points each frame — no store mutation needed during drag
     },
     onPointerUp: (e, ctx) => {
         if (!free.points || free.points.length < 3) {
@@ -27,10 +27,8 @@ export const lassoTool: Tool = {
         }
         const path = [...free.points];
         const store = ctx.getStore();
-        store.setSelectionMode('lasso');
-        const op = e.shift ? 'add' : e.alt ? 'sub' : 'add';
-        store.addSelectionOperation({ mode: op as 'add' | 'sub', path, type: 'lasso' });
-        store.setHasSelection(true);
+        const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+        commitSelectionOperation(store, { path, type: 'lasso' }, op);
         free.points = null;
     },
     renderOverlay: (overlay) => renderLassoFreeOverlay(overlay),
@@ -65,9 +63,8 @@ export const lassoPolyTool: Tool = {
             if (dist < 10) {
                 const path = [...poly.points];
                 const store = ctx.getStore();
-                store.setSelectionMode('lasso-poly');
-                store.addSelectionOperation({ mode: 'add', path, type: 'lasso-poly' });
-                store.setHasSelection(true);
+                const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+                commitSelectionOperation(store, { path, type: 'lasso-poly' }, op);
                 poly.points = [];
                 poly.live = null;
                 ctx.getStore().setPolyPoints([]);
@@ -84,9 +81,8 @@ export const lassoPolyTool: Tool = {
         if (e.key === 'Enter' && poly.points.length > 2) {
             const path = [...poly.points];
             const store = ctx.getStore();
-            store.setSelectionMode('lasso-poly');
-            store.addSelectionOperation({ mode: 'add', path, type: 'lasso-poly' });
-            store.setHasSelection(true);
+            const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+            commitSelectionOperation(store, { path, type: 'lasso-poly' }, op);
             poly.points = [];
             poly.live = null;
             ctx.getStore().setPolyPoints([]);

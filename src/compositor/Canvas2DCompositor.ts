@@ -6,22 +6,30 @@ interface LayerWithAdjustment {
 }
 
 export class Canvas2DCompositor implements Compositor {
+    private maskCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+    private frameCanvas: HTMLCanvasElement | null = null;
+
     beginFrame(target: HTMLCanvasElement): void {
         const ctx = target.getContext('2d');
         if (!ctx) return;
         ctx.clearRect(0, 0, target.width, target.height);
-        this.drawCheckerboard(ctx, target.width, target.height);
+        const frame = this.ensureFrameCanvas(target.width, target.height);
+        const frameCtx = frame.getContext('2d');
+        frameCtx?.clearRect(0, 0, frame.width, frame.height);
     }
 
     render(req: CompositeRequest): void {
-        const ctx = req.target.getContext('2d');
-        if (!ctx) return;
+        const frame = this.ensureFrameCanvas(req.target.width, req.target.height);
+        const ctx = frame.getContext('2d');
+        const targetCtx = req.target.getContext('2d');
+        if (!ctx || !targetCtx) return;
 
         req.layers.forEach(layer => {
             if (!layer.visible || !layer.canvas) return;
+            if (req.skipTypeLayers && layer.kind === 'type') return;
             const meta = layer as unknown as LayerWithAdjustment;
             if (layer.kind === 'adjustment' && meta.adjustment) {
-                this.applyAdjustmentToTarget(req.target, meta.adjustment, layer.opacity);
+                this.applyAdjustmentToTarget(frame, meta.adjustment, layer.opacity);
                 return;
             }
             const sourceCanvas = layer.mask && layer.mask.enabled
@@ -33,6 +41,31 @@ export class Canvas2DCompositor implements Compositor {
         });
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
+
+        // Channel isolation — when a single channel is active, replace each pixel's
+        // RGB with the selected channel's value (greyscale view of that channel).
+        if (req.activeChannel && req.activeChannel !== 'rgb') {
+            this.applyChannelFilter(frame, req.activeChannel);
+        }
+
+        targetCtx.clearRect(0, 0, req.target.width, req.target.height);
+        this.drawCheckerboard(targetCtx, req.target.width, req.target.height);
+        targetCtx.drawImage(frame, 0, 0);
+    }
+
+    private applyChannelFilter(frame: HTMLCanvasElement, channel: 'r' | 'g' | 'b'): void {
+        const ctx = frame.getContext('2d');
+        if (!ctx) return;
+        const img = ctx.getImageData(0, 0, frame.width, frame.height);
+        const d = img.data;
+        const offset = channel === 'r' ? 0 : channel === 'g' ? 1 : 2;
+        for (let i = 0; i < d.length; i += 4) {
+            const v = d[i + offset];
+            d[i] = v;
+            d[i + 1] = v;
+            d[i + 2] = v;
+        }
+        ctx.putImageData(img, 0, 0);
     }
 
     private applyAdjustmentToTarget(
@@ -59,14 +92,21 @@ export class Canvas2DCompositor implements Compositor {
     }
 
     private applyMask(source: HTMLCanvasElement, mask: HTMLCanvasElement): HTMLCanvasElement {
-        const merged = document.createElement('canvas');
-        merged.width = source.width;
-        merged.height = source.height;
+        let merged = this.maskCache.get(source);
+        if (!merged || merged.width !== source.width || merged.height !== source.height) {
+            merged = document.createElement('canvas');
+            merged.width = source.width;
+            merged.height = source.height;
+            this.maskCache.set(source, merged);
+        }
         const ctx = merged.getContext('2d');
         if (!ctx) return source;
+        ctx.clearRect(0, 0, merged.width, merged.height);
+        ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(source, 0, 0);
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(mask, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
         return merged;
     }
 
@@ -79,12 +119,25 @@ export class Canvas2DCompositor implements Compositor {
         // Canvas2D paints synchronously; nothing to flush.
     }
 
+    private ensureFrameCanvas(width: number, height: number): HTMLCanvasElement {
+        if (!this.frameCanvas) {
+            this.frameCanvas = document.createElement('canvas');
+        }
+        if (this.frameCanvas.width !== width || this.frameCanvas.height !== height) {
+            this.frameCanvas.width = width;
+            this.frameCanvas.height = height;
+        }
+        return this.frameCanvas;
+    }
+
     private drawCheckerboard(ctx: CanvasRenderingContext2D, w: number, h: number): void {
         const gridSize = 10;
         const cols = Math.ceil(w / gridSize);
         const rows = Math.ceil(h / gridSize);
         ctx.save();
-        ctx.fillStyle = '#CCCCCC';
+        ctx.fillStyle = '#f2f2f2';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#d0d0d0';
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 if ((x + y) % 2 === 1) {

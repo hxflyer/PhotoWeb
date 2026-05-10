@@ -1,24 +1,24 @@
 import type { Adjustment } from './Adjustment';
 import { registerAdjustment } from './registry';
-
-const clamp = (v: number) => Math.max(0, Math.min(255, v));
+import { booleanParam, clampByte, mergeDefaults, numberParam, parseHexColor, stringParam } from './utils';
 
 export interface PhotoFilterParams extends Record<string, unknown> {
     color: string;
     density: number;
     preserveLuminosity: boolean;
 }
+const photoFilterDefaults: PhotoFilterParams = { color: '#ec8b5e', density: 25, preserveLuminosity: true };
 
 export const photoFilter: Adjustment<PhotoFilterParams> = {
     id: 'photo-filter',
     label: 'Photo Filter',
-    defaultParams: { color: '#ec8b5e', density: 25, preserveLuminosity: true },
+    defaultParams: photoFilterDefaults,
     apply: (p, { image }) => {
+        const params = mergeDefaults(photoFilterDefaults, p);
         const out = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
-        const r = parseInt(p.color.slice(1, 3), 16);
-        const g = parseInt(p.color.slice(3, 5), 16);
-        const b = parseInt(p.color.slice(5, 7), 16);
-        const k = p.density / 100;
+        const [r, g, b] = parseHexColor(params.color, parseHexColor(photoFilterDefaults.color, [236, 139, 94]));
+        const k = numberParam(params, 'density', photoFilterDefaults.density, 0, 100) / 100;
+        const preserveLuminosity = booleanParam(params, 'preserveLuminosity', photoFilterDefaults.preserveLuminosity);
         for (let i = 0; i < out.data.length; i += 4) {
             const oR = image.data[i];
             const oG = image.data[i + 1];
@@ -26,15 +26,15 @@ export const photoFilter: Adjustment<PhotoFilterParams> = {
             let nR = oR * (1 - k) + r * k;
             let nG = oG * (1 - k) + g * k;
             let nB = oB * (1 - k) + b * k;
-            if (p.preserveLuminosity) {
+            if (preserveLuminosity) {
                 const oL = 0.299 * oR + 0.587 * oG + 0.114 * oB;
                 const nL = 0.299 * nR + 0.587 * nG + 0.114 * nB;
                 const corr = oL - nL;
                 nR += corr; nG += corr; nB += corr;
             }
-            out.data[i] = clamp(nR);
-            out.data[i + 1] = clamp(nG);
-            out.data[i + 2] = clamp(nB);
+            out.data[i] = clampByte(nR);
+            out.data[i + 1] = clampByte(nG);
+            out.data[i + 2] = clampByte(nB);
         }
         return out;
     },
@@ -44,23 +44,39 @@ export interface ChannelMixerParams extends Record<string, unknown> {
     output: 'red' | 'green' | 'blue';
     red: number; green: number; blue: number; constant: number; monochrome: boolean;
 }
+const channelMixerDefaults: ChannelMixerParams = {
+    output: 'red',
+    red: 100,
+    green: 0,
+    blue: 0,
+    constant: 0,
+    monochrome: false,
+};
 
 export const channelMixer: Adjustment<ChannelMixerParams> = {
     id: 'channel-mixer',
     label: 'Channel Mixer',
-    defaultParams: { output: 'red', red: 100, green: 0, blue: 0, constant: 0, monochrome: false },
+    defaultParams: channelMixerDefaults,
     apply: (p, { image }) => {
+        const params = mergeDefaults(channelMixerDefaults, p);
+        const outputValue = stringParam(params, 'output', channelMixerDefaults.output);
+        const output = outputValue === 'green' || outputValue === 'blue' ? outputValue : 'red';
+        const red = numberParam(params, 'red', channelMixerDefaults.red, -200, 200);
+        const green = numberParam(params, 'green', channelMixerDefaults.green, -200, 200);
+        const blue = numberParam(params, 'blue', channelMixerDefaults.blue, -200, 200);
+        const constant = numberParam(params, 'constant', channelMixerDefaults.constant, -255, 255);
+        const monochrome = booleanParam(params, 'monochrome', channelMixerDefaults.monochrome);
         const out = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
         for (let i = 0; i < out.data.length; i += 4) {
             const r = image.data[i];
             const g = image.data[i + 1];
             const b = image.data[i + 2];
-            const v = clamp((r * p.red + g * p.green + b * p.blue) / 100 + p.constant);
-            if (p.monochrome) {
+            const v = clampByte((r * red + g * green + b * blue) / 100 + constant);
+            if (monochrome) {
                 out.data[i] = out.data[i + 1] = out.data[i + 2] = v;
             } else {
-                if (p.output === 'red') out.data[i] = v;
-                else if (p.output === 'green') out.data[i + 1] = v;
+                if (output === 'red') out.data[i] = v;
+                else if (output === 'green') out.data[i + 1] = v;
                 else out.data[i + 2] = v;
             }
         }
@@ -84,18 +100,20 @@ export const invert: Adjustment<Record<string, unknown>> = {
 };
 
 export interface PosterizeParams extends Record<string, unknown> { levels: number }
+const posterizeDefaults: PosterizeParams = { levels: 4 };
 
 export const posterize: Adjustment<PosterizeParams> = {
     id: 'posterize',
     label: 'Posterize',
-    defaultParams: { levels: 4 },
+    defaultParams: posterizeDefaults,
     apply: (p, { image }) => {
+        const params = mergeDefaults(posterizeDefaults, p);
         const out = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
-        const lvl = Math.max(2, Math.floor(p.levels));
+        const lvl = Math.floor(numberParam(params, 'levels', posterizeDefaults.levels, 2, 256));
         const step = 255 / (lvl - 1);
         for (let i = 0; i < out.data.length; i += 4) {
             for (let c = 0; c < 3; c++) {
-                out.data[i + c] = Math.round(image.data[i + c] / step) * step;
+                out.data[i + c] = clampByte(Math.round(image.data[i + c] / step) * step);
             }
         }
         return out;
@@ -103,16 +121,19 @@ export const posterize: Adjustment<PosterizeParams> = {
 };
 
 export interface ThresholdParams extends Record<string, unknown> { level: number }
+const thresholdDefaults: ThresholdParams = { level: 128 };
 
 export const threshold: Adjustment<ThresholdParams> = {
     id: 'threshold',
     label: 'Threshold',
-    defaultParams: { level: 128 },
+    defaultParams: thresholdDefaults,
     apply: (p, { image }) => {
+        const params = mergeDefaults(thresholdDefaults, p);
+        const level = numberParam(params, 'level', thresholdDefaults.level, 0, 255);
         const out = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
         for (let i = 0; i < out.data.length; i += 4) {
             const luma = 0.299 * image.data[i] + 0.587 * image.data[i + 1] + 0.114 * image.data[i + 2];
-            const v = luma >= p.level ? 255 : 0;
+            const v = luma >= level ? 255 : 0;
             out.data[i] = out.data[i + 1] = out.data[i + 2] = v;
         }
         return out;
@@ -122,25 +143,29 @@ export const threshold: Adjustment<ThresholdParams> = {
 export interface GradientMapParams extends Record<string, unknown> {
     stops: { position: number; color: string }[];
 }
-
-function parseHex(c: string): [number, number, number] {
-    return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
-}
+const gradientMapDefaults: GradientMapParams = {
+    stops: [
+        { position: 0, color: '#000000' },
+        { position: 1, color: '#ffffff' },
+    ],
+};
 
 export const gradientMap: Adjustment<GradientMapParams> = {
     id: 'gradient-map',
     label: 'Gradient Map',
-    defaultParams: {
-        stops: [
-            { position: 0, color: '#000000' },
-            { position: 1, color: '#ffffff' },
-        ],
-    },
+    defaultParams: gradientMapDefaults,
     apply: (p, { image }) => {
+        const params = mergeDefaults(gradientMapDefaults, p);
         const lutR = new Uint8ClampedArray(256);
         const lutG = new Uint8ClampedArray(256);
         const lutB = new Uint8ClampedArray(256);
-        const stops = [...p.stops].sort((a, b) => a.position - b.position);
+        const rawStops = Array.isArray(params.stops) && params.stops.length > 0 ? params.stops : gradientMapDefaults.stops;
+        const stops = rawStops
+            .map(stop => ({
+                position: numberParam(stop as unknown as Record<string, unknown>, 'position', 0, 0, 1),
+                color: parseHexColor(stop.color, [0, 0, 0]),
+            }))
+            .sort((a, b) => a.position - b.position);
         for (let i = 0; i < 256; i++) {
             const t = i / 255;
             let stopA = stops[0]; let stopB = stops[stops.length - 1];
@@ -150,12 +175,12 @@ export const gradientMap: Adjustment<GradientMapParams> = {
                 }
             }
             const span = Math.max(0.0001, stopB.position - stopA.position);
-            const local = (t - stopA.position) / span;
-            const [r1, g1, b1] = parseHex(stopA.color);
-            const [r2, g2, b2] = parseHex(stopB.color);
-            lutR[i] = Math.round(r1 + (r2 - r1) * local);
-            lutG[i] = Math.round(g1 + (g2 - g1) * local);
-            lutB[i] = Math.round(b1 + (b2 - b1) * local);
+            const local = Math.max(0, Math.min(1, (t - stopA.position) / span));
+            const [r1, g1, b1] = stopA.color;
+            const [r2, g2, b2] = stopB.color;
+            lutR[i] = clampByte(r1 + (r2 - r1) * local);
+            lutG[i] = clampByte(g1 + (g2 - g1) * local);
+            lutB[i] = clampByte(b1 + (b2 - b1) * local);
         }
         const out = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
         for (let i = 0; i < out.data.length; i += 4) {

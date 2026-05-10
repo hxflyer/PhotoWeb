@@ -16,7 +16,7 @@ export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, in
     const [value, setValue] = useState(initialValue);
 
     useEffect(() => {
-        if (isOpen) setValue(initialValue);
+        if (isOpen) setValue(initialValue); // eslint-disable-line react-hooks/set-state-in-effect
     }, [isOpen, initialValue]);
 
     if (!isOpen) return null;

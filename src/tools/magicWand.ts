@@ -1,5 +1,6 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
+import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
 
 export interface MagicWandOptions {
     tolerance: number;
@@ -25,7 +26,7 @@ export function getMagicWandOptions(): MagicWandOptions {
     return { ...options };
 }
 
-function sampleSourceImageData(
+export function sampleSourceImageData(
     layers: { visible: boolean; canvas: HTMLCanvasElement }[],
     width: number,
     height: number,
@@ -48,6 +49,23 @@ function sampleSourceImageData(
     return ctx.getImageData(0, 0, width, height);
 }
 
+function applyAntiAlias(mask: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
+    const next = new Uint8ClampedArray(mask);
+    const isSelected = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && mask[y * width + x] === 255;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            if (mask[idx]) continue;
+            if (isSelected(x - 1, y) || isSelected(x + 1, y) || isSelected(x, y - 1) || isSelected(x, y + 1)) {
+                next[idx] = 96;
+            }
+        }
+    }
+
+    return next;
+}
+
 function colorMatch(a: Uint8ClampedArray, ai: number, b: Uint8ClampedArray, bi: number, tolerance: number): boolean {
     return (
         Math.abs(a[ai] - b[bi]) <= tolerance &&
@@ -65,6 +83,7 @@ export function buildMagicWandMask(
 ): Uint8ClampedArray {
     const { width, height, data } = image;
     const mask = new Uint8ClampedArray(width * height);
+    if (seedX < 0 || seedX >= width || seedY < 0 || seedY >= height) return mask;
     const seed = (seedY * width + seedX) * 4;
     if (opt.contiguous) {
         const stack: number[] = [seedX, seedY];
@@ -92,7 +111,7 @@ export function buildMagicWandMask(
             }
         }
     }
-    return mask;
+    return opt.antiAlias ? applyAntiAlias(mask, width, height) : mask;
 }
 
 function p(e: ToolPointerEvent) { return { x: Math.floor(e.canvasX), y: Math.floor(e.canvasY) }; }
@@ -111,19 +130,14 @@ export const magicWandTool: Tool = {
         if (!image) return;
         const seed = p(e);
         const mask = buildMagicWandMask(image, seed.x, seed.y, options);
+        if (!mask.some(Boolean)) return;
 
-        const path: { x: number; y: number }[] = [];
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                if (mask[y * width + x]) {
-                    path.push({ x, y });
-                }
-            }
-        }
-        if (path.length === 0) return;
-        const op = e.shift ? 'add' : e.alt ? 'sub' : 'add';
-        store.addSelectionOperation({ mode: op as 'add' | 'sub', path, type: 'lasso' });
-        store.setHasSelection(true);
+        const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+        commitSelectionOperation(store, {
+            path: [],
+            type: 'lasso',
+            mask: { data: mask, width, height },
+        }, op);
     },
 };
 

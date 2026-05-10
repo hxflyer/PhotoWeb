@@ -87,6 +87,10 @@ export class Layer {
     locks: LayerLocks = noLocks();
     colorTag: LayerColorTag = 'none';
     dirtyRect: DirtyRect | null = null;
+    // Type-layer source-of-truth — present when kind === 'type'. Lets us re-edit
+    // the layer's text + style without losing data after rasterization.
+    // Stored as `unknown` here to avoid a circular type import; the type tool casts.
+    typeData: unknown = null;
 
     constructor(width: number, height: number, name: string = 'New Layer', kind: LayerKind = 'raster') {
         this.id = crypto.randomUUID();

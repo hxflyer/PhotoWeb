@@ -1,3 +1,5 @@
+import type { EditorStore, SelectionOperation } from '../store/types';
+
 // Universal selection modifier semantics — Phase 1.5.
 // Every selection tool (marquee, lasso, lasso-poly, magic wand, quick selection)
 // MUST resolve modifiers through this helper so the behavior is uniform.
@@ -9,6 +11,52 @@ export function resolveSelectionOp(shift: boolean, alt: boolean): SelectionOp {
     if (shift) return 'add';
     if (alt) return 'sub';
     return 'new';
+}
+
+type SelectionStore = Pick<
+    EditorStore,
+    'selection' | 'setSelectionMode' | 'setSelectionOperations' | 'addSelectionOperation' | 'setHasSelection'
+>;
+
+export function commitSelectionOperation(
+    store: SelectionStore,
+    incoming: Omit<SelectionOperation, 'mode'>,
+    op: SelectionOp,
+): void {
+    if (incoming.path.length === 0 && !incoming.mask) return;
+    store.setSelectionMode(incoming.type);
+
+    if (op === 'intersect') {
+        const nextOps = intersectionOpsFromOperation(store.selection.operations, incoming);
+        store.setSelectionOperations(nextOps);
+        store.setHasSelection(nextOps.length > 0);
+        return;
+    }
+
+    if (op === 'new') {
+        store.setSelectionOperations([{ mode: 'add', ...incoming }]);
+        store.setHasSelection(true);
+        return;
+    }
+
+    if (op === 'sub') {
+        if (!store.selection.hasSelection || store.selection.operations.length === 0) {
+            store.setSelectionOperations([]);
+            store.setHasSelection(false);
+            return;
+        }
+
+        store.addSelectionOperation({ mode: 'sub', ...incoming });
+        store.setHasSelection(true);
+        return;
+    }
+
+    if (!store.selection.hasSelection || store.selection.operations.length === 0) {
+        store.setSelectionOperations([{ mode: 'add', ...incoming }]);
+    } else {
+        store.addSelectionOperation({ mode: 'add', ...incoming });
+    }
+    store.setHasSelection(true);
 }
 
 // Convert resolved op into a {mode} suitable for selection.operations slice.

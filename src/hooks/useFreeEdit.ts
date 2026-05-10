@@ -167,7 +167,7 @@ export const useFreeEdit = (
         setUnifiedPathVersion(v => v + 1);
     }, [activeLayerId, layers, setFreeEditMode, setUnifiedPathVersion]);
 
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const handleMouseDown = useCallback((e: React.MouseEvent) => { // eslint-disable-line react-hooks/preserve-manual-memoization
         if (!selection.isFreeEditMode) return false;
 
         ensureFloatingPixels(); // Ensure pixels called on click if somehow missed (e.g. init race)
@@ -262,7 +262,7 @@ export const useFreeEdit = (
     }, [selection.isFreeEditMode, selection.path, selection.operations, selection.hasSelection, width, height, zoom, ensureFloatingPixels]);
 
 
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const handleMouseMove = useCallback((e: React.MouseEvent) => { // eslint-disable-line react-hooks/preserve-manual-memoization
         const coords = getCanvasCoords(e);
 
         // --- DRAG ---
@@ -387,9 +387,9 @@ export const useFreeEdit = (
                 }
             }
         }
-    }, [activeTransformRef.current, floatingPixelsRef.current, zoom, pan, selection.isFreeEditMode, width, height, freeEditCursor]);
+    }, [zoom, pan, selection.isFreeEditMode, width, height, freeEditCursor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const handleMouseUp = useCallback(() => {
+    const handleMouseUp = useCallback(() => { // eslint-disable-line react-hooks/preserve-manual-memoization
         if (activeTransformRef.current) {
             activeTransformRef.current = null;
             setUnifiedPathVersion(v => v + 1);

@@ -1,59 +1,502 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { MainLayout } from './components/layout/MainLayout';
+import { MenuBar } from './components/layout/MenuBar';
+import { StatusBar } from './components/layout/StatusBar';
+import { ToastContainer } from './components/layout/ToastContainer';
 import { Toolbar } from './components/Panels/Toolbar';
-import { LayersPanel } from './components/Panels/LayersPanel';
-import { PropertiesPanel } from './components/Panels/PropertiesPanel';
+import { OptionsBar } from './components/Panels/OptionsBar';
+import { RightPanelDock } from './components/Panels/RightPanelDock';
 import { Viewport } from './components/Canvas/Viewport';
-import { TypeOverlayMount } from './components/Canvas/TypeOverlayMount';
+import { FreeTransformOverlay, type FreeTransformState } from './components/Canvas/FreeTransformOverlay';
+import { WarpOverlay } from './components/Canvas/WarpOverlay';
 import { useEditorStore } from './store/editorStore';
 import { InputNumberDialog } from './components/Dialogs/InputNumberDialog';
-import './App.css'; // Ensure we have the global styles resetting body if not in index.css (done in index.css)
+import { FilterDialog } from './components/Dialogs/FilterDialog';
+import { AdjustmentDialog } from './components/Dialogs/AdjustmentDialog';
+import { ImageSizeDialog } from './components/Dialogs/ImageSizeDialog';
+import { CanvasSizeDialog } from './components/Dialogs/CanvasSizeDialog';
+import { TrimDialog } from './components/Dialogs/TrimDialog';
+import { ColorPickerDialog } from './components/Dialogs/ColorPickerDialog';
+import { ExportDialog } from './components/Dialogs/ExportDialog';
+import { NewDocumentDialog } from './components/Dialogs/NewDocumentDialog';
+import { RefineEdgeDialog } from './components/Dialogs/RefineEdgeDialog';
+import { getLastFilter, getFilter, applyFilterToLayer, setLastFilter } from './filters/index';
+import { applyAdjustmentToLayer } from './adjustments';
+import { initAutoSaveCheck } from './core/autoSave';
+import { bindTypePanelStore, getEditingStyle, updateEditingStyle, type TypeLayerData } from './tools/type';
+import { loadImage } from './utils/imageLoader';
+import { requestViewportFit } from './utils/viewportFit';
+import { getLayerContentBounds } from './utils/canvasUtils';
+import './App.css';
+
+const START_FREE_TRANSFORM_EVENT = 'photoweb:start-free-transform';
 
 function App() {
-  const { layers, addLayer, dialogs, setFeatherDialogOpen, setSelectionFeather, selection } = useEditorStore();
+  // Narrow subscription: only fields that affect App's JSX (not color, brushSettings, etc.)
+  const { dialogs, hasAutosave, selection, zoom, pan } = useEditorStore(
+    useShallow(s => ({
+      dialogs: s.dialogs,
+      hasAutosave: s.hasAutosave,
+      selection: s.selection,
+      zoom: s.zoom,
+      pan: s.pan,
+    }))
+  );
+  // Shorthand for imperative reads — actions are stable Zustand references
+  const gs = useEditorStore.getState;
+
+  const [freeTransform, setFreeTransform] = useState<FreeTransformState | null>(null);
+  const [warpState, setWarpState] = useState<{ layerId: string; snapshot: ImageData } | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveDialogName, setSaveDialogName] = useState('Untitled');
+  const [adjustmentPreview, setAdjustmentPreview] = useState<{ image: ImageData; scale: number } | null>(null);
+  const autoSaveStarted = useRef(false);
+  const openFileRef = useRef<HTMLInputElement>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Initialize with a default layer if empty
-    if (layers.length === 0) {
-      addLayer();
-    }
-  }, []); // Run once on mount
+    if (gs().layers.length === 0) gs().addLayer();
+    bindTypePanelStore(() => {
+      const s = gs();
+      return {
+        layers: s.layers,
+        activeLayerId: s.activeLayerId,
+        // Bumps the layers array reference so Viewport's compositor re-runs.
+        forceRender: () => useEditorStore.setState(state => ({ layers: [...state.layers] })),
+      };
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!autoSaveStarted.current) {
+      autoSaveStarted.current = true;
+      initAutoSaveCheck(() => useEditorStore.getState()).catch(() => {});
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function doQuickExportPng() {
+    const s = gs();
+    const c = document.createElement('canvas'); c.width = s.width; c.height = s.height;
+    const ctx = c.getContext('2d')!;
+    s.layers.forEach(l => { if (l.visible) { ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blendMode; ctx.drawImage(l.canvas, 0, 0); } });
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    c.toBlob(b => { if (!b) return; const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'export.png'; a.click(); URL.revokeObjectURL(u); }, 'image/png');
+    s.addToast('PNG exported', 'success');
+  }
+
+  // Global keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // While the user is typing in a text input / contenteditable, don't hijack
+      // alphabetic keys for tool shortcuts. Otherwise typing 'b' in the type
+      // overlay would switch to the brush tool.
+      const target = e.target as HTMLElement | null;
+        if (target && (target.isContentEditable
+          || target.tagName === 'INPUT'
+          || target.tagName === 'TEXTAREA'
+          || target.tagName === 'SELECT')) {
+        return;
+      }
+
+      if (freeTransform) return;
+
       const meta = e.metaKey || e.ctrlKey;
-      if (!meta) return;
       const key = e.key.toLowerCase();
-      if (key === 'z' && !e.shiftKey && !e.altKey) {
+
+      if (meta && key === 'z' && !e.shiftKey && !e.altKey) { e.preventDefault(); useEditorStore.getState().undo(); return; }
+      if (meta && ((key === 'z' && (e.shiftKey || e.altKey)) || key === 'y')) { e.preventDefault(); useEditorStore.getState().redo(); return; }
+
+      if (meta && key === 'f' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
-        useEditorStore.getState().undo();
-      } else if ((key === 'z' && (e.shiftKey || e.altKey)) || (key === 'y')) {
+        const last = getLastFilter(); if (!last) return;
+        const s = useEditorStore.getState();
+        const layer = s.layers.find(l => l.id === s.activeLayerId);
+        if (layer) applyFilterToLayer(layer, last.id, last.params, s.selection);
+        return;
+      }
+      if (meta && key === 'f' && e.altKey) {
         e.preventDefault();
-        useEditorStore.getState().redo();
+        const last = getLastFilter(); if (last) gs().openFilterDialog(last.id, last.params);
+        return;
+      }
+
+      if (meta && key === 't' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        const s = useEditorStore.getState();
+        const layer = s.layers.find(l => l.id === s.activeLayerId);
+        if (!layer) return;
+        const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+        setFreeTransform({ layerId: layer.id, snapshot, x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height, rotation: 0, skewX: 0, skewY: 0 });
+        return;
+      }
+      if (meta && key === 't' && e.shiftKey) {
+        e.preventDefault();
+        const s = useEditorStore.getState();
+        const layer = s.layers.find(l => l.id === s.activeLayerId);
+        if (!layer) return;
+        const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+        setWarpState({ layerId: layer.id, snapshot });
+        return;
+      }
+
+      if (meta && key === 'n' && !e.shiftKey) { e.preventDefault(); gs().openNewDocumentDialog(); return; }
+      if (meta && key === 'o') { e.preventDefault(); openFileRef.current?.click(); return; }
+      if (meta && key === 's' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        const name = gs().documentName;
+        gs().saveFile(name).then(() => gs().addToast(`Saved "${name}"`, 'success')).catch(() => gs().addToast('Save failed', 'error'));
+        return;
+      }
+      if (meta && key === 's' && e.shiftKey && !e.altKey) { e.preventDefault(); setSaveDialogName(gs().documentName); setSaveDialogOpen(true); return; }
+      if (meta && key === 's' && e.shiftKey && e.altKey) { e.preventDefault(); doQuickExportPng(); return; }
+      if (meta && key === 'e' && e.shiftKey && e.altKey) { e.preventDefault(); gs().openExportDialog(); return; }
+
+      if (meta && key === 'r') { e.preventDefault(); const s = gs(); s.setShowRulers(!s.showRulers); return; }
+      if (meta && (key === "'" || key === '"')) { e.preventDefault(); const s = gs(); s.setShowGrid(!s.showGrid); return; }
+      if (meta && e.shiftKey && key === ';') { e.preventDefault(); const s = gs(); s.setSnapEnabled(!s.snapEnabled); return; }
+
+      if (!meta && !e.shiftKey && !e.altKey && key === 'q') { e.preventDefault(); const s = gs(); s.setQuickMaskMode(!s.quickMaskMode); return; }
+
+      if (meta && key === 'd') { e.preventDefault(); gs().clearSelection(); return; }
+      if (meta && key === 'a') {
+        e.preventDefault();
+        const s = gs();
+        s.setHasSelection(true);
+        s.setSelectionOperations([{ mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: s.width, y: s.height }] }]);
+        return;
+      }
+      if (meta && key === 'i' && !e.shiftKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
+
+      if (meta && (key === '=' || key === '+')) { e.preventDefault(); gs().setZoom(Math.min(gs().zoom * 1.25, 32)); return; }
+      if (meta && key === '-') { e.preventDefault(); gs().setZoom(Math.max(gs().zoom / 1.25, 0.02)); return; }
+      if (meta && key === '0') { e.preventDefault(); requestViewportFit(); return; }
+
+      if (!meta && !e.shiftKey && !e.altKey && key === 'x') { e.preventDefault(); gs().swapColors(); return; }
+      if (!meta && !e.shiftKey && !e.altKey && key === 'd') { e.preventDefault(); gs().resetColors(); return; }
+
+      if (!meta && !e.shiftKey && !e.altKey) {
+        const toolMap: Record<string, string> = {
+          v: 'move', b: 'brush', e: 'eraser',
+          g: 'fill', i: 'eyedropper',
+          m: 'marquee-rect', l: 'lasso', w: 'quick-selection',
+          c: 'crop', t: 'type-horizontal', p: 'pen',
+          a: 'direct-selection', u: 'shape-rectangle',
+          h: 'hand', z: 'zoom', s: 'clone-stamp',
+          o: 'dodge', j: 'brush',
+        };
+        if (toolMap[key]) { e.preventDefault(); gs().setTool(toolMap[key] as import('./store/types').ToolId); return; }
+      }
+
+      if (!meta && !e.altKey && key === '[') {
+        e.preventDefault();
+        const { brushSettings: bs } = gs();
+        if (e.shiftKey) gs().setBrushHardness(Math.max(0, bs.hardness - 0.1));
+        else gs().setBrushSize(Math.max(1, bs.size - 5));
+        return;
+      }
+      if (!meta && !e.altKey && key === ']') {
+        e.preventDefault();
+        const { brushSettings: bs } = gs();
+        if (e.shiftKey) gs().setBrushHardness(Math.min(1, bs.hardness + 0.1));
+        else gs().setBrushSize(Math.min(2000, bs.size + 5));
+        return;
+      }
+
+      if (meta && e.shiftKey && key === 'n') { e.preventDefault(); gs().addLayer(); return; }
+      if ((meta && key === 'delete') || (meta && key === 'backspace')) {
+        e.preventDefault();
+        const s = gs();
+        if (s.activeLayerId) s.removeLayer(s.activeLayerId);
+        return;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, [freeTransform]); // stable: store values read via gs(); transform mode blocks tool shortcuts
+
+  function startFreeTransform(layerId?: string) {
+    const s = useEditorStore.getState();
+    const layer = s.layers.find(l => l.id === (layerId ?? s.activeLayerId));
+    if (!layer) return;
+    const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+    const typeData = layer.kind === 'type' ? layer.typeData as TypeLayerData | null : null;
+    const bounds = typeData?.bounds
+      ? { x: typeData.bounds.x, y: typeData.bounds.y, w: typeData.bounds.w, h: typeData.bounds.h }
+      : typeData
+        ? {
+          x: typeData.transform.x,
+          y: typeData.transform.y,
+          w: Math.max(1, typeData.transform.width || typeData.style.fontSize * Math.max(1, typeData.text.length || 1) * 0.6),
+          h: Math.max(1, typeData.transform.height || typeData.style.fontSize * 1.2),
+        }
+      : getLayerContentBounds(layer.canvas);
+    if (!bounds) return;
+    const source = layer.ctx.getImageData(bounds.x, bounds.y, bounds.w, bounds.h);
+    setFreeTransform({
+      layerId: layer.id,
+      snapshot,
+      source,
+      sourceX: bounds.x,
+      sourceY: bounds.y,
+      typeDataSnapshot: typeData ? structuredClone(typeData) : undefined,
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.w,
+      height: bounds.h,
+      rotation: 0,
+      skewX: 0,
+      skewY: 0,
+    });
+  }
+
+  useEffect(() => {
+    const onStart = (event: Event) => {
+      const layerId = (event as CustomEvent<{ layerId?: string }>).detail?.layerId;
+      startFreeTransform(layerId);
+    };
+    window.addEventListener(START_FREE_TRANSFORM_EVENT, onStart);
+    return () => window.removeEventListener(START_FREE_TRANSFORM_EVENT, onStart);
   }, []);
+
+  function startWarp() {
+    const s = useEditorStore.getState();
+    const layer = s.layers.find(l => l.id === s.activeLayerId);
+    if (!layer) return;
+    const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+    setWarpState({ layerId: layer.id, snapshot });
+  }
+
+  async function handleOpenFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const img = await loadImage(file);
+        gs().openImageAsDocument(img, file.name);
+        requestViewportFit();
+      }
+      catch { gs().addToast('Failed to open file', 'error'); }
+    }
+    if (openFileRef.current) openFileRef.current.value = '';
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const img = await loadImage(file);
+        gs().addLayerFromImage(img, file.name);
+      }
+      catch { gs().addToast('Failed to import image', 'error'); }
+    }
+    if (importFileRef.current) importFileRef.current.value = '';
+  }
+
+  const filterDlg = dialogs.filterDialog;
+  const adjustmentDlg = dialogs.adjustmentDialog;
+  useEffect(() => {
+    if (!adjustmentDlg.isOpen) {
+      setAdjustmentPreview(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        const s = gs();
+        const layer = s.layers.find(l => l.id === s.activeLayerId);
+        if (!layer) {
+          setAdjustmentPreview(null);
+          return;
+        }
+        const maxSide = 560;
+        const scale = Math.min(1, maxSide / Math.max(layer.canvas.width, layer.canvas.height));
+        const previewCanvas = document.createElement('canvas');
+        previewCanvas.width = Math.max(1, Math.round(layer.canvas.width * scale));
+        previewCanvas.height = Math.max(1, Math.round(layer.canvas.height * scale));
+        const ctx = previewCanvas.getContext('2d');
+        if (!ctx) {
+          setAdjustmentPreview(null);
+          return;
+        }
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(layer.canvas, 0, 0, previewCanvas.width, previewCanvas.height);
+        try {
+          setAdjustmentPreview({ image: ctx.getImageData(0, 0, previewCanvas.width, previewCanvas.height), scale });
+        } catch {
+          setAdjustmentPreview(null);
+        }
+      });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [adjustmentDlg.isOpen, adjustmentDlg.adjustmentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only read full pixels synchronously for the legacy filter dialog.
+  // getImageData is a GPU readback — calling it on every render (e.g. during color
+  // slider drag) was causing multi-second UI freezes.
+  const activeSourceImage: ImageData | null = (() => {
+    if (!filterDlg.isOpen) return null;
+    const s = gs();
+    const layer = s.layers.find(l => l.id === s.activeLayerId);
+    if (!layer) return null;
+    try { return layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height); }
+    catch { return null; }
+  })();
 
   return (
     <>
       <MainLayout
+        menuBar={
+          <MenuBar
+            onNew={() => gs().openNewDocumentDialog()}
+            onSaveAs={() => { setSaveDialogName(gs().documentName); setSaveDialogOpen(true); }}
+            onFreeTransform={startFreeTransform}
+            onWarp={startWarp}
+            onOpenFile={() => openFileRef.current?.click()}
+            onImportImage={() => importFileRef.current?.click()}
+          />
+        }
+        optionsBar={<OptionsBar />}
         toolbar={<Toolbar />}
-        propertiesPanel={<PropertiesPanel />}
-        layersPanel={<LayersPanel />}
-        canvas={<><Viewport /><TypeOverlayMount /></>}
+        canvas={<Viewport toolsBlocked={!!freeTransform} />}
+        rightPanel={<RightPanelDock />}
+        statusBar={<StatusBar />}
       />
-      <InputNumberDialog
-        isOpen={dialogs.isFeatherDialogOpen}
-        onClose={() => setFeatherDialogOpen(false)}
-        onConfirm={(val) => setSelectionFeather(val)}
-        title="Selection Feather"
-        label="Feather Radius (px)"
-        initialValue={selection.feather || 0}
-        min={0}
-        max={200}
-      />
+
+      {/* Hidden open-file input */}
+      <input ref={openFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleOpenFile} />
+      <input ref={importFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImportFile} />
+
+      {/* Autosave recovery banner */}
+      {hasAutosave && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0,
+          background: '#2a6090', color: 'white',
+          padding: '6px 16px', fontSize: 12,
+          display: 'flex', alignItems: 'center', gap: 12, zIndex: 10001,
+        }}>
+          <span>Unsaved changes from a previous session were found.</span>
+          <button onClick={() => gs().loadFile('autosave').then(() => gs().dismissAutosave())}
+            style={{ padding: '2px 10px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 2, color: 'white', cursor: 'pointer', fontSize: 11 }}>
+            Recover
+          </button>
+          <button onClick={() => gs().dismissAutosave()}
+            style={{ padding: '2px 10px', background: 'none', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 2, color: 'white', cursor: 'pointer', fontSize: 11 }}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Save As dialog */}
+      {saveDialogOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: 4, padding: 16, color: 'hsl(var(--text-main))', fontSize: 12, minWidth: 280 }}>
+            <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Save As</div>
+            <input type="text" value={saveDialogName} onChange={e => setSaveDialogName(e.target.value)} autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') { setSaveDialogOpen(false); gs().saveFile(saveDialogName).then(() => gs().addToast(`Saved "${saveDialogName}"`, 'success')).catch(() => gs().addToast('Save failed', 'error')); } if (e.key === 'Escape') setSaveDialogOpen(false); }}
+              style={{ width: '100%', background: 'hsl(var(--bg-input))', border: '1px solid hsl(var(--border-light))', borderRadius: 2, color: 'hsl(var(--text-main))', padding: '5px 8px', fontSize: 12, marginBottom: 12 }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setSaveDialogOpen(false)} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid hsl(var(--border-light))', borderRadius: 2, color: 'hsl(var(--text-main))', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => { setSaveDialogOpen(false); gs().saveFile(saveDialogName).then(() => gs().addToast(`Saved "${saveDialogName}"`, 'success')).catch(() => gs().addToast('Save failed', 'error')); }}
+                style={{ padding: '4px 12px', background: 'hsl(var(--accent-primary))', border: 'none', borderRadius: 2, color: 'white', cursor: 'pointer' }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ToastContainer />
+
+      <InputNumberDialog isOpen={dialogs.isFeatherDialogOpen} onClose={() => gs().setFeatherDialogOpen(false)}
+        onConfirm={(val) => gs().setSelectionFeather(val)} title="Selection Feather"
+        label="Feather Radius (px)" initialValue={selection.feather || 0} min={0} max={200} />
+
+      <FilterDialog isOpen={filterDlg.isOpen} filterId={filterDlg.filterId} sourceImage={activeSourceImage}
+        initialParams={filterDlg.params}
+        onConfirm={(params) => {
+          const s = gs();
+          const layer = s.layers.find(l => l.id === s.activeLayerId);
+          if (layer && getFilter(filterDlg.filterId)) {
+            applyFilterToLayer(layer, filterDlg.filterId, params, s.selection);
+            setLastFilter(filterDlg.filterId, params);
+          }
+        }}
+        onClose={() => gs().closeFilterDialog()} />
+
+      <AdjustmentDialog isOpen={adjustmentDlg.isOpen} adjustmentId={adjustmentDlg.adjustmentId}
+        sourceImage={adjustmentPreview?.image ?? null} sourceScale={adjustmentPreview?.scale ?? 1}
+        selection={selection} initialParams={adjustmentDlg.params}
+        onConfirm={(params) => {
+          const s = gs();
+          const layer = s.layers.find(l => l.id === s.activeLayerId);
+          if (layer && applyAdjustmentToLayer(layer, adjustmentDlg.adjustmentId, params, s.selection)) {
+            s.commitSnapshot(`Adjustment: ${adjustmentDlg.adjustmentId}`);
+          }
+        }}
+        onClose={() => gs().closeAdjustmentDialog()} />
+
+      <ImageSizeDialog isOpen={dialogs.isImageSizeOpen}
+        currentWidth={gs().width} currentHeight={gs().height}
+        onConfirm={(w, h, method) => gs().resizeImage(w, h, method)} onClose={() => gs().closeImageSizeDialog()} />
+
+      <CanvasSizeDialog isOpen={dialogs.isCanvasSizeOpen}
+        currentWidth={gs().width} currentHeight={gs().height}
+        onConfirm={(w, h, ax, ay, color) => gs().resizeCanvas(w, h, ax, ay, color)} onClose={() => gs().closeCanvasSizeDialog()} />
+
+      <TrimDialog isOpen={dialogs.isTrimOpen}
+        onConfirm={(basis, sides) => gs().trimCanvas(basis, sides)} onClose={() => gs().closeTrimDialog()} />
+
+      <ColorPickerDialog isOpen={dialogs.isColorPickerOpen}
+        initialColor={dialogs.colorPickerTarget === 'primary' ? gs().primaryColor : dialogs.colorPickerTarget === 'secondary' ? gs().secondaryColor : getEditingStyle().color}
+        title={dialogs.colorPickerTarget === 'primary' ? 'Foreground Color' : dialogs.colorPickerTarget === 'secondary' ? 'Background Color' : 'Type Color'}
+        onConfirm={(color) => {
+          if (dialogs.colorPickerTarget === 'primary') gs().setPrimaryColor(color);
+          else if (dialogs.colorPickerTarget === 'secondary') gs().setSecondaryColor(color);
+          else updateEditingStyle({ color });
+        }}
+        onClose={() => gs().closeColorPicker()} />
+
+      <ExportDialog isOpen={dialogs.isExportDialogOpen} onClose={() => gs().closeExportDialog()} />
+      <NewDocumentDialog isOpen={dialogs.isNewDocumentDialogOpen} onClose={() => gs().closeNewDocumentDialog()} />
+      <RefineEdgeDialog isOpen={dialogs.isRefineEdgeDialogOpen} onClose={() => gs().closeRefineEdgeDialog()} />
+
+      {freeTransform && (
+        <FreeTransformOverlay state={freeTransform} zoom={zoom} panX={pan.x} panY={pan.y}
+          onCommit={() => setFreeTransform(null)}
+          onCancel={() => {
+            const s = gs();
+            const layer = s.layers.find(l => l.id === freeTransform.layerId);
+            if (layer) {
+              layer.ctx.putImageData(freeTransform.snapshot, 0, 0);
+              if (freeTransform.typeDataSnapshot) layer.typeData = structuredClone(freeTransform.typeDataSnapshot);
+              layer.markDirty(null);
+              useEditorStore.setState(state => ({ layers: [...state.layers] }));
+            }
+            setFreeTransform(null);
+          }} />
+      )}
+
+      {warpState && (
+        <WarpOverlay layerId={warpState.layerId} snapshot={warpState.snapshot} zoom={zoom} panX={pan.x} panY={pan.y}
+          onCommit={() => setWarpState(null)}
+          onCancel={() => {
+            const s = gs();
+            const layer = s.layers.find(l => l.id === warpState.layerId);
+            if (layer) { layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height); layer.ctx.putImageData(warpState.snapshot, 0, 0); layer.markDirty(null); }
+            setWarpState(null);
+          }} />
+      )}
+
+      {/* Hidden image-ops elements for test harness */}
+      <div style={{ display: 'none' }} data-testid="image-ops"
+        data-rotate90cw={() => gs().rotateCanvas(90)} data-rotate90ccw={() => gs().rotateCanvas(-90)}
+        data-rotate180={() => gs().rotateCanvas(180)} data-fliphorizontal={() => gs().flipCanvas('horizontal')}
+        data-flipvertical={() => gs().flipCanvas('vertical')} data-imagesize={() => gs().openImageSizeDialog()}
+        data-canvassize={() => gs().openCanvasSizeDialog()} data-trim={() => gs().openTrimDialog()} />
     </>
   );
 }

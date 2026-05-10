@@ -1,5 +1,6 @@
 import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
+import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
 
 export interface MarqueeRect {
     x: number;
@@ -55,10 +56,12 @@ export function rectToPath(rect: MarqueeRect): { x: number; y: number }[] {
 interface InternalState {
     drag: MarqueeDragState | null;
     shape: 'rect' | 'circle';
+    shift: boolean;
+    alt: boolean;
 }
 
-const stateRect: InternalState = { drag: null, shape: 'rect' };
-const stateEllipse: InternalState = { drag: null, shape: 'circle' };
+const stateRect: InternalState = { drag: null, shape: 'rect', shift: false, alt: false };
+const stateEllipse: InternalState = { drag: null, shape: 'circle', shift: false, alt: false };
 
 function pointerToRect(e: ToolPointerEvent) {
     return { x: e.canvasX, y: e.canvasY };
@@ -73,12 +76,12 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
             if (e.button !== 0) return;
             state.drag = { anchor: pointerToRect(e), current: pointerToRect(e) };
         },
-        onPointerMove: (e, ctx) => {
+        onPointerMove: (e) => {
             if (!state.drag) return;
             state.drag.current = pointerToRect(e);
-            const rect = computeMarqueeRect(state.drag, e.shift, e.alt);
-            ctx.getStore().setSelectionMode(state.shape);
-            ctx.getStore().setSelectionPath(rectToPath(rect));
+            state.shift = e.shift;
+            state.alt = e.alt;
+            // Overlay RAF loop draws from state.drag each frame — no store mutation during drag
         },
         onPointerUp: (e, ctx) => {
             if (!state.drag) return;
@@ -86,11 +89,9 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
             const rect = computeMarqueeRect(state.drag, e.shift, e.alt);
             const path = rectToPath(rect);
             const store = ctx.getStore();
-            const opMode = e.shift && e.alt ? 'add' : e.shift ? 'add' : e.alt ? 'sub' : 'add';
             if (rect.width > 0 && rect.height > 0) {
-                store.setSelectionMode(state.shape);
-                store.addSelectionOperation({ mode: opMode as 'add' | 'sub', path, type: state.shape });
-                store.setHasSelection(true);
+                const op = resolveSelectionOp(e.shift, e.meta || e.ctrl);
+                commitSelectionOperation(store, { path, type: state.shape }, op);
             }
             state.drag = null;
         },
@@ -99,7 +100,7 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
 
 function renderMarqueeOverlay(state: InternalState, overlay: OverlayRenderContext): void {
     if (!state.drag) return;
-    const rect = computeMarqueeRect(state.drag, false, false);
+    const rect = computeMarqueeRect(state.drag, state.shift, state.alt);
     if (rect.width === 0 && rect.height === 0) return;
     const { ctx, zoom } = overlay;
     ctx.save();

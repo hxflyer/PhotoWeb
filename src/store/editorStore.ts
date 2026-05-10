@@ -7,6 +7,7 @@ import { createViewSlice } from './viewSlice';
 import { createColorSlice } from './colorSlice';
 import { createPanelsSlice } from './panelsSlice';
 import { createHistorySlice } from './historySlice';
+import { createToastsSlice } from './toastsSlice';
 import type { EditorStore } from './types';
 
 export type { SelectionMode, SelectionState, EditorStore } from './types';
@@ -20,4 +21,5 @@ export const useEditorStore = create<EditorStore>()((...a) => ({
     ...createColorSlice(...a),
     ...createPanelsSlice(...a),
     ...createHistorySlice(...a),
+    ...createToastsSlice(...a),
 }));

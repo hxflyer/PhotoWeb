@@ -23,8 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Reference docs (PDF/text guides) — large and not part of the source build
-doc/
+
 
 # Per-user Claude Code settings
 .claude/settings.local.json

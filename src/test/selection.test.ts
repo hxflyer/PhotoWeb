@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useEditorStore } from '../store/editorStore';
 import { getTool } from '../tools/registry';
 import { ensureStubsRegistered } from '../tools/stubs';
+import { defaultMagicWandOptions, setMagicWandOptions } from '../tools/magicWand';
+import { setQuickSelectionOptions } from '../tools/quickSelection';
 import { makeToolPointerEvent } from './simulator';
 
 ensureStubsRegistered();
@@ -21,6 +23,8 @@ function reset() {
             feather: 0,
         },
     }));
+    setMagicWandOptions(defaultMagicWandOptions);
+    setQuickSelectionOptions({ size: 30, sampleAllLayers: false, autoEnhance: true });
     useEditorStore.getState().addLayer();
 }
 
@@ -30,6 +34,24 @@ function ctx() {
         getStore: () => useEditorStore.getState(),
         requestRender: () => {},
     };
+}
+
+function paintSplitLayer() {
+    const store = useEditorStore.getState();
+    store.setCanvasSize(10, 10);
+    const layer = store.layers.find(l => l.id === store.activeLayerId);
+    if (!layer) throw new Error('missing active layer');
+    layer.ctx.clearRect(0, 0, 10, 10);
+    layer.ctx.fillStyle = '#ff0000';
+    layer.ctx.fillRect(0, 0, 5, 10);
+    layer.ctx.fillStyle = '#0000ff';
+    layer.ctx.fillRect(5, 0, 5, 10);
+    layer.markDirty(null);
+}
+
+function selectedPixels(mask: Uint8ClampedArray | undefined): number {
+    if (!mask) return 0;
+    return Array.from(mask).filter(Boolean).length;
 }
 
 describe('selection tools', () => {
@@ -83,6 +105,53 @@ describe('selection tools', () => {
         expect(sel.operations[0].path.length).toBeGreaterThanOrEqual(3);
     });
 
+    it('plain lasso replaces the previous selection instead of accumulating', () => {
+        const rect = getTool('marquee-rect')!;
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 20 }), ctx());
+        rect.onPointerMove!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
+        rect.onPointerUp!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
+
+        const lasso = getTool('lasso')!;
+        lasso.onPointerDown!(makeToolPointerEvent({ canvasX: 20, canvasY: 20 }), ctx());
+        lasso.onPointerMove!(makeToolPointerEvent({ canvasX: 70, canvasY: 20 }), ctx());
+        lasso.onPointerMove!(makeToolPointerEvent({ canvasX: 70, canvasY: 70 }), ctx());
+        lasso.onPointerUp!(makeToolPointerEvent({ canvasX: 20, canvasY: 70 }), ctx());
+
+        const sel = useEditorStore.getState().selection;
+        expect(sel.operations).toHaveLength(1);
+        expect(sel.operations[0].type).toBe('lasso');
+    });
+
+    it('shift adds a second selection operation', () => {
+        const rect = getTool('marquee-rect')!;
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 20 }), ctx());
+        rect.onPointerMove!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
+        rect.onPointerUp!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
+
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 130, canvasY: 20 }), ctx());
+        rect.onPointerMove!(makeToolPointerEvent({ canvasX: 180, canvasY: 80, modifiers: { shift: true } }), ctx());
+        rect.onPointerUp!(makeToolPointerEvent({ canvasX: 180, canvasY: 80, modifiers: { shift: true } }), ctx());
+
+        const sel = useEditorStore.getState().selection;
+        expect(sel.operations).toHaveLength(2);
+        expect(sel.operations[1].mode).toBe('add');
+    });
+
+    it('cmd/ctrl subtract appends a subtract operation for marquee selections', () => {
+        const rect = getTool('marquee-rect')!;
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 20 }), ctx());
+        rect.onPointerMove!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
+        rect.onPointerUp!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
+
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 40, canvasY: 30 }), ctx());
+        rect.onPointerMove!(makeToolPointerEvent({ canvasX: 70, canvasY: 60, modifiers: { meta: true } }), ctx());
+        rect.onPointerUp!(makeToolPointerEvent({ canvasX: 70, canvasY: 60, modifiers: { meta: true } }), ctx());
+
+        const sel = useEditorStore.getState().selection;
+        expect(sel.operations).toHaveLength(2);
+        expect(sel.operations[1].mode).toBe('sub');
+    });
+
     it('lasso-poly: click 3 points then Enter commits', () => {
         const tool = getTool('lasso-poly')!;
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
@@ -93,6 +162,124 @@ describe('selection tools', () => {
         expect(sel.hasSelection).toBe(true);
         expect(sel.operations[0].type).toBe('lasso-poly');
         expect(sel.operations[0].path.length).toBe(3);
+    });
+
+    it('magic-wand commits a raster mask instead of an unordered lasso path', () => {
+        setMagicWandOptions({ antiAlias: false });
+        paintSplitLayer();
+        const tool = getTool('magic-wand')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
+
+        const op = useEditorStore.getState().selection.operations[0];
+        expect(op.type).toBe('lasso');
+        expect(op.path).toEqual([]);
+        expect(op.mask?.width).toBe(10);
+        expect(op.mask?.height).toBe(10);
+        expect(selectedPixels(op.mask?.data)).toBe(50);
+    });
+
+    it('plain magic-wand replaces an existing selection', () => {
+        setMagicWandOptions({ antiAlias: false });
+        const rect = getTool('marquee-rect')!;
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
+        rect.onPointerUp!(makeToolPointerEvent({ canvasX: 4, canvasY: 4 }), ctx());
+        paintSplitLayer();
+
+        const tool = getTool('magic-wand')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 7, canvasY: 2 }), ctx());
+
+        const sel = useEditorStore.getState().selection;
+        expect(sel.operations).toHaveLength(1);
+        expect(sel.operations[0].mask).toBeDefined();
+        expect(selectedPixels(sel.operations[0].mask?.data)).toBe(50);
+    });
+
+    it('magic-wand tolerance changes which similar colors are selected', () => {
+        const store = useEditorStore.getState();
+        store.setCanvasSize(3, 1);
+        const layer = store.layers.find(l => l.id === store.activeLayerId)!;
+        const img = layer.ctx.createImageData(3, 1);
+        img.data.set([
+            100, 0, 0, 255,
+            110, 0, 0, 255,
+            150, 0, 0, 255,
+        ]);
+        layer.ctx.putImageData(img, 0, 0);
+
+        const tool = getTool('magic-wand')!;
+        setMagicWandOptions({ tolerance: 5, antiAlias: false, contiguous: false });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(1);
+
+        setMagicWandOptions({ tolerance: 15, antiAlias: false, contiguous: false });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(2);
+    });
+
+    it('magic-wand contiguous option controls disconnected matching regions', () => {
+        const store = useEditorStore.getState();
+        store.setCanvasSize(3, 1);
+        const layer = store.layers.find(l => l.id === store.activeLayerId)!;
+        const img = layer.ctx.createImageData(3, 1);
+        img.data.set([
+            255, 0, 0, 255,
+            0, 0, 255, 255,
+            255, 0, 0, 255,
+        ]);
+        layer.ctx.putImageData(img, 0, 0);
+
+        const tool = getTool('magic-wand')!;
+        setMagicWandOptions({ tolerance: 0, antiAlias: false, contiguous: true });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(1);
+
+        setMagicWandOptions({ tolerance: 0, antiAlias: false, contiguous: false });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(2);
+    });
+
+    it('magic-wand sample-all-layers samples visible composite instead of only the active layer', () => {
+        paintSplitLayer();
+        const store = useEditorStore.getState();
+        store.addLayer();
+        const tool = getTool('magic-wand')!;
+
+        setMagicWandOptions({ tolerance: 0, antiAlias: false, contiguous: true, sampleAllLayers: false });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(100);
+
+        setMagicWandOptions({ tolerance: 0, antiAlias: false, contiguous: true, sampleAllLayers: true });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(50);
+    });
+
+    it('quick-selection commits accumulated raster masks', () => {
+        setQuickSelectionOptions({ size: 1, autoEnhance: false });
+        paintSplitLayer();
+        const tool = getTool('quick-selection')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
+        tool.onPointerMove!(makeToolPointerEvent({ canvasX: 7, canvasY: 2, buttons: 1 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 7, canvasY: 2 }), ctx());
+
+        const op = useEditorStore.getState().selection.operations[0];
+        expect(op.mask?.width).toBe(10);
+        expect(op.mask?.height).toBe(10);
+        expect(selectedPixels(op.mask?.data)).toBe(100);
+    });
+
+    it('quick-selection size controls brush sampling radius', () => {
+        paintSplitLayer();
+        const tool = getTool('quick-selection')!;
+
+        setQuickSelectionOptions({ size: 1, autoEnhance: false });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(50);
+
+        setQuickSelectionOptions({ size: 6, autoEnhance: false });
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 4, canvasY: 2 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 4, canvasY: 2 }), ctx());
+        expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(100);
     });
 
     it('clearSelection wipes path + operations', () => {

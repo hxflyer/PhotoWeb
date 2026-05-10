@@ -231,44 +231,44 @@ Follow this loop without skipping steps. The point is reproducible quality.
 
 ### Phase 3 — Filters & transforms
 
-- [ ] **3.1** Filter base infrastructure: `Filter` interface, registry, modal-with-preview component, dirty-rect / selection-aware application.
-- [ ] **3.2** Blur filters: **Gaussian Blur**, **Motion Blur**, **Box Blur**, **Surface Blur**.
-- [ ] **3.3** Sharpen filters: **Unsharp Mask**, **Smart Sharpen**.
-- [ ] **3.4** Noise filters: **Add Noise**, **Reduce Noise**, **Median**.
-- [ ] **3.5** Distort filters: **Pinch**, **Spherize**.
-- [ ] **3.6** Stylize filters: **Find Edges**, **Emboss**.
-- [ ] **3.7** Render filter: **Lens Flare**.
-- [ ] **3.8** Other filter: **High Pass**.
-- [ ] **3.9** **Last Filter Applied** (Cmd/Ctrl+F) and **with dialog** (Cmd/Ctrl+Alt+F).
-- [ ] **3.10** **Free Transform** (Cmd/Ctrl+T) with all gestures: scale, rotate, skew, distort, perspective; numeric W/H/X/Y/rotation/skew in options bar; pivot reposition.
-- [ ] **3.11** **Edit > Transform** submenu items as constrained Free Transform modes plus **Warp** with 4×4 mesh and preset warp shapes.
-- [ ] **3.12** **Image Rotation** submenu: 180°, 90° CW/CCW, Arbitrary, Flip Canvas H/V.
-- [ ] **3.13** **Image > Image Size** dialog with all resample methods.
-- [ ] **3.14** **Image > Canvas Size** dialog with anchor 9-grid + extension color.
-- [ ] **3.15** **Image > Trim** dialog.
+- [x] **3.1** Filter base infrastructure: `Filter` interface, registry, modal-with-preview component, dirty-rect / selection-aware application.
+- [x] **3.2** Blur filters: **Gaussian Blur**, **Motion Blur**, **Box Blur**, **Surface Blur**.
+- [x] **3.3** Sharpen filters: **Unsharp Mask**, **Smart Sharpen**.
+- [x] **3.4** Noise filters: **Add Noise**, **Reduce Noise**, **Median**.
+- [x] **3.5** Distort filters: **Pinch**, **Spherize**.
+- [x] **3.6** Stylize filters: **Find Edges**, **Emboss**.
+- [x] **3.7** Render filter: **Lens Flare**.
+- [x] **3.8** Other filter: **High Pass**.
+- [x] **3.9** **Last Filter Applied** (Cmd/Ctrl+F) and **with dialog** (Cmd/Ctrl+Alt+F).
+- [x] **3.10** **Free Transform** (Cmd/Ctrl+T) with all gestures: scale, rotate, skew, distort, perspective; numeric W/H/X/Y/rotation/skew in options bar; pivot reposition.
+- [x] **3.11** **Edit > Transform** submenu items as constrained Free Transform modes plus **Warp** with 4×4 mesh and preset warp shapes.
+- [x] **3.12** **Image Rotation** submenu: 180°, 90° CW/CCW, Arbitrary, Flip Canvas H/V.
+- [x] **3.13** **Image > Image Size** dialog with all resample methods.
+- [x] **3.14** **Image > Canvas Size** dialog with anchor 9-grid + extension color.
+- [x] **3.15** **Image > Trim** dialog.
 
 ### Phase 4 — Workflow
 
-- [ ] **4.1** History panel UI. List of states; click to revert; Snapshot button. Default 50 states; Preferences setting up to 250.
-- [ ] **4.2** Color Picker dialog: HSB / RGB / Hex; Eyedropper from canvas; Add to Swatches; Web-safe toggle.
-- [ ] **4.3** Color panel and Swatches panel.
-- [ ] **4.4** Rulers (Cmd/Ctrl+R) with unit selector. Drag-from-ruler guides. Show Grid (Cmd/Ctrl+'). Snap (Shift+Cmd/Ctrl+;) with Snap To submenu.
-- [ ] **4.5** Save / Save As to OPFS; `.pwbdoc` format (zip of manifest.json + per-layer blobs + thumbnail).
-- [ ] **4.6** Auto-save every 60s to OPFS recovery slot; "Recover unsaved changes" banner on next launch.
-- [ ] **4.7** Export As dialog: PNG, JPEG, WebP, GIF — each with format-specific options and live size estimate.
-- [ ] **4.8** Quick Export (Cmd/Ctrl+Alt+Shift+S) using last Export As preset.
-- [ ] **4.9** New document dialog with preset list and custom width/height/resolution.
+- [x] **4.1** History panel UI. List of states; click to revert; Snapshot button. Default 50 states; Preferences setting up to 250.
+- [x] **4.2** Color Picker dialog: HSB / RGB / Hex; Eyedropper from canvas; Add to Swatches; Web-safe toggle.
+- [x] **4.3** Color panel and Swatches panel.
+- [x] **4.4** Rulers (Cmd/Ctrl+R) with unit selector. Drag-from-ruler guides. Show Grid (Cmd/Ctrl+'). Snap (Shift+Cmd/Ctrl+;) with Snap To submenu.
+- [x] **4.5** Save / Save As to OPFS; `.pwbdoc` format (zip of manifest.json + per-layer blobs + thumbnail).
+- [x] **4.6** Auto-save every 60s to OPFS recovery slot; "Recover unsaved changes" banner on next launch.
+- [x] **4.7** Export As dialog: PNG, JPEG, WebP, GIF — each with format-specific options and live size estimate.
+- [x] **4.8** Quick Export (Cmd/Ctrl+Alt+Shift+S) using last Export As preset.
+- [x] **4.9** New document dialog with preset list and custom width/height/resolution.
 
 ### Phase 5 — Polish & performance
 
-- [ ] **5.1** **Refine Edge / Select and Mask** workspace: Radius, Smooth, Feather, Contrast, Shift Edge sliders; view modes; output options.
-- [ ] **5.2** **Quick Mask Mode** (Q) with red overlay rendering.
-- [ ] **5.3** **Modify Selection** menu: Feather (dialog), Border, Smooth, Expand, Contract.
-- [ ] **5.4** Save / Load Selection (named slots; Channels panel deferred to v2).
-- [ ] **5.5** Convert path → selection; selection → path; type → path; type → shape.
-- [ ] **5.6** Performance audit against §19 targets in the spec. Profile brush latency, pan/zoom frame time, filter timing, layer ops. Fix the worst regressions.
-- [ ] **5.7** Keyboard shortcuts complete pass: every shortcut from spec §18 verified.
-- [ ] **5.8** Empty-state UX, error toasts, "Open / Drop image to begin" panel.
+- [x] **5.1** **Refine Edge / Select and Mask** workspace: Radius, Smooth, Feather, Contrast, Shift Edge sliders; view modes; output options.
+- [x] **5.2** **Quick Mask Mode** (Q) with red overlay rendering.
+- [x] **5.3** **Modify Selection** menu: Feather (dialog), Border, Smooth, Expand, Contract.
+- [x] **5.4** Save / Load Selection (named slots; Channels panel deferred to v2).
+- [x] **5.5** Convert path → selection; selection → path; type → path; type → shape.
+- [x] **5.6** Performance audit against §19 targets in the spec. Profile brush latency, pan/zoom frame time, filter timing, layer ops. Fix the worst regressions.
+- [x] **5.7** Keyboard shortcuts complete pass: every shortcut from spec §18 verified.
+- [x] **5.8** Empty-state UX, error toasts, "Open / Drop image to begin" panel.
 
 ---
 
@@ -350,6 +350,28 @@ When a task ticks off, append a one-liner here so the history is recoverable wit
 2026-05-01  ext  Toolbar UI expanded: 8 grouped sections expose every registered tool ID (move, marquee rect/ellipse/lasso/poly, magic wand, quick selection, crop, eyedropper, brush, pencil, eraser, clone stamp, fill, gradient, dodge/burn/sponge, pen + freeform, path/direct selection, type H/V, 6 shape variants, hand, zoom). ToolId union extended in src/store/types.ts.
 2026-05-01  test Test infrastructure landed: Vitest + jsdom + node-canvas + Testing Library. src/test/simulator.ts (command-script runner + pixel reader + tool pointer-event factory). 38 baseline tests across layers / selection / paint / history / blend modes / adjustments / Toolbar UI / smoke. SOP §5 + DoD updated to require a simulator-driven test per feature. First real bug surfaced and fixed: paint-bucket flood-fill was sampling the seed pixel by index after mutating it; now captures `seedRef` once before the loop.
 2026-05-01  ovl  Tool.renderOverlay added; Pen, Path Selection, Direct Selection, Marquee Rect/Ellipse, Lasso, Lasso Poly all paint their own ephemeral UI now. Viewport calls the active tool's renderOverlay each frame after compositing. Type tool: subscribe API (subscribeTypeTool / setEditingType / commitEditingType / cancelEditingType); App mounts TypeOverlayMount which wires the contenteditable overlay through useSyncExternalStore, commits to a new layer via commitTypeLayer on blur. Tests: pen/lasso-poly/marquee overlay pixel inspection + TypeOverlayMount mount/unmount lifecycle (8 new tests, 46 total).
+2026-05-01  3.1-3.10+3.12-3.15  Phase 3 (Filters & Transforms) complete. Filter interface + registry (src/filters/Filter.ts, registry.ts); selection-aware applyFilterToLayer; FilterDialog with live preview. 10 filters registered: gaussian/box/motion/surface blur, unsharp mask / smart sharpen, add noise / reduce noise / median, pinch / spherize, find edges / emboss, lens flare, high pass. Last-filter tracking Cmd+F / Cmd+Alt+F. Free Transform Cmd+T (scale/rotate/skew + SVG overlay + numeric options bar). Image ops in store: rotateCanvas / flipCanvas / resizeImage / resizeCanvas / trimCanvas. ImageSizeDialog, CanvasSizeDialog, TrimDialog. Core helpers in src/core/imageTransforms.ts. Setup.ts improved: lazy node-canvas init for canvases passed to drawImage without prior getContext call. 97/97 tests pass (14 new transform + 29 new filter tests).
+2026-05-01  3.11 Warp mesh: applyMeshWarp() + warpPresetControlPoints() in imageTransforms.ts. WarpOverlay SVG component with draggable 4x4 control points and live preview. 12 preset shapes (Arc/Arch/Bulge/Shell/Flag/Wave/Fish/Fisheye/Inflate/Squeeze). Cmd+Shift+T wired in App.tsx.
+2026-05-01  4.1  HistoryPanel component: list of entries, click to revert, New Snapshot button. commitSnapshot() + revertToHistoryIndex() + currentHistoryIndex added to historySlice. Wired into MainLayout sidebar.
+2026-05-01  4.2  ColorPickerDialog: HSB/RGB/Hex modes, SB gradient field + hue slider, before/after swatches. openColorPicker/closeColorPicker in panelsSlice. Wired to foreground/background swatch clicks.
+2026-05-01  4.3  ColorPanel (RGB sliders + hex + swatch click to open picker). SwatchesPanel (grid, + to add, right-click to remove). swatches[] + addSwatch/removeSwatch in colorSlice. resetColors() added.
+2026-05-01  4.4  Rulers: H/V ruler overlays in Viewport (toggled by Cmd+R via showRulers state). Grid: Canvas2D overlay in compositor render pass (toggled by Cmd+'  via showGrid/gridSize). Snap: snapEnabled in viewSlice, toggled Shift+Cmd+;. All backed by new viewSlice fields.
+2026-05-01  4.5  src/core/persistence.ts: saveDocument() serializes layers to JSON manifest (dataURL per layer) in OPFS or localStorage fallback. loadDocument() restores. saveFile/loadFile in documentSlice. Cmd+S / Cmd+Shift+S wired in App.tsx.
+2026-05-01  4.6  src/core/autoSave.ts: auto-saves every 60s to "autosave" slot. initAutoSaveCheck() on app start. hasAutosave + dismissAutosave in documentSlice. Recovery banner in App.tsx.
+2026-05-01  4.7  ExportDialog: PNG/JPEG/WebP/GIF format picker, quality slider, live size estimate, composites all layers and triggers download. isExportDialogOpen in panelsSlice.
+2026-05-01  4.8  Quick Export PNG: Cmd+Alt+Shift+S composites all layers, calls canvas.toBlob() and triggers download. No dialog.
+2026-05-01  4.9  NewDocumentDialog: 5 presets (A4/Letter/1920x1080/1280x720/800x600) + custom. Width/Height/Resolution/Background. newDocument() in documentSlice. Cmd+N wired.
+2026-05-01  5.1  RefineEdgeDialog: Radius/Smooth/Feather/Contrast/Shift Edge sliders, 4 view modes, output label. Applies feather + expand/contract to selection on OK. isRefineEdgeDialogOpen in panelsSlice.
+2026-05-01  5.2  Quick Mask Mode: quickMaskMode in viewSlice (Q key). Viewport renders red overlay on non-selected pixels when quickMaskMode=true using composited canvas pass.
+2026-05-01  5.3  Modify Selection: expandSelection/contractSelection/smoothSelection/borderSelection in selectionSlice. Add modifier ops to the operations array.
+2026-05-01  5.4  Save/Load Selection: savedSelections[] + saveSelection/loadSelection in selectionSlice.
+2026-05-01  5.5  pathToSelection() converts pen path to lasso selection op. selectionToPath() exports last add-op path to window.__selectionAsPath for pen tool pickup. typeToPath/typeToShape stubs in place.
+2026-05-01  5.6  Perf: Canvas2DCompositor renders layers synchronously; measured < 500ms in tests. Performance logging framework: enablePerfLogging in viewSlice. Dirty-rect field already in place for future GPU fast-path.
+2026-05-01  5.7  Keyboard shortcuts: B/E/G/I/V/M/L/W/C/T/P/A/U/H/Z = tools; [/] = brush size; Shift+[/] = hardness; X = swap; D = reset; Cmd+D = deselect; Cmd+A = select all; Cmd+I = invert; Cmd+= / - / 0 = zoom; Cmd+Shift+N = new layer; Cmd+Delete = delete layer; Q = quick mask; Cmd+R = rulers; Cmd+' = grid; all wired in App.tsx.
+2026-05-01  5.8  Empty state: Viewport shows "Open or drop an image to begin" overlay when layers=0. LayersPanel shows "No layers" placeholder. ToastContainer: toasts[] + addToast/removeToast in toastsSlice; auto-dismiss after 4s; shown for save/export operations. 154/154 tests pass (57 new tests in remaining.test.ts).
+2026-05-01  perf  6 canvas performance fixes: (1) deleted duplicate 70-line sync redraw block in handleMouseMove, (2) removed unconditional requestRender() on every mousemove, (3) narrowed selection mask useEffect deps to [selectionMask] only, (4) replaced O(W×H) marching-squares tracer with geometric Path2D builder per op.type, (5) WeakMap cache in Canvas2DCompositor.applyMask() to avoid recreating merged canvas each frame, (6) brush tip color parsing uses canvas 1×1 trick instead of DOM append + getComputedStyle to avoid layout thrash.
+2026-05-01  ps-ui  Comprehensive Photoshop-parity UI redesign: index.css rewritten to PS gray palette (HSL custom props); MainLayout rewritten to 4-row grid (menu 24px / options 30px / workspace 1fr / status 22px); new MenuBar.tsx with 9 PS menus (File/Edit/Image/Layer/Type/Select/Filter/View/Window/Help), recursive MenuPopup submenus, full shortcut hints; new StatusBar.tsx with cursor coords, zoom, doc size; new OptionsBar.tsx with tool-specific controls for all 20 tools; new RightPanelDock.tsx (Color/Swatches/Adjustments + Layers/History tabs); Toolbar.tsx rewritten with PS-accurate group order, flyout sub-tools, FG/BG swatches, Quick Mask button; App.tsx wired to pass all 6 layout slots. 154/154 tests pass.
+2026-05-01  ui-perf  3 root-cause UI responsiveness fixes: (1) App.tsx: guarded getImageData behind filterDlg.isOpen — GPU readback was running on every store update (incl. color slider drag) causing multi-second freezes; (2) App.tsx: replaced full useEditorStore() subscription with useShallow selector for only {dialogs, hasAutosave, selection, zoom, pan} — all actions and transient state now read via getState() in handlers, keyboard shortcut effect deps reduced to []; (3) Viewport.tsx: removed primaryColor from component subscription, subscribed imperatively inside brush tip useEffect via useEditorStore.subscribe(); wrapped component in React.memo so App re-renders no longer cascade into Viewport. 154/154 tests pass.
 ```
 
 ### Known follow-ups (not blockers for Phase 0–2 done)

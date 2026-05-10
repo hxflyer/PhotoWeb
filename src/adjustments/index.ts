@@ -8,4 +8,5 @@ import './miscAdjustments';
 import './autoAdjustments';
 
 export { listAdjustments, getAdjustment } from './registry';
+export { applyAdjustmentToLayer } from './applyAdjustment';
 export type { Adjustment, AdjustmentApplyContext, AdjustmentLayerData } from './Adjustment';
