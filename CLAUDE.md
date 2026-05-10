@@ -1,6 +1,6 @@
-# CLAUDE.md — photoweb development plan
+# CLAUDE.md — photoweb operating guide
 
-This file is Claude's primary working document for photoweb. Read it first on every session. Update the checkboxes as work completes. Keep it accurate — when reality drifts from this plan, fix the plan.
+This file is Claude's compact operating guide for photoweb. Read it first on every session. Track active feature work in the implementation backlog, not here. Keep this file focused on durable workflow, scope, architecture, and conventions.
 
 ---
 
@@ -14,21 +14,25 @@ Build photoweb: a browser-based, layer-aware raster editor that feels like Photo
 
 | What | Where |
 |---|---|
-| **Requirements doc (authoritative spec)** | [doc/spec/photoweb-requirements.md](doc/spec/photoweb-requirements.md) |
+| **Current scoped development plan** | [doc/photoshop-desktop-study/photoweb-development-plan.md](doc/photoshop-desktop-study/photoweb-development-plan.md) |
+| **Automatic workflow** | [doc/photoshop-desktop-study/photoweb-automatic-development-workflow.md](doc/photoshop-desktop-study/photoweb-automatic-development-workflow.md) |
+| **Implementation backlog** | [doc/photoshop-desktop-study/photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md) |
+| Photoshop source notes | [doc/photoshop-desktop-study/pages/](doc/photoshop-desktop-study/pages/) |
+| Photoshop source note images | [doc/photoshop-desktop-study/images/](doc/photoshop-desktop-study/images/) |
 | Source PDFs (Photoshop guides, reference only) | [doc/](doc/) — `*.pdf` and extracted `*.txt` |
 | Source code | [src/](src/) |
-| Existing store (to be sliced) | [src/store/editorStore.ts](src/store/editorStore.ts) |
-| Monolithic viewport (to be split) | [src/components/Canvas/Viewport.tsx](src/components/Canvas/Viewport.tsx) |
-| Layer model (to be extended) | [src/core/Layer.ts](src/core/Layer.ts) |
-| Filters (to be made pluggable) | [src/core/Filters.ts](src/core/Filters.ts) |
+| Store entry point | [src/store/editorStore.ts](src/store/editorStore.ts) |
+| Canvas viewport | [src/components/Canvas/Viewport.tsx](src/components/Canvas/Viewport.tsx) |
+| Layer model | [src/core/Layer.ts](src/core/Layer.ts) |
+| Filter system | [src/filters/](src/filters/) |
 | Existing components | [src/components/](src/components/) — `Canvas/`, `Panels/`, `Dialogs/`, `layout/` |
 | Permissions config | [.claude/settings.local.json](.claude/settings.local.json) |
 
-When in doubt, the spec is authoritative. If the spec is wrong, update the spec first, then the code.
+When in doubt, the scoped development plan and implementation backlog are authoritative. If scope changes, update those docs first, then the code.
 
 ---
 
-## 3. Architecture (target shape — what we're building toward)
+## 3. Architecture
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -70,7 +74,7 @@ When in doubt, the spec is authoritative. If the spec is wrong, update the spec 
 - **Photoshop vocabulary in all UI strings.** No invented terminology.
 - **Imperative canvas mutations stay outside React.** React only owns chrome (panels, options bar, dialogs).
 
-### File layout (target)
+### File layout
 ```
 src/
   core/
@@ -126,25 +130,20 @@ src/
 
 ---
 
-## 4. Development phases (do in order)
+## 4. Scope Guardrails
 
-### Phase 0 — Foundation refactors (no new features)
-Goal: get the architecture right before adding feature pressure. Existing behavior must keep working at every step.
+Photoweb is a focused browser photo editor, not a full Photoshop clone. Use [photoweb-development-plan.md](doc/photoshop-desktop-study/photoweb-development-plan.md) and [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md) to decide what to build next.
 
-### Phase 1 — Tool migrations + missing v1 tools
-Each existing tool moves onto the new `Tool` interface. New v1 tools (selection refinements, vector, text) come on stream.
+Build features that improve browser-based photo editing: history, layers, masks, selections, retouching, layer styles, shape/text basics, guides/snap, presets, stability, and storage/performance diagnostics.
 
-### Phase 2 — Layers, masks, adjustments
-Blend modes, layer masks, the adjustment layer system, all v1 adjustment kinds.
-
-### Phase 3 — Filters & transforms
-The 15 v1 filters; Free Transform with all gestures; Crop with overlays.
-
-### Phase 4 — Workflow
-History panel UI, save/export, color picker, swatches, rulers/guides/snap.
-
-### Phase 5 — Polish & performance
-Refine Edge workspace, Quick Mask, perf audit against the spec's §19 targets.
+Do not implement these unless the user explicitly changes scope:
+- AI/generative features or complex content synthesis.
+- Cloud accounts, collaboration, sharing, Adobe integrations, or remote asset services.
+- Print production, CMYK, spot colors, separations, printer setup, or prepress workflows.
+- Video, timeline, animation, or animated export.
+- Help, release notes, FAQ, documentation browser, or product-support features inside the app.
+- Smart Objects, Smart Filters, PSD parity, Actions, droplets, batch automation, or scripting engines.
+- Professional export expansion such as layer export, scaled export sets, metadata editing, or advanced file-format parity unless added to the backlog.
 
 ---
 
@@ -152,16 +151,16 @@ Refine Edge workspace, Quick Mask, perf audit against the spec's §19 targets.
 
 Follow this loop without skipping steps. The point is reproducible quality.
 
-1. **Read state.** Skim this CLAUDE.md and the relevant section of [doc/spec/photoweb-requirements.md](doc/spec/photoweb-requirements.md) before touching code. If the task references an existing file, read it.
-2. **Pick the next unchecked task** in section 6, in order. Do not skip ahead unless a dependency forces it (and note the reason).
+1. **Read state.** Skim this CLAUDE.md, [photoweb-development-plan.md](doc/photoshop-desktop-study/photoweb-development-plan.md), [photoweb-automatic-development-workflow.md](doc/photoshop-desktop-study/photoweb-automatic-development-workflow.md), and the relevant backlog item before touching code. Also read the related Photoshop source note(s) in [doc/photoshop-desktop-study/pages/](doc/photoshop-desktop-study/pages/) and inspect any matching images in [doc/photoshop-desktop-study/images/](doc/photoshop-desktop-study/images/) so the UI behavior, buttons, cursors, panels, and terminology are grounded in the reference material. If the task references an existing file, read it.
+2. **Pick the next unchecked task** from [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md), in order. Do not skip ahead unless a dependency forces it (and note the reason).
 3. **Plan the change.** State (in chat) what files will change and what the contract of the new code is. Keep it to a few sentences. If the change is non-trivial, list the steps before starting.
 4. **Implement.** Edit existing files; create new ones only when the layout in §3 calls for it. Match the existing TS/React style. No new dependencies without flagging it.
 5. **Verify (in this order):**
    - `npx tsc -b` — must exit 0.
    - `npm run lint` — no new errors. (Existing pre-task errors stay; you don't fix unrelated lint debt unless asked.)
    - **`npm test` — must pass, including a NEW test that exercises this feature.** Every feature/fix gets a simulator-driven test in `src/test/<area>.test.ts(x)`. The test scripts user input (mouse / keyboard / button click) via [src/test/simulator.ts](src/test/simulator.ts) and asserts on store state, layer pixels (real Canvas2D via node-canvas), or selection paths. Test names should read like the user's action ("clicking + adds a layer", "marquee drag with Shift constrains to a square", "paint bucket floods to primary color"). For UI-level tests, render the React component with `@testing-library/react` and dispatch events via `runScript`. For tool-level tests, call `getTool(id).onPointerXxx` directly with `makeToolPointerEvent(...)`. For visual results, compare specific pixels with `layerPixelAt` / `pixelAt`. Tests catch regressions and surface real bugs (the paint-bucket seed-color regression was caught this way).
-   - For UI-affecting work: dev server is on `http://localhost:5173/` (background task). Reload, test the golden path *and* the most likely regression.
-6. **Update the checkbox.** Edit this CLAUDE.md. Tick the task. If you discovered new sub-tasks while working, add them as nested unchecked items rather than expanding scope silently.
+   - For UI-affecting work: run `npm run dev` if no dev server is active, open `http://localhost:5173/`, and test the golden path plus the most likely regression.
+6. **Update the checkbox.** Edit [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md). Tick the requirement there. If you discovered new sub-tasks while working, add them as new backlog items rather than expanding scope silently.
 7. **Brief end-of-task summary** in chat: what changed, what was verified, anything punted.
 8. **Stop.** Do not start the next task without the user's go-ahead, unless the user has said "keep going" or set up a loop.
 
@@ -170,124 +169,79 @@ Follow this loop without skipping steps. The point is reproducible quality.
 - Lint is no-worse-than-before.
 - `npm test` is green AND includes at least one new simulator-driven test for this feature.
 - Behavior verified (visual or logical) for the task's scope.
-- Checkbox ticked in CLAUDE.md.
+- Requirement ticked in [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md).
 - No half-implementations, no `// TODO: implement later` left in the path.
 
 ### When in doubt
-- **Spec disagreement:** update the spec first, get sign-off, then code.
+- **Scope or plan disagreement:** update [photoweb-development-plan.md](doc/photoshop-desktop-study/photoweb-development-plan.md) or [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md) first, get sign-off when the change is meaningful, then code.
 - **Architectural temptation outside the plan:** stop, ask the user. Adding a "small" abstraction is how scope explodes.
 - **Tool prompts you for permission:** add the pattern to [.claude/settings.local.json](.claude/settings.local.json) if it's safe and recurring; otherwise ask.
 
 ---
 
-## 6. Todo list
+## 6. Active Backlog
 
-### Phase 0 — Foundation refactors
+Use [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md) as the only active todo list. Do not add feature tasks to this file.
 
-- [x] **0.1** Slice the Zustand store. Split [src/store/editorStore.ts](src/store/editorStore.ts) into `documentSlice`, `layersSlice`, `selectionSlice`, `toolsSlice`, `historySlice`, `viewSlice`, `colorSlice`, `panelsSlice`. The composed store keeps the same external API so callers don't break.
-- [x] **0.2** Define the `Tool` interface and registry. New file `src/tools/Tool.ts` with `{id, label, cursor, options, onPointerDown, onPointerMove, onPointerUp, onKeyDown}`. New file `src/tools/registry.ts`. No tools migrated yet.
-- [x] **0.3** Refactor [src/components/Canvas/Viewport.tsx](src/components/Canvas/Viewport.tsx) to delegate input to the active Tool from the registry. Existing tools stay as inline branches but each branch now calls a stub Tool. The file stays large; this step is plumbing.
-- [x] **0.4** Define the `Compositor` interface (`Compositor.render(layers, viewport)`, `uploadRegion`, `beginFrame/present`). Wrap current Canvas2D rendering in `Canvas2DCompositor`. The Viewport calls the compositor instead of drawing directly.
-- [x] **0.5** Extend the Layer model in [src/core/Layer.ts](src/core/Layer.ts): add `kind`, `mask`, `transform`, `effects: []`, `lockTransparency`, `lockImage`, `lockPosition`, `colorTag`, `dirtyRect`. Existing fields stay. All raster layers default to `kind: 'raster'`.
-- [x] **0.6** Implement command-pattern history. New file `src/core/history.ts`. Stack of `{kind, params, dirtyRect?, beforeBuffer?, layerId?}`. Add `historySlice` actions: `commit(action)`, `undo()`, `redo()`. Wire `Cmd/Ctrl+Z` / `Cmd/Ctrl+Shift+Z` / `Cmd/Ctrl+Alt+Z`.
-- [x] **0.7** Add per-layer `dirtyRect` updates everywhere a layer canvas is mutated. The compositor reads dirtyRect to know what's invalidated; v1 still re-composites in full but the field is in place for v2's GPU upload optimization.
-- [x] **0.8** Build the `TextEditOverlay` component skeleton at `src/components/Canvas/TextEditOverlay.tsx`. Mounts a `<div contenteditable>` positioned by CSS transform when a text layer enters edit mode. Not wired to a Type tool yet — just the component shell.
-- [x] **0.9** Migrate the existing **Move** tool onto the `Tool` interface as a reference implementation. Delete its inline branch in Viewport.tsx. Document the pattern in a code comment at the top of `src/tools/move.ts` so future tool migrations follow it.
-
-### Phase 1 — Tool migrations + missing v1 tools
-
-- [x] **1.1** Migrate **Rectangular Marquee** + **Elliptical Marquee** to the new pattern. Shift = constrain, Alt = from center, Shift+Alt = both.
-- [x] **1.2** Migrate **Lasso** + new **Polygonal Lasso**.
-- [x] **1.3** Migrate **Magic Wand** with Tolerance, Anti-alias, Contiguous, Sample All Layers options.
-- [x] **1.4** Implement **Quick Selection** tool (drag-to-grow, Auto-Enhance toggle).
-- [x] **1.5** Universal selection modifiers: Shift add, Alt subtract, Shift+Alt intersect — verify they work uniformly across §1.1–1.4 tools.
-- [x] **1.6** Migrate **Brush** with Size, Hardness, Opacity, Flow, Smoothing, Mode, Spacing. Bracket-key shortcuts. Pen-pressure if available via Pointer Events.
-- [x] **1.7** Add **Pencil** (Brush variant: hardness=100, no AA).
-- [x] **1.8** Migrate **Eraser** (destination-out compositing).
-- [x] **1.9** Migrate **Clone Stamp** with Aligned, Sample All Layers options; live source preview circle.
-- [x] **1.10** Migrate **Gradient** with all 5 types (Linear, Radial, Angle, Reflected, Diamond) and Gradient Editor.
-- [x] **1.11** Migrate **Paint Bucket** with Tolerance, Anti-alias, Contiguous, All Layers.
-- [x] **1.12** Migrate **Crop** tool with aspect presets (1:1, 4:3, 16:9, 3:2, 5:4, custom), Rule-of-Thirds / Grid / Diagonal / Triangle / Golden Ratio overlays cycling on `O`, **Straighten** mode, **Delete Cropped Pixels** toggle (default off → non-destructive).
-- [x] **1.13** Migrate **Eyedropper** with Sample Size and Sample (Current/All Layers) options.
-- [x] **1.14** Implement **Dodge / Burn / Sponge** with Range (Shadows/Midtones/Highlights), Exposure, Vibrance toggle on Sponge.
-- [x] **1.15** Implement **Pen** + **Freeform Pen** with anchor sub-tools (Add / Delete / Convert).
-- [x] **1.16** Implement **Path Selection** + **Direct Selection**.
-- [x] **1.17** Implement Shape tools: **Rectangle, Rounded Rectangle, Ellipse, Polygon, Line, Custom Shape**. Modes: Shape / Path / Pixels.
-- [x] **1.18** Implement **Horizontal Type** + **Vertical Type** tools using the TextEditOverlay from 0.8. Character + Paragraph panels populated.
-- [x] **1.19** Implement **Hand** + **Zoom** tools (formal versions; existing pan/zoom keeps working).
-
-### Phase 2 — Layers, masks, adjustments
-
-- [x] **2.1** Implement all 18 v1 blend modes in `src/core/blendModes.ts`. Use `globalCompositeOperation` where Canvas2D supports it; for the rest, implement per-pixel formulas through a helper that walks the dirty rect.
-- [x] **2.2** Layers panel: blend mode dropdown, opacity slider, fill slider, lock toolbar (All / Transparency / Image / Position), color tag, eye toggle, Alt-click eye to solo, double-click to rename.
-- [x] **2.3** Layer mask system. Add Layer Mask button; black hides / white shows; brush-on-mask. Shift-click thumbnail to disable; Alt-click to view alone.
-- [x] **2.4** Adjustment layer foundation. New layer kind. Properties panel hosts the active adjustment's controls live.
-- [x] **2.5** Adjustments: **Brightness/Contrast**, **Levels** (Cmd/Ctrl+L), **Curves** (Cmd/Ctrl+M), **Exposure**.
-- [x] **2.6** Adjustments: **Vibrance**, **Hue/Saturation** (Cmd/Ctrl+U), **Color Balance** (Cmd/Ctrl+B), **Black & White**.
-- [x] **2.7** Adjustments: **Photo Filter**, **Channel Mixer**, **Invert** (Cmd/Ctrl+I), **Posterize**, **Threshold**, **Gradient Map**.
-- [x] **2.8** Auto adjustments: **Auto Tone**, **Auto Contrast**, **Auto Color**, **Desaturate**.
-- [x] **2.9** Fill layers: **Solid Color**, **Gradient**.
-- [x] **2.10** Layer operations: **Layer via Copy** (Cmd/Ctrl+J), **Layer via Cut**, **Merge Down** (Cmd/Ctrl+E), **Merge Visible** (Cmd/Ctrl+Shift+E), **Stamp Visible** (Cmd/Ctrl+Alt+Shift+E), **Flatten Image**, reorder via drag, color tag.
-
-### Phase 3 — Filters & transforms
-
-- [x] **3.1** Filter base infrastructure: `Filter` interface, registry, modal-with-preview component, dirty-rect / selection-aware application.
-- [x] **3.2** Blur filters: **Gaussian Blur**, **Motion Blur**, **Box Blur**, **Surface Blur**.
-- [x] **3.3** Sharpen filters: **Unsharp Mask**, **Smart Sharpen**.
-- [x] **3.4** Noise filters: **Add Noise**, **Reduce Noise**, **Median**.
-- [x] **3.5** Distort filters: **Pinch**, **Spherize**.
-- [x] **3.6** Stylize filters: **Find Edges**, **Emboss**.
-- [x] **3.7** Render filter: **Lens Flare**.
-- [x] **3.8** Other filter: **High Pass**.
-- [x] **3.9** **Last Filter Applied** (Cmd/Ctrl+F) and **with dialog** (Cmd/Ctrl+Alt+F).
-- [x] **3.10** **Free Transform** (Cmd/Ctrl+T) with all gestures: scale, rotate, skew, distort, perspective; numeric W/H/X/Y/rotation/skew in options bar; pivot reposition.
-- [x] **3.11** **Edit > Transform** submenu items as constrained Free Transform modes plus **Warp** with 4×4 mesh and preset warp shapes.
-- [x] **3.12** **Image Rotation** submenu: 180°, 90° CW/CCW, Arbitrary, Flip Canvas H/V.
-- [x] **3.13** **Image > Image Size** dialog with all resample methods.
-- [x] **3.14** **Image > Canvas Size** dialog with anchor 9-grid + extension color.
-- [x] **3.15** **Image > Trim** dialog.
-
-### Phase 4 — Workflow
-
-- [x] **4.1** History panel UI. List of states; click to revert; Snapshot button. Default 50 states; Preferences setting up to 250.
-- [x] **4.2** Color Picker dialog: HSB / RGB / Hex; Eyedropper from canvas; Add to Swatches; Web-safe toggle.
-- [x] **4.3** Color panel and Swatches panel.
-- [x] **4.4** Rulers (Cmd/Ctrl+R) with unit selector. Drag-from-ruler guides. Show Grid (Cmd/Ctrl+'). Snap (Shift+Cmd/Ctrl+;) with Snap To submenu.
-- [x] **4.5** Save / Save As to OPFS; `.pwbdoc` format (zip of manifest.json + per-layer blobs + thumbnail).
-- [x] **4.6** Auto-save every 60s to OPFS recovery slot; "Recover unsaved changes" banner on next launch.
-- [x] **4.7** Export As dialog: PNG, JPEG, WebP, GIF — each with format-specific options and live size estimate.
-- [x] **4.8** Quick Export (Cmd/Ctrl+Alt+Shift+S) using last Export As preset.
-- [x] **4.9** New document dialog with preset list and custom width/height/resolution.
-
-### Phase 5 — Polish & performance
-
-- [x] **5.1** **Refine Edge / Select and Mask** workspace: Radius, Smooth, Feather, Contrast, Shift Edge sliders; view modes; output options.
-- [x] **5.2** **Quick Mask Mode** (Q) with red overlay rendering.
-- [x] **5.3** **Modify Selection** menu: Feather (dialog), Border, Smooth, Expand, Contract.
-- [x] **5.4** Save / Load Selection (named slots; Channels panel deferred to v2).
-- [x] **5.5** Convert path → selection; selection → path; type → path; type → shape.
-- [x] **5.6** Performance audit against §19 targets in the spec. Profile brush latency, pan/zoom frame time, filter timing, layer ops. Fix the worst regressions.
-- [x] **5.7** Keyboard shortcuts complete pass: every shortcut from spec §18 verified.
-- [x] **5.8** Empty-state UX, error toasts, "Open / Drop image to begin" panel.
+When a requirement is completed, update its status in the backlog after tests pass. If new follow-up work is discovered, add it to the backlog as a separate requirement instead of reopening a stale checklist here.
 
 ---
 
 ## 7. Conventions
 
-- **Photoshop vocabulary** in all UI strings, menu items, panel names, tooltips. Match the spec exactly.
+- **Photoshop vocabulary** in all UI strings, menu items, panel names, and tooltips. Match the scoped plan, backlog, and relevant Photoshop source notes.
 - **No emojis** in code, comments, or UI.
 - **No new comments** unless the *why* is non-obvious — see the global instruction.
 - **No new dependencies** without flagging it in chat first. Exception: types-only packages.
 - **Imports:** use the existing path style (relative). No path aliases unless we add them deliberately.
 - **TS strictness:** keep `tsconfig.app.json` strict. Never `@ts-ignore` or `any` to silence errors — fix the type.
 - **Naming:** `camelCase` for files matching React components stay `PascalCase.tsx`; tools are lowercase noun (`brush.ts`, `cloneStamp.ts`).
+- **Generated UI icons/images:** if a simple icon or pixel-art UI asset is needed, generate it with [scripts/icon_grid.py](scripts/icon_grid.py) and import the saved asset in the UI. Do not draw ugly ad hoc icons at runtime with CSS boxes, canvas strokes, or inline placeholder graphics when a crisp generated asset would be clearer. Prefer SVG for interface icons; use PNG only when raster output is specifically useful.
+
+### Icon generation helper
+
+Use [scripts/icon_grid.py](scripts/icon_grid.py) for toolbar icons, panel buttons, small state markers, and other simple UI graphics. Store generated assets under `src/assets/icons/` unless a feature already has a more specific asset folder.
+
+Python usage:
+
+```python
+from scripts.icon_grid import save_icon
+
+save_icon(
+    [
+        "..#..",
+        ".###.",
+        "#####",
+        "..#..",
+        "..#..",
+    ],
+    "src/assets/icons/arrow-up.svg",
+    palette={".": None, "#": "#d7d7d7"},
+    cell=4,
+)
+```
+
+CLI usage:
+
+```bash
+python3 scripts/icon_grid.py '["..#..",".###.","#####","..#..","..#.."]' \
+  src/assets/icons/arrow-up.svg \
+  --palette '{".":null,"#":"#d7d7d7"}' \
+  --cell 4
+```
+
+Grid rules:
+- Each row must have the same length.
+- `.` or `None` means transparent.
+- Palette values accept `#RGB`, `#RGBA`, `#RRGGBB`, or `#RRGGBBAA`.
+- Use small, intentional grids first; scale with `cell` instead of hand-drawing larger shapes.
 
 ---
 
 ## 8. How to run things
 
 ```bash
-npm run dev      # dev server, http://localhost:5173/  (already running as background task b07ztyzog)
+npm run dev      # start local dev server at http://localhost:5173/
 npm run build    # tsc -b && vite build
 npm run lint     # eslint .
 npx tsc -b       # type-check only
@@ -301,80 +255,3 @@ Test infrastructure: Vitest + jsdom + node-canvas (real Canvas2D for pixel inspe
 - `makeToolPointerEvent({ canvasX, canvasY, modifiers, pressure })` — synthesize a `ToolPointerEvent` for tool-level tests that bypass React.
 
 The `src/test/setup.ts` file installs node-canvas as the backend for `HTMLCanvasElement.getContext('2d')` and exposes a global `ImageData`.
-
----
-
-## 9. Done log (append, don't rewrite)
-
-When a task ticks off, append a one-liner here so the history is recoverable without git.
-
-```
-2026-05-01  0.1  Sliced editorStore into 8 slice files, composed identical external API.
-2026-05-01  0.2  Added src/tools/Tool.ts interface + src/tools/registry.ts.
-2026-05-01  0.3  Viewport dispatches pointer/key events to active Tool via stubs.
-2026-05-01  0.4  Compositor + Canvas2DCompositor; Viewport renders layers via compositor.
-2026-05-01  0.5  Layer model extended (kind/mask/transform/effects/locks/colorTag/dirtyRect/fill).
-2026-05-01  0.6  HistoryStack command pattern + undo/redo bound to Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, Cmd/Ctrl+Y.
-2026-05-01  0.7  markDirty() called at every known layer canvas mutation site.
-2026-05-01  0.8  TextEditOverlay component shell built.
-2026-05-01  0.9  src/tools/move.ts; pattern documented at top of file; inline move branches removed.
-2026-05-01  1.1  src/tools/marquee.ts (Shift constrain, Alt from-center, Shift+Alt both).
-2026-05-01  1.2  src/tools/lasso.ts with free + polygonal variants; Enter/Esc/Backspace.
-2026-05-01  1.3  src/tools/magicWand.ts (tolerance, anti-alias, contiguous, sample-all).
-2026-05-01  1.4  src/tools/quickSelection.ts with grow-on-drag.
-2026-05-01  1.5  src/tools/selectionModifiers.ts unifies modifier semantics.
-2026-05-01  1.6  src/tools/brush.ts (size/hardness/opacity/flow/smoothing/spacing/mode + pressure + brackets).
-2026-05-01  1.7  src/tools/pencil.ts (hardness=100 stamp).
-2026-05-01  1.8  src/tools/eraser.ts (destination-out via shared brush tip).
-2026-05-01  1.9  src/tools/cloneStamp.ts (Aligned, Sample All Layers, alt-click source).
-2026-05-01  1.10 src/tools/gradient.ts with 5 types and preset list.
-2026-05-01  1.11 src/tools/paintBucket.ts (tolerance, contiguous, all-layers).
-2026-05-01  1.12 src/tools/crop.ts with aspects, overlay-cycle on O, Delete Cropped Pixels.
-2026-05-01  1.13 src/tools/eyedropper.ts (sample size, current/all layers).
-2026-05-01  1.14 src/tools/dodgeBurnSponge.ts with range weights and exposure.
-2026-05-01  1.15 src/tools/pen.ts and freeform pen with anchor handles.
-2026-05-01  1.16 src/tools/pathSelection.ts (whole-path + direct anchor edits).
-2026-05-01  1.17 src/tools/shapes.ts (rectangle/rounded/ellipse/polygon/line/custom).
-2026-05-01  1.18 src/tools/type.ts (horizontal + vertical) using TextEditOverlay.
-2026-05-01  1.19 src/tools/handZoom.ts.
-2026-05-01  2.1  src/core/blendModes.ts with 18 v1 modes (native + custom dispatch).
-2026-05-01  2.2  LayersPanel: blend dropdown from blendModes, opacity, fill, locks, color tag, alt-click solo, double-click rename, context-menu merge/stamp/flatten/Layer via Copy/Cut.
-2026-05-01  2.3  Layer mask system (add/remove/enable/link/invert/apply); compositor masks via destination-in.
-2026-05-01  2.4  src/adjustments/Adjustment.ts + registry; addAdjustmentLayer in store; compositor applies adjustment layers.
-2026-05-01  2.5  Brightness/Contrast, Levels, Curves, Exposure adjustments.
-2026-05-01  2.6  Vibrance, Hue/Saturation, Color Balance, Black & White.
-2026-05-01  2.7  Photo Filter, Channel Mixer, Invert, Posterize, Threshold, Gradient Map.
-2026-05-01  2.8  Auto Tone, Auto Contrast, Auto Color, Desaturate.
-2026-05-01  2.9  src/core/fillLayer.ts + addFillLayer in store (Solid Color, Gradient).
-2026-05-01  2.10 layersSlice: Layer via Copy/Cut, Merge Down/Visible, Stamp Visible, Flatten Image (via Layers panel context menu).
-2026-05-01  ext  Toolbar UI expanded: 8 grouped sections expose every registered tool ID (move, marquee rect/ellipse/lasso/poly, magic wand, quick selection, crop, eyedropper, brush, pencil, eraser, clone stamp, fill, gradient, dodge/burn/sponge, pen + freeform, path/direct selection, type H/V, 6 shape variants, hand, zoom). ToolId union extended in src/store/types.ts.
-2026-05-01  test Test infrastructure landed: Vitest + jsdom + node-canvas + Testing Library. src/test/simulator.ts (command-script runner + pixel reader + tool pointer-event factory). 38 baseline tests across layers / selection / paint / history / blend modes / adjustments / Toolbar UI / smoke. SOP §5 + DoD updated to require a simulator-driven test per feature. First real bug surfaced and fixed: paint-bucket flood-fill was sampling the seed pixel by index after mutating it; now captures `seedRef` once before the loop.
-2026-05-01  ovl  Tool.renderOverlay added; Pen, Path Selection, Direct Selection, Marquee Rect/Ellipse, Lasso, Lasso Poly all paint their own ephemeral UI now. Viewport calls the active tool's renderOverlay each frame after compositing. Type tool: subscribe API (subscribeTypeTool / setEditingType / commitEditingType / cancelEditingType); App mounts TypeOverlayMount which wires the contenteditable overlay through useSyncExternalStore, commits to a new layer via commitTypeLayer on blur. Tests: pen/lasso-poly/marquee overlay pixel inspection + TypeOverlayMount mount/unmount lifecycle (8 new tests, 46 total).
-2026-05-01  3.1-3.10+3.12-3.15  Phase 3 (Filters & Transforms) complete. Filter interface + registry (src/filters/Filter.ts, registry.ts); selection-aware applyFilterToLayer; FilterDialog with live preview. 10 filters registered: gaussian/box/motion/surface blur, unsharp mask / smart sharpen, add noise / reduce noise / median, pinch / spherize, find edges / emboss, lens flare, high pass. Last-filter tracking Cmd+F / Cmd+Alt+F. Free Transform Cmd+T (scale/rotate/skew + SVG overlay + numeric options bar). Image ops in store: rotateCanvas / flipCanvas / resizeImage / resizeCanvas / trimCanvas. ImageSizeDialog, CanvasSizeDialog, TrimDialog. Core helpers in src/core/imageTransforms.ts. Setup.ts improved: lazy node-canvas init for canvases passed to drawImage without prior getContext call. 97/97 tests pass (14 new transform + 29 new filter tests).
-2026-05-01  3.11 Warp mesh: applyMeshWarp() + warpPresetControlPoints() in imageTransforms.ts. WarpOverlay SVG component with draggable 4x4 control points and live preview. 12 preset shapes (Arc/Arch/Bulge/Shell/Flag/Wave/Fish/Fisheye/Inflate/Squeeze). Cmd+Shift+T wired in App.tsx.
-2026-05-01  4.1  HistoryPanel component: list of entries, click to revert, New Snapshot button. commitSnapshot() + revertToHistoryIndex() + currentHistoryIndex added to historySlice. Wired into MainLayout sidebar.
-2026-05-01  4.2  ColorPickerDialog: HSB/RGB/Hex modes, SB gradient field + hue slider, before/after swatches. openColorPicker/closeColorPicker in panelsSlice. Wired to foreground/background swatch clicks.
-2026-05-01  4.3  ColorPanel (RGB sliders + hex + swatch click to open picker). SwatchesPanel (grid, + to add, right-click to remove). swatches[] + addSwatch/removeSwatch in colorSlice. resetColors() added.
-2026-05-01  4.4  Rulers: H/V ruler overlays in Viewport (toggled by Cmd+R via showRulers state). Grid: Canvas2D overlay in compositor render pass (toggled by Cmd+'  via showGrid/gridSize). Snap: snapEnabled in viewSlice, toggled Shift+Cmd+;. All backed by new viewSlice fields.
-2026-05-01  4.5  src/core/persistence.ts: saveDocument() serializes layers to JSON manifest (dataURL per layer) in OPFS or localStorage fallback. loadDocument() restores. saveFile/loadFile in documentSlice. Cmd+S / Cmd+Shift+S wired in App.tsx.
-2026-05-01  4.6  src/core/autoSave.ts: auto-saves every 60s to "autosave" slot. initAutoSaveCheck() on app start. hasAutosave + dismissAutosave in documentSlice. Recovery banner in App.tsx.
-2026-05-01  4.7  ExportDialog: PNG/JPEG/WebP/GIF format picker, quality slider, live size estimate, composites all layers and triggers download. isExportDialogOpen in panelsSlice.
-2026-05-01  4.8  Quick Export PNG: Cmd+Alt+Shift+S composites all layers, calls canvas.toBlob() and triggers download. No dialog.
-2026-05-01  4.9  NewDocumentDialog: 5 presets (A4/Letter/1920x1080/1280x720/800x600) + custom. Width/Height/Resolution/Background. newDocument() in documentSlice. Cmd+N wired.
-2026-05-01  5.1  RefineEdgeDialog: Radius/Smooth/Feather/Contrast/Shift Edge sliders, 4 view modes, output label. Applies feather + expand/contract to selection on OK. isRefineEdgeDialogOpen in panelsSlice.
-2026-05-01  5.2  Quick Mask Mode: quickMaskMode in viewSlice (Q key). Viewport renders red overlay on non-selected pixels when quickMaskMode=true using composited canvas pass.
-2026-05-01  5.3  Modify Selection: expandSelection/contractSelection/smoothSelection/borderSelection in selectionSlice. Add modifier ops to the operations array.
-2026-05-01  5.4  Save/Load Selection: savedSelections[] + saveSelection/loadSelection in selectionSlice.
-2026-05-01  5.5  pathToSelection() converts pen path to lasso selection op. selectionToPath() exports last add-op path to window.__selectionAsPath for pen tool pickup. typeToPath/typeToShape stubs in place.
-2026-05-01  5.6  Perf: Canvas2DCompositor renders layers synchronously; measured < 500ms in tests. Performance logging framework: enablePerfLogging in viewSlice. Dirty-rect field already in place for future GPU fast-path.
-2026-05-01  5.7  Keyboard shortcuts: B/E/G/I/V/M/L/W/C/T/P/A/U/H/Z = tools; [/] = brush size; Shift+[/] = hardness; X = swap; D = reset; Cmd+D = deselect; Cmd+A = select all; Cmd+I = invert; Cmd+= / - / 0 = zoom; Cmd+Shift+N = new layer; Cmd+Delete = delete layer; Q = quick mask; Cmd+R = rulers; Cmd+' = grid; all wired in App.tsx.
-2026-05-01  5.8  Empty state: Viewport shows "Open or drop an image to begin" overlay when layers=0. LayersPanel shows "No layers" placeholder. ToastContainer: toasts[] + addToast/removeToast in toastsSlice; auto-dismiss after 4s; shown for save/export operations. 154/154 tests pass (57 new tests in remaining.test.ts).
-2026-05-01  perf  6 canvas performance fixes: (1) deleted duplicate 70-line sync redraw block in handleMouseMove, (2) removed unconditional requestRender() on every mousemove, (3) narrowed selection mask useEffect deps to [selectionMask] only, (4) replaced O(W×H) marching-squares tracer with geometric Path2D builder per op.type, (5) WeakMap cache in Canvas2DCompositor.applyMask() to avoid recreating merged canvas each frame, (6) brush tip color parsing uses canvas 1×1 trick instead of DOM append + getComputedStyle to avoid layout thrash.
-2026-05-01  ps-ui  Comprehensive Photoshop-parity UI redesign: index.css rewritten to PS gray palette (HSL custom props); MainLayout rewritten to 4-row grid (menu 24px / options 30px / workspace 1fr / status 22px); new MenuBar.tsx with 9 PS menus (File/Edit/Image/Layer/Type/Select/Filter/View/Window/Help), recursive MenuPopup submenus, full shortcut hints; new StatusBar.tsx with cursor coords, zoom, doc size; new OptionsBar.tsx with tool-specific controls for all 20 tools; new RightPanelDock.tsx (Color/Swatches/Adjustments + Layers/History tabs); Toolbar.tsx rewritten with PS-accurate group order, flyout sub-tools, FG/BG swatches, Quick Mask button; App.tsx wired to pass all 6 layout slots. 154/154 tests pass.
-2026-05-01  ui-perf  3 root-cause UI responsiveness fixes: (1) App.tsx: guarded getImageData behind filterDlg.isOpen — GPU readback was running on every store update (incl. color slider drag) causing multi-second freezes; (2) App.tsx: replaced full useEditorStore() subscription with useShallow selector for only {dialogs, hasAutosave, selection, zoom, pan} — all actions and transient state now read via getState() in handlers, keyboard shortcut effect deps reduced to []; (3) Viewport.tsx: removed primaryColor from component subscription, subscribed imperatively inside brush tip useEffect via useEditorStore.subscribe(); wrapped component in React.memo so App re-renders no longer cascade into Viewport. 154/154 tests pass.
-```
-
-### Known follow-ups (not blockers for Phase 0–2 done)
-
-- Adjustment layer Properties panel UI is the next concrete UI follow-up (Phase 4).
-- The new tool IDs are dispatchable by click and pointer events route to the Tool registry. The legacy inline branches in `Viewport.tsx` still handle the old IDs (`select`, `brush`, `eraser`, `fill`, `clone-stamp`, `gradient`, `crop`, `shape-rect`, `shape-circle`); selecting a new ID bypasses them and runs the registered Tool exclusively. Full deletion of legacy inline branches is Phase 5 polish.
