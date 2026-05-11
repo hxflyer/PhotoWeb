@@ -162,17 +162,19 @@ export function LayersPanel() {
         layers, activeLayerId, selectedLayerIds,
         addLayer, createLayerGroup, groupLayers, removeLayer, setActiveLayer, toggleLayerVisibility, soloLayer,
         renameLayer, setLayerLock, setLayerColorTag, setLayerFill,
-        reorderLayers, setLayerOpacity, setLayerBlendMode,
+        reorderLayers, moveLayerToGroup, setLayerOpacity, setLayerBlendMode,
         mergeLayerDown, mergeVisible, stampVisible, flattenImage, layerViaCopy, layerViaCut,
-        ungroupLayerGroup, toggleLayerGroupExpanded, selectLayer,
+        ungroupLayerGroup, toggleLayerGroupExpanded, selectLayer, setSelectedLayerIds,
         addLayerMask, removeLayerMask, applyLayerMask, setLayerMaskEnabled, setLayerMaskLinked,
+        addLayerEffect,
         activeLayerEditTarget, setActiveLayerEditTarget,
     } = useEditorStore();
     const editTarget = activeLayerEditTarget;
 
     const [editingNameId, setEditingNameId] = useState<string | null>(null);
     const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
+    const [dropHint, setDropHint] = useState<{ targetId: string; zone: 'above' | 'inside' | 'below' } | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string; submenu: 'main' | 'fx' } | null>(null);
 
     // Tick periodically so thumbnails reflect canvas content updates from painting.
     const [thumbTick, setThumbTick] = useState(0);
@@ -207,21 +209,96 @@ export function LayersPanel() {
     const handleContextMenu = (e: React.MouseEvent, layerId: string) => {
         e.preventDefault();
         e.stopPropagation();
-        setContextMenu({ x: e.clientX, y: e.clientY, layerId });
+        setContextMenu({ x: e.clientX, y: e.clientY, layerId, submenu: 'main' });
     };
 
-    const handleDragStart = (_e: React.DragEvent, id: string) => setDraggedLayerId(id);
+    const handleVisibleRowClick = (e: React.MouseEvent, layerId: string) => {
+        if (e.shiftKey) {
+            // Range select against the displayed visible-row order (not the internal flat array)
+            // so collapsed children of groups aren't silently included.
+            const visibleIds = visibleLayerRows.map(r => r.layer.id);
+            const anchorId = useEditorStore.getState().layerSelectionAnchorId ?? activeLayerId ?? layerId;
+            const anchorIdx = visibleIds.indexOf(anchorId);
+            const targetIdx = visibleIds.indexOf(layerId);
+            if (anchorIdx === -1 || targetIdx === -1) {
+                setSelectedLayerIds([layerId]);
+                return;
+            }
+            const [from, to] = anchorIdx <= targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+            setSelectedLayerIds(visibleIds.slice(from, to + 1), layerId);
+        } else if (e.metaKey || e.ctrlKey) {
+            selectLayer(layerId, 'toggle');
+        } else {
+            setActiveLayer(layerId);
+        }
+    };
+
+    const handleDragStart = (_e: React.DragEvent, id: string) => {
+        setDraggedLayerId(id);
+        setDropHint(null);
+    };
+
+    const computeDropZone = (e: React.DragEvent, targetLayer: Layer): 'above' | 'inside' | 'below' => {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const relativeY = e.clientY - rect.top;
+        const fraction = relativeY / rect.height;
+        if (targetLayer.kind === 'group' && fraction > 0.25 && fraction < 0.75) return 'inside';
+        return fraction < 0.5 ? 'above' : 'below';
+    };
+
     const handleDragOver = (e: React.DragEvent, targetId: string) => {
         e.preventDefault();
-        if (!draggedLayerId || draggedLayerId === targetId) return;
+        if (!draggedLayerId || draggedLayerId === targetId) {
+            setDropHint(null);
+            return;
+        }
+        const targetLayer = layers.find(l => l.id === targetId);
+        if (!targetLayer) return;
+        // Don't allow dropping a group onto its own descendant or itself
+        const dragged = layers.find(l => l.id === draggedLayerId);
+        if (dragged && dragged.kind === 'group') {
+            let pid: string | null = targetLayer.parentId;
+            while (pid) {
+                if (pid === draggedLayerId) { setDropHint(null); return; }
+                pid = layers.find(l => l.id === pid)?.parentId ?? null;
+            }
+        }
+        const zone = computeDropZone(e, targetLayer);
+        setDropHint({ targetId, zone });
     };
+
+    const handleDragLeave = () => setDropHint(null);
+
     const handleDrop = (e: React.DragEvent, targetId: string) => {
         e.preventDefault();
-        if (!draggedLayerId || draggedLayerId === targetId) return;
-        const dragIndex = layers.findIndex(l => l.id === draggedLayerId);
-        const hoverIndex = layers.findIndex(l => l.id === targetId);
-        reorderLayers(dragIndex, hoverIndex);
+        if (!draggedLayerId || draggedLayerId === targetId) {
+            setDraggedLayerId(null);
+            setDropHint(null);
+            return;
+        }
+        const targetLayer = layers.find(l => l.id === targetId);
+        if (!targetLayer) {
+            setDraggedLayerId(null);
+            setDropHint(null);
+            return;
+        }
+        const zone = computeDropZone(e, targetLayer);
+        if (zone === 'inside' && targetLayer.kind === 'group') {
+            // Shift on release = drop at bottom of group's children; default = top.
+            const position: 'top' | 'bottom' = e.shiftKey ? 'bottom' : 'top';
+            moveLayerToGroup(draggedLayerId, targetId, position);
+        } else {
+            const dragIndex = layers.findIndex(l => l.id === draggedLayerId);
+            // For "above" zone, drop directly above the target row in the displayed (top-down) panel
+            // which means AFTER the target in the flat array (the flat array reads bottom-up).
+            // For "below" zone, drop right after the target in the panel = before the target in the flat array.
+            const hoverIndex = zone === 'above'
+                ? layers.findIndex(l => l.id === targetId) + 1
+                : layers.findIndex(l => l.id === targetId);
+            reorderLayers(dragIndex, Math.min(Math.max(hoverIndex, 0), layers.length - 1));
+        }
         setDraggedLayerId(null);
+        setDropHint(null);
     };
 
     return (
@@ -345,11 +422,14 @@ export function LayersPanel() {
                             draggable
                             onDragStart={(e) => handleDragStart(e, layer.id)}
                             onDragOver={(e) => handleDragOver(e, layer.id)}
+                            onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, layer.id)}
-                            onClick={(e) => {
-                                if (e.shiftKey) selectLayer(layer.id, 'range');
-                                else if (e.metaKey || e.ctrlKey) selectLayer(layer.id, 'toggle');
-                                else setActiveLayer(layer.id);
+                            onClick={(e) => handleVisibleRowClick(e, layer.id)}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                if ((e.target as HTMLElement).tagName === 'INPUT') return;
+                                setActiveLayer(layer.id);
+                                setContextMenu({ x: e.clientX, y: e.clientY, layerId: layer.id, submenu: 'fx' });
                             }}
                             onContextMenu={(e) => handleContextMenu(e, layer.id)}
                             style={{
@@ -366,8 +446,19 @@ export function LayersPanel() {
                                 minHeight: 44,
                                 borderBottom: '1px solid hsl(var(--border-mid))',
                                 boxShadow: isSelected && !isActive ? 'inset 3px 0 0 hsl(var(--accent-primary))' : 'none',
+                                outline: dropHint && dropHint.targetId === layer.id && dropHint.zone === 'inside'
+                                    ? '2px solid hsl(var(--accent-primary))'
+                                    : 'none',
+                                outlineOffset: '-2px',
+                                borderTop: dropHint && dropHint.targetId === layer.id && dropHint.zone === 'below'
+                                    ? '2px solid hsl(var(--accent-primary))'
+                                    : '1px solid transparent',
+                                position: 'relative',
                             }}
                             >
+                            {dropHint && dropHint.targetId === layer.id && dropHint.zone === 'above' && (
+                                <div style={{ position: 'absolute', left: 0, right: 0, bottom: -1, height: 2, background: 'hsl(var(--accent-primary))', pointerEvents: 'none', zIndex: 5 }} />
+                            )}
                             {layer.kind === 'group' && (
                                 <button
                                     onClick={(e) => {
@@ -560,8 +651,9 @@ export function LayersPanel() {
             </div>
 
             {/* Context menu */}
-            {contextMenu && (
+            {contextMenu && contextMenu.submenu === 'main' && (
                 <div
+                    data-testid="layer-context-menu"
                     style={{
                         position: 'fixed',
                         top: contextMenu.y, left: contextMenu.x,
@@ -570,10 +662,39 @@ export function LayersPanel() {
                         boxShadow: 'var(--shadow-menu)',
                         padding: '4px 0',
                         zIndex: 1000,
-                        minWidth: 160,
+                        minWidth: 180,
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    <button
+                        data-testid="layer-context-blending-options"
+                        onClick={() => {
+                            setActiveLayer(contextMenu.layerId);
+                            // Make Properties panel visible + emit a focus hint so it scrolls/highlights the Effects section.
+                            useEditorStore.getState().setPanelVisibility?.('properties', true);
+                            window.dispatchEvent(new CustomEvent('photoweb:focus-effects', { detail: { layerId: contextMenu.layerId } }));
+                            setContextMenu(null);
+                        }}
+                        style={{
+                            display: 'block', width: '100%', textAlign: 'left',
+                            padding: '4px 12px', background: 'none', border: 'none',
+                            color: 'hsl(var(--text-main))', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--accent-primary))'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >Blending Options…</button>
+                    <button
+                        data-testid="layer-context-fx"
+                        onClick={() => setContextMenu({ ...contextMenu, submenu: 'fx' })}
+                        style={{
+                            display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '4px 12px', background: 'none', border: 'none',
+                            color: 'hsl(var(--text-main))', cursor: 'pointer', fontSize: 12,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--accent-primary))'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    ><span>Layer Effects</span><span style={{ opacity: 0.6 }}>▸</span></button>
+                    <div style={{ height: 1, background: 'hsl(var(--border-light))', margin: '4px 0' }} />
                     {[
                         { label: 'Rename', run: () => setEditingNameId(contextMenu.layerId) },
                         { label: 'Ungroup Layers', run: () => ungroupLayerGroup(contextMenu.layerId), disabled: layers.find(layer => layer.id === contextMenu.layerId)?.kind !== 'group' },
@@ -626,6 +747,67 @@ export function LayersPanel() {
                                 }} />
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* FX submenu (Layer Effects) */}
+            {contextMenu && contextMenu.submenu === 'fx' && (
+                <div
+                    data-testid="layer-context-fx-submenu"
+                    style={{
+                        position: 'fixed',
+                        top: contextMenu.y, left: contextMenu.x,
+                        backgroundColor: 'hsl(var(--bg-panel))',
+                        border: '1px solid hsl(var(--border-light))',
+                        boxShadow: 'var(--shadow-menu)',
+                        padding: '4px 0',
+                        zIndex: 1000,
+                        minWidth: 180,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        onClick={() => setContextMenu({ ...contextMenu, submenu: 'main' })}
+                        style={{
+                            display: 'block', width: '100%', textAlign: 'left',
+                            padding: '4px 12px', background: 'none', border: 'none',
+                            color: 'hsl(var(--text-muted))', cursor: 'pointer', fontSize: 11,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--accent-primary))'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >◂ Back</button>
+                    <div style={{ height: 1, background: 'hsl(var(--border-light))', margin: '4px 0' }} />
+                    {[
+                        { kind: 'drop-shadow' as const, label: 'Drop Shadow…' },
+                        { kind: 'inner-shadow' as const, label: 'Inner Shadow…' },
+                        { kind: 'outer-glow' as const, label: 'Outer Glow…' },
+                        { kind: 'inner-glow' as const, label: 'Inner Glow…' },
+                        { kind: 'bevel-emboss' as const, label: 'Bevel & Emboss…' },
+                        { kind: 'satin' as const, label: 'Satin…' },
+                        { kind: 'color-overlay' as const, label: 'Color Overlay…' },
+                        { kind: 'gradient-overlay' as const, label: 'Gradient Overlay…' },
+                        { kind: 'pattern-overlay' as const, label: 'Pattern Overlay…' },
+                        { kind: 'stroke' as const, label: 'Stroke…' },
+                    ].map(item => (
+                        <button
+                            key={item.kind}
+                            data-testid={`layer-context-add-${item.kind}`}
+                            onClick={() => {
+                                addLayerEffect(contextMenu.layerId, item.kind);
+                                setActiveLayer(contextMenu.layerId);
+                                useEditorStore.getState().setPanelVisibility?.('properties', true);
+                                window.dispatchEvent(new CustomEvent('photoweb:focus-effects', { detail: { layerId: contextMenu.layerId, kind: item.kind } }));
+                                setContextMenu(null);
+                            }}
+                            style={{
+                                display: 'block', width: '100%', textAlign: 'left',
+                                padding: '4px 12px', background: 'none', border: 'none',
+                                color: 'hsl(var(--text-main))', cursor: 'pointer', fontSize: 12,
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--accent-primary))'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >{item.label}</button>
+                    ))}
                 </div>
             )}
         </div>

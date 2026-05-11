@@ -235,6 +235,7 @@ export interface LayersSlice {
     addLayerFromContent: (content: HTMLCanvasElement, name: string, insertAfterId?: string) => void;
     removeLayer: (id: string) => void;
     reorderLayers: (dragIndex: number, hoverIndex: number) => void;
+    moveLayerToGroup: (layerId: string, groupId: string | null, position?: 'top' | 'bottom') => void;
     setLayerOpacity: (id: string, opacity: number) => void;
     setLayerFill: (id: string, fill: number) => void;
     setLayerBlendMode: (id: string, mode: GlobalCompositeOperation) => void;
@@ -280,6 +281,7 @@ export interface LayersSlice {
     selectLayer: (id: string, mode?: 'replace' | 'toggle' | 'range') => void;
     selectAllLayers: () => void;
     deselectLayers: () => void;
+    setSelectedLayerIds: (ids: string[], activeId?: string) => void;
     alignSelectedLayers: (
         alignment: 'left' | 'horizontal-center' | 'right' | 'top' | 'vertical-center' | 'bottom',
         target?: 'selection' | 'canvas'

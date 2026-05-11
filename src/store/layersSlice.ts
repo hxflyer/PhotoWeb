@@ -24,6 +24,20 @@ function descendantLayerIds(layers: Layer[], groupId: string): Set<string> {
     return ids;
 }
 
+function isDescendantOfGroup(maybeDescendantId: string, ancestorId: string, layers: Layer[]): boolean {
+    let parentId: string | null = maybeDescendantId;
+    while (parentId) {
+        if (parentId === ancestorId) return true;
+        const parent: Layer | undefined = layers.find(layer => layer.id === parentId);
+        parentId = parent ? parent.parentId : null;
+    }
+    return false;
+}
+
+function collectDescendantIds(groupId: string, layers: Layer[]): string[] {
+    return Array.from(descendantLayerIds(layers, groupId));
+}
+
 function nextGroupName(layers: Layer[]): string {
     const count = layers.filter(layer => layer.kind === 'group').length + 1;
     return `Group ${count}`;
@@ -402,6 +416,16 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         layerSelectionAnchorId: null,
     }),
 
+    setSelectedLayerIds: (ids, activeId) => set((state) => {
+        const validIds = ids.filter(id => state.layers.some(layer => layer.id === id));
+        if (validIds.length === 0) return { selectedLayerIds: [], layerSelectionAnchorId: null };
+        return {
+            selectedLayerIds: validIds,
+            activeLayerId: activeId && validIds.includes(activeId) ? activeId : validIds[validIds.length - 1],
+            layerSelectionAnchorId: state.layerSelectionAnchorId ?? validIds[0],
+        };
+    }),
+
     alignSelectedLayers: (alignment, target = 'selection') => get().executeDocumentCommand({
         kind: 'transform',
         label: `Align ${alignment.replace(/-/g, ' ')}`,
@@ -563,11 +587,89 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         kind: 'layer-reorder',
         label: 'Reorder Layers',
         run: () => set((state) => {
-        const newLayers = [...state.layers];
-        const dragLayer = newLayers[dragIndex];
-        newLayers.splice(dragIndex, 1);
-        newLayers.splice(hoverIndex, 0, dragLayer);
-        return { layers: newLayers };
+            const newLayers = [...state.layers];
+            const dragLayer = newLayers[dragIndex];
+            if (!dragLayer) return {};
+            // Peek at the layer currently at the hover position (or just before if past the end)
+            // to inherit its parentId — that's what makes dropping between two rows turn the
+            // dragged layer into a sibling of the hover.
+            const hoverLayer = newLayers[hoverIndex] ?? newLayers[hoverIndex - 1] ?? null;
+            const targetParentId = hoverLayer ? hoverLayer.parentId : null;
+            // Reject moving a group inside one of its own descendants.
+            if (dragLayer.kind === 'group' && targetParentId && isDescendantOfGroup(targetParentId, dragLayer.id, newLayers)) return {};
+            dragLayer.parentId = targetParentId;
+            // Preserve the original splice semantics: remove from dragIndex, insert at hoverIndex (clamped to end).
+            // If the dragged layer is a group, drag all its descendants with it.
+            const isGroup = dragLayer.kind === 'group';
+            const descendantIds = isGroup ? collectDescendantIds(dragLayer.id, newLayers) : [];
+            if (descendantIds.length === 0) {
+                // Single-item move — original semantics
+                newLayers.splice(dragIndex, 1);
+                newLayers.splice(hoverIndex, 0, dragLayer);
+                return { layers: newLayers };
+            }
+            // Multi-item move (group + descendants) — preserve as a contiguous block
+            const moving = [dragLayer, ...newLayers.filter(layer => descendantIds.includes(layer.id))];
+            const remaining = newLayers.filter(layer => !moving.includes(layer));
+            const anchorIdx = hoverLayer && !moving.includes(hoverLayer)
+                ? remaining.indexOf(hoverLayer)
+                : Math.min(hoverIndex, remaining.length);
+            remaining.splice(Math.max(0, anchorIdx), 0, ...moving);
+            return { layers: remaining };
+        }),
+    }),
+
+    moveLayerToGroup: (layerId, groupId, position = 'top') => get().executeDocumentCommand({
+        kind: 'layer-reorder',
+        label: 'Move Layer Into Group',
+        run: () => set((state) => {
+            const layer = state.layers.find(l => l.id === layerId);
+            if (!layer) return {};
+            if (groupId !== null) {
+                const group = state.layers.find(l => l.id === groupId);
+                if (!group || group.kind !== 'group') return {};
+                // Reject moving a group into itself or one of its own descendants.
+                if (layer.kind === 'group' && (layer.id === groupId || isDescendantOfGroup(groupId, layer.id, state.layers))) return {};
+            }
+            const newLayers = [...state.layers];
+            // If it's a group, move it with all descendants.
+            const descendantIds = layer.kind === 'group' ? collectDescendantIds(layer.id, newLayers) : [];
+            const moving = [layer, ...newLayers.filter(l => descendantIds.includes(l.id))];
+            // Reparent the dragged layer (descendants keep their parentId relative to the moving subtree).
+            layer.parentId = groupId;
+            // Remove the moving subtree.
+            const remaining = newLayers.filter(l => !moving.includes(l));
+            // Find insertion index.
+            let insertAt: number;
+            if (groupId === null) {
+                // Insert at the very top of the panel (which is the end of the flat array in our layout — last visible is top).
+                insertAt = position === 'top' ? remaining.length : 0;
+            } else {
+                const groupIndex = remaining.findIndex(l => l.id === groupId);
+                if (groupIndex < 0) return {};
+                if (position === 'top') {
+                    // Top of group's children = immediately AFTER the group row in our top-down array
+                    // (top of panel = end of flat array, so we insert just after the group's last descendant currently in the panel… but since we removed the moving subtree first, top-of-group = position right after the group entry).
+                    insertAt = groupIndex + 1;
+                } else {
+                    // Bottom of group's children = right before the next sibling-at-or-above this group's depth.
+                    const groupParentId = remaining[groupIndex].parentId;
+                    let i = groupIndex + 1;
+                    while (i < remaining.length) {
+                        const candidate = remaining[i];
+                        if (candidate.parentId === groupParentId) break;
+                        i++;
+                    }
+                    insertAt = i;
+                }
+            }
+            remaining.splice(insertAt, 0, ...moving);
+            // Expand the target group so the user sees their drop.
+            if (groupId !== null) {
+                const groupNow = remaining.find(l => l.id === groupId);
+                if (groupNow && groupNow.kind === 'group') groupNow.expanded = true;
+            }
+            return { layers: remaining, activeLayerId: layerId, selectedLayerIds: [layerId], layerSelectionAnchorId: layerId };
         }),
     }),
 
