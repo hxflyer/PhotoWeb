@@ -5,6 +5,7 @@ import './curves';
 import './exposure';
 import './colorAdjustments';
 import './miscAdjustments';
+import './selectiveColor';
 import './autoAdjustments';
 
 export { listAdjustments, getAdjustment } from './registry';

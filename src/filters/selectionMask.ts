@@ -1,4 +1,5 @@
 import type { SelectionState } from '../store/types';
+import type { LayerMask } from '../core/Layer';
 
 /**
  * Rasterises the current selection state into an ImageData alpha mask.
@@ -119,4 +120,69 @@ export function blendWithMask(original: ImageData, filtered: ImageData, mask: Im
         d[i + 3] = Math.round(o[i + 3] * (1 - w) + d[i + 3] * w);
     }
     return out;
+}
+
+/**
+ * Combines the active selection mask, the layer's mask (with density & feather),
+ * into a single effective alpha mask used to clip destructive operations
+ * (filters, adjustments). Result alpha = selection_alpha * layer_mask_alpha.
+ *
+ * Returns null when neither a selection nor an enabled layer mask is present
+ * (caller should treat null as "full image").
+ *
+ * Mask semantics:
+ *  - density (0..1): scales the mask's effect non-destructively. 0.5 means the
+ *    mask only attenuates pixels to half-strength even where it is fully opaque.
+ *  - feather (px): Gaussian-like blur applied to the mask's alpha before use.
+ */
+export function buildEffectiveMask(
+    sel: SelectionState,
+    layerMask: LayerMask | null,
+    width: number,
+    height: number,
+): ImageData | null {
+    const selectionMask = buildSelectionMask(sel, width, height);
+    const hasLayerMask = !!(layerMask && layerMask.enabled);
+    if (!selectionMask && !hasLayerMask) return null;
+    if (!hasLayerMask) return selectionMask;
+
+    // Rasterize the layer mask's luma to an alpha buffer; apply feather then
+    // density. This mirrors Canvas2DCompositor.applyMask render-time semantics.
+    const lm = layerMask!;
+    const density = Math.max(0, Math.min(1, lm.density ?? 1));
+    const feather = Math.max(0, lm.feather ?? 0);
+
+    const tmp = document.createElement('canvas');
+    tmp.width = width;
+    tmp.height = height;
+    const tctx = tmp.getContext('2d');
+    if (!tctx) return selectionMask;
+    tctx.drawImage(lm.canvas, 0, 0);
+    const maskImg = tctx.getImageData(0, 0, width, height);
+
+    // Convert luma → mask alpha. We use the box-blur helper for feather so the
+    // result is consistent under node-canvas (which doesn't honour ctx.filter).
+    const lumaAlpha = new Uint8ClampedArray(width * height);
+    for (let i = 0, p = 0; i < maskImg.data.length; i += 4, p++) {
+        const r = maskImg.data[i];
+        const g = maskImg.data[i + 1];
+        const b = maskImg.data[i + 2];
+        lumaAlpha[p] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+    }
+    const blurredLuma = feather > 0 ? boxBlurAlpha(lumaAlpha, width, height, Math.round(feather)) : lumaAlpha;
+
+    const out = new Uint8ClampedArray(width * height * 4);
+    const selData = selectionMask ? selectionMask.data : null;
+    for (let p = 0, i = 0; p < blurredLuma.length; p++, i += 4) {
+        // density attenuation: a' = 255 - (255 - a) * density
+        const baseLuma = blurredLuma[p];
+        const layerAlpha = Math.max(0, Math.min(255, Math.round(255 - (255 - baseLuma) * density)));
+        const selAlpha = selData ? selData[i + 3] : 255;
+        const combined = Math.round((layerAlpha * selAlpha) / 255);
+        out[i] = 255;
+        out[i + 1] = 255;
+        out[i + 2] = 255;
+        out[i + 3] = combined;
+    }
+    return new ImageData(out, width, height);
 }

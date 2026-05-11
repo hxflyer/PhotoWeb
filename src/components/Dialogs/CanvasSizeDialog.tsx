@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface CanvasSizeDialogProps {
     isOpen: boolean;
@@ -20,6 +21,7 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
     const [h, setH] = useState(currentHeight);
     const [anchorIdx, setAnchorIdx] = useState(4); // center
     const [extensionColor, setExtensionColor] = useState('transparent');
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     useEffect(() => {
         if (isOpen) { setW(currentWidth); setH(currentHeight); } // eslint-disable-line react-hooks/set-state-in-effect
@@ -40,10 +42,10 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
 
     return (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }} onClick={onClose}>
-            <div style={{ width: '380px', background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: '8px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="canvas-size-title" tabIndex={-1} style={{ width: '380px', background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: '8px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid hsl(var(--border-light))', background: 'hsl(var(--bg-header))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Canvas Size</h3>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer' }}><X size={16} /></button>
+                    <h3 id="canvas-size-title" style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Canvas Size</h3>
+                    <button aria-label="Close" onClick={onClose} style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer' }}><X size={16} /></button>
                 </div>
                 <div style={{ padding: '20px' }}>
                     <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>

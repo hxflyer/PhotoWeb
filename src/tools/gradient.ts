@@ -55,6 +55,8 @@ export interface GradientOptions {
     transparency: boolean;
     opacity: number;            // 0-1
     mode: BlendModeId;
+    stops?: GradientStop[];
+    smoothness?: number;
 }
 
 let options: GradientOptions = {
@@ -172,7 +174,7 @@ function sampleStops(stops: GradientStop[], t: number, method: GradientMethod): 
  * Linear/radial/reflected use Canvas2D's native gradients (faster).
  * Angle/diamond walk pixels via ImageData.
  */
-function renderGradientCanvas(
+export function renderGradientCanvas(
     width: number,
     height: number,
     type: GradientType,

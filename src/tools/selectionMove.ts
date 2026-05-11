@@ -7,6 +7,9 @@
 
 import { useEditorStore } from '../store/editorStore';
 import type { SelectionOperation, SelectionState } from '../store/types';
+import { snapPoint, type SnapTarget } from './snap';
+
+const SELECTION_SNAP_HYSTERESIS = 6;
 
 export interface SelectionMoveAnchor {
     anchor: { x: number; y: number };
@@ -165,6 +168,75 @@ export function previewSelectionMove(move: SelectionMoveAnchor, dx: number, dy: 
             hasSelection: store.selection.hasSelection,
         },
     }));
+}
+
+function publishSelectionSnapTargets(xSnap: SnapTarget | undefined, ySnap: SnapTarget | undefined): void {
+    const targets: SnapTarget[] = [];
+    if (xSnap) targets.push(xSnap);
+    if (ySnap) targets.push(ySnap);
+    useEditorStore.getState().setActiveSnapTargets(targets.length > 0 ? targets : null);
+}
+
+/**
+ * Selection-border-drag snap entry point. Picks the smallest residual from
+ * each reference anchor (selection-bounds corners + center) against the
+ * provided snap candidates, publishes the active targets, and returns the
+ * snapped {dx, dy}. Pass `[]` for candidates to disable snapping.
+ */
+export function snapSelectionDelta(
+    dx: number,
+    dy: number,
+    anchors: { x: number; y: number }[],
+    candidates: SnapTarget[],
+): { dx: number; dy: number } {
+    if (candidates.length === 0 || anchors.length === 0) {
+        publishSelectionSnapTargets(undefined, undefined);
+        return { dx, dy };
+    }
+    let bestX: SnapTarget | undefined;
+    let bestXAdjust = 0;
+    let bestXDist = SELECTION_SNAP_HYSTERESIS + 1;
+    let bestY: SnapTarget | undefined;
+    let bestYAdjust = 0;
+    let bestYDist = SELECTION_SNAP_HYSTERESIS + 1;
+    for (const a of anchors) {
+        const result = snapPoint({ x: a.x + dx, y: a.y + dy }, candidates, SELECTION_SNAP_HYSTERESIS);
+        if (result.xSnap) {
+            const adjust = result.x - (a.x + dx);
+            if (Math.abs(adjust) < bestXDist) {
+                bestX = result.xSnap;
+                bestXAdjust = adjust;
+                bestXDist = Math.abs(adjust);
+            }
+        }
+        if (result.ySnap) {
+            const adjust = result.y - (a.y + dy);
+            if (Math.abs(adjust) < bestYDist) {
+                bestY = result.ySnap;
+                bestYAdjust = adjust;
+                bestYDist = Math.abs(adjust);
+            }
+        }
+    }
+    publishSelectionSnapTargets(bestX, bestY);
+    return { dx: dx + bestXAdjust, dy: dy + bestYAdjust };
+}
+
+/**
+ * Convenience helper: snap the dx/dy first, then preview-move. Selection
+ * tools and the Move tool's selection-pixel branch use this to share the
+ * snap-and-publish pipeline.
+ */
+export function previewSelectionMoveSnapped(
+    move: SelectionMoveAnchor,
+    dx: number,
+    dy: number,
+    anchors: { x: number; y: number }[],
+    candidates: SnapTarget[],
+): { dx: number; dy: number } {
+    const snapped = snapSelectionDelta(dx, dy, anchors, candidates);
+    previewSelectionMove(move, snapped.dx, snapped.dy);
+    return snapped;
 }
 
 /**

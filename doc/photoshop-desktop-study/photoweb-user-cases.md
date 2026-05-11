@@ -337,7 +337,7 @@ Last code audit: 2026-05-11 (after the audit-sweep batch — 18 BUGs + 15 GAPs +
 290. User can adjust Refine Edge contrast.
 291. User can shift selection edge inward or outward.
 292. User can see honest output text for Select and Mask.
-293. User can output Select and Mask refinements to either the current selection, a new layer mask on the active layer, or a new layer with a mask.
+293. User can output Select and Mask refinements to either the current selection, a new layer mask on the active layer, or a new layer with a mask in future (current shipped output is honestly limited to the current selection).
 294. User can expand a selection.
 295. User can contract a selection.
 296. User can smooth a selection.
@@ -452,7 +452,7 @@ Last code audit: 2026-05-11 (after the audit-sweep batch — 18 BUGs + 15 GAPs +
 394. User can use Patch tool in future.
 395. User can remove red eye in future.
 396. User can use Background Eraser in future.
-397. User can use Magic Eraser in future.
+397. User can use Magic Eraser to one-click-erase similar pixels (tolerance, anti-alias, contiguous, sample-all-layers, opacity).
 398. User can retouch through an active selection.
 399. User can retouch through a layer mask.
 400. User can undo every retouch stroke.
@@ -479,9 +479,9 @@ Last code audit: 2026-05-11 (after the audit-sweep batch — 18 BUGs + 15 GAPs +
 418. User can draw polygon shapes.
 419. User can draw line shapes.
 420. User can draw custom shape presets in future (Custom Shape tool exists; built-in preset library has not yet shipped).
-421. User can create editable shape layers in future.
-422. User can edit shape fill after drawing in future.
-423. User can edit shape stroke after drawing in future.
+421. User can create editable shape layers by drawing with Shape mode (rect / rounded-rect / ellipse / polygon-star / line-arrow store editable geometry in `shapeData`).
+422. User can edit shape fill after drawing — `shapeData.fill` patches rerender via `rerenderShapeLayer` (Properties Shape section ships in PROPS-05).
+423. User can edit shape stroke (color / width / opacity / alignment) after drawing — `shapeData.stroke` patches rerender (Properties Shape section ships in PROPS-05).
 424. User can draw lines with start and/or end arrowheads (lineArrowStart / lineArrowEnd / lineArrowSize options).
 425. User can switch the Polygon tool between regular polygon and star (polygonStar + polygonStarRatio options).
 
@@ -645,8 +645,8 @@ Last code audit: 2026-05-11 (after the audit-sweep batch — 18 BUGs + 15 GAPs +
 577. User can remove white matte from cutout edges in future.
 578. User can remove black matte from cutout edges in future.
 579. User can defringe colored edge pixels in future.
-580. User can output a refined selection directly to a new layer mask on the active layer.
-581. User can output a refined selection to a duplicated layer with a mask applied.
+580. User can output a refined selection directly to a new layer mask on the active layer in future.
+581. User can output a refined selection to a duplicated layer with a mask applied in future.
 582. User can preview selections over white, black, transparent, and overlay backgrounds in future.
 583. User can see edge previews without committing changes in future.
 584. User can use selection operations on mask thumbnails.
@@ -801,7 +801,7 @@ Last code audit: 2026-05-11 (after the audit-sweep batch — 18 BUGs + 15 GAPs +
 732. User can intersect shape areas in future.
 733. User can exclude overlapping shape areas in future.
 734. User can choose Shape, Path, or Pixels mode honestly.
-735. User can avoid losing editability when choosing Shape mode after shape layers ship.
+735. User can keep shape editability when drawing in Shape mode — the resulting layer is `kind: 'shape'` with `shapeData`, not raster.
 736. User can intentionally rasterize shape output when choosing Pixels mode.
 737. User can use Pen tool to create manual paths.
 738. User can use Freeform Pen for looser path creation.
@@ -863,9 +863,9 @@ Last code audit: 2026-05-11 (after the audit-sweep batch — 18 BUGs + 15 GAPs +
 792. User can use dynamic text only if future data binding exists.
 793. User can reposition text start and end points only for path text in future.
 794. User can preserve typeData on save/reopen (typeData round-trips through the `.pwbdoc` manifest).
-795. User can undo type layer content changes in future Properties-side command wrapping (live re-render works; per-edit history wrapping for Properties-side edits is still pending).
-796. User can undo Character panel changes in future command wrapping.
-797. User can undo Paragraph panel changes in future command wrapping.
+795. User can undo type-layer content changes made from the Properties panel — every Properties Type edit flows through `applyTypeEdit` and is a single history entry.
+796. User can undo Character panel changes — coalesced begin/commit groups slider drags into one history entry per drag-end.
+797. User can undo Paragraph panel changes — same coalesced begin/commit pattern.
 798. User can see disabled advanced typography controls as honest deferred features.
 799. User can rasterize a type layer intentionally via Type > Rasterize Type Layer (drops typeData and changes the layer kind to raster).
 800. User can keep editable text unless choosing an explicitly destructive operation.
@@ -934,11 +934,11 @@ Last code audit: 2026-05-11 (after the audit-sweep batch — 18 BUGs + 15 GAPs +
 861. User can set guide color in future.
 862. User can set grid color in future.
 863. User can set grid subdivisions in future.
-864. User can snap layer movement to guides.
-865. User can snap selection movement to guides.
-866. User can snap shape drawing to grid.
-867. User can snap transform handles to document bounds.
-868. User can use smart guides for alignment between layers.
+864. User can snap layer movement to guides in future.
+865. User can snap selection movement to guides in future.
+866. User can snap shape drawing to grid in future.
+867. User can snap transform handles to document bounds in future.
+868. User can use smart guides for alignment between layers in future.
 869. User can measure pixel distances.
 870. User can set measurement scale only if non-pixel units become useful.
 871. User can create scale markers in future only if measurement tools expand.
@@ -1076,3 +1076,92 @@ A020. User can draw a Polygon with `polygonStar=true` and a chosen `polygonStarR
 A021. User can draw a Line with either or both endpoint arrowheads enabled; the shaft is shortened to meet the arrowhead base so the geometry stays clean.
 A022. User can pick a Smart Sharpen mode (Gaussian / Motion / Lens) and see meaningfully different output instead of the same Unsharp Mask behavior.
 A023. User can rely on brush, eraser, and pencil strokes committing history with a dirty-rect proportional to the actual stroke bounds (plus brush-radius padding), so undo memory does not scale with canvas size.
+
+## Addendum: Cases Added In The 2026-05-11 Batch 1 (parallel-plan)
+
+A024. User can save a shape layer and reopen the document with the geometry preserved — `shapeData` round-trips through the `.pwbdoc` manifest.
+A025. User can undo creating a shape layer and the layer disappears; redo restores the shape with its original `shapeData`.
+A026. User can draw a polygon star with `Shift` to constrain rotation to multiples of 15° and `Alt` to draw from the centre.
+A027. User can adjust a slider in the Character panel during a drag and see a SINGLE history entry recorded on drag-end, not one per intermediate value.
+A028. User can re-edit a rotated type layer after undoing a Properties edit — the overlay mounts back on the right layer at the right transform.
+A029. User can see a single error toast (not one per autosave tick) when storage quota is exhausted; subsequent successful autosaves clear the dedup so the next failure can surface again.
+A030. User can recover from a `canvas.toBlob` failure during export and see an actionable toast instead of a silent broken download.
+A031. User can rely on Magic Eraser opacity at 0.5 producing partial transparency on matched pixels rather than full erasure.
+A032. User can rely on Magic Eraser respecting the active selection — pixels outside the selection are never touched even when they match.
+
+## Addendum: Cases Added In The 2026-05-11 Batch 2 (parallel-plan)
+
+A033. User can edit a rectangle / rounded-rect / ellipse layer's width, height, corner radius, fill colour, stroke colour / weight / opacity / alignment from the Properties panel and see live re-render.
+A034. User can edit a polygon layer's sides, rotation, Star toggle, and Indent Sides By (star ratio) from the Properties panel.
+A035. User can edit a line layer's endpoints, weight, arrowhead start / end / size from the Properties panel.
+A036. User can drag a Properties slider for a shape layer and have only ONE history entry committed on drag-end, not one per intermediate frame.
+A037. User can erase background pixels with the Background Eraser using Continuous sampling (re-sample under the crosshair every stamp) for hair-like edges.
+A038. User can switch Background Eraser sampling to Once to lock the colour after pointer-down, useful for textured backgrounds.
+A039. User can switch Background Eraser sampling to Background Swatch so the secondary colour acts as the protected-colour-to-erase.
+A040. User can switch Background Eraser limits between Contiguous, Discontiguous, and Find Edges for different cutout strategies.
+A041. User can click on a small blemish with Spot Healing Brush and see it replaced by a deterministic ring-sample average of the surrounding pixels.
+A042. User can rely on Spot Healing Brush producing identical results for identical inputs (no AI; deterministic 24-angular-bucket sampling).
+A043. User can add an Inner Shadow effect to a layer with angle / distance / size / choke / colour / opacity / blend mode controls.
+A044. User can add an Outer Glow effect with spread / size / colour / opacity / blend mode controls.
+A045. User can open the New Guide dialog (`View > Guides > New Guide…`), pick orientation, enter a numeric position, and confirm with Enter.
+A046. User can toggle `View > Show > Guides` to hide all guides temporarily without losing them.
+A047. User can `View > Guides > Lock Guides` to prevent accidental guide drags.
+A048. User can `View > Guides > Clear Guides` to remove all guides at once, and undo to restore them.
+A049. User can drag a guide on canvas during one continuous drag and see only ONE history entry committed on pointer-up.
+A050. User can open the Gradient Editor from the Gradient tool option bar's "Edit" button.
+A051. User can open the Gradient Editor from the Properties > Fill section of a gradient fill layer.
+A052. User can click empty space on the color-stop row to insert a new colour stop at that position; the new colour is sampled from the current gradient at that location.
+A053. User can drag a color stop along the row to change its `position`.
+A054. User can double-click a color stop to open a colour picker and change its `color`.
+A055. User can select a stop and press Delete to remove it (minimum 2 stops preserved).
+A056. User can edit opacity stops on a separate row with the same UX as color stops.
+A057. User can save the current gradient state as a named preset; presets persist through localStorage.
+A058. User can apply a saved gradient preset to repopulate the editor.
+A059. User can confirm the editor with OK to write the edited stops back to the Gradient tool (`getGradientOptions().stops`) or to a fill layer's `fillData.stops`.
+
+## Addendum: Cases Added In The 2026-05-11 Batch 3 (parallel-plan)
+
+A060. User can Alt/Option-click with the Healing Brush to set a source anchor, then paint to apply the source's texture shifted toward the destination's mean tone so the repair blends.
+A061. User can toggle Healing Brush "Aligned" off to reset the source-destination offset on every new pointer-down.
+A062. User can use the Patch Tool in `source` mode: drag a selected region; the destination region is healed using the original-position pixels as the source.
+A063. User can use the Patch Tool in `destination` mode: drag a selected region; the drop-position pixels are stamped onto the original-position pixels.
+A064. User can click on a red-eye pupil with the Red Eye tool and have only the red cluster within a soft-edged disc of `pupilSize` desaturated and darkened.
+A065. User can add an Inner Glow effect with `choke` (0–100) + `size` + `color` + `opacity` + `blendMode` and see the glow appear inside the layer's alpha edge.
+A066. User can add a Gradient Overlay effect that reuses the existing Gradient Stop Editor so color/opacity stops are the same model as the Gradient tool.
+A067. User can add a Pattern Overlay effect that uses any active pattern preset as the tile source, with `scale` + `opacity` + `blendMode`.
+A068. User can select all pixels similar in color to the current selection with `Select > Grow` (contiguous flood fill).
+A069. User can select all canvas pixels matching the current selection's colors with `Select > Similar` (non-contiguous).
+A070. User can run `Layer > Matting > Defringe…` with a 1–10 px width to recolor semi-transparent edge pixels using the nearest opaque neighbor's RGB.
+A071. User can run `Layer > Matting > Remove White Matte` to recover the foreground color from white-haloed semi-transparent edges via premultiplied inversion.
+A072. User can run `Layer > Matting > Remove Black Matte` similarly for black-haloed edges.
+A073. User can toggle Smart Radius in the Refine Edge dialog so per-pixel feather strength is modulated by Sobel gradient magnitude — sharper edges stay sharp, softer regions get the full radius.
+A074. User can drag a layer with snap-to-guides on; the layer position rounds to the nearest guide / grid line / layer-edge / layer-center within a hysteresis of 6 px.
+A075. User can see a dashed magenta smart-guide line drawn across the canvas whenever a drag is snapping to a target.
+A076. User can rely on snap-to-* applying uniformly to Move Tool, selection-border drag, selected-pixel drag, shape drawing, and Free Transform handles via the shared `snapPoint` helper.
+A077. User can recover an autosaved document after a browser refresh via a `Recover Document` button in the autosave banner.
+A078. User can `Discard Recovery` to clear the autosave slot when the recovery is no longer useful.
+A079. User can see a `● Unsaved changes` indicator in the status bar whenever the current history tick has advanced past the last save tick.
+A080. User can be warned by a `window.confirm` dialog before File > New or File > Open replaces a document that has unsaved changes.
+A081. User can be refused (with a clear toast) when creating, opening, or resizing a document that would exceed `MAX_DOC_PIXELS = 60M` (≈ 7745×7745).
+A082. User can be warned (with a soft confirm) when crossing the `SOFT_DOC_PIXELS = 36M` threshold without yet hitting the hard limit.
+
+## Addendum: Cases Added In The 2026-05-12 Batch 4 (parallel-plan)
+
+A083. User can add a Bevel & Emboss effect with `style: 'inner-bevel' | 'outer-bevel' | 'emboss' | 'pillow-emboss'` and see the layer pixels rendered with Phong lighting (highlight + shadow at the specified angle and altitude).
+A084. User can change `depth` (0–1000%), `direction` (up/down), `size`, `soften`, `angle`, `altitude`, plus separate highlight and shadow `color` / `opacity` / `blendMode`.
+A085. User can add a Satin effect with `contour: 'linear' | 'cone' | 'gaussian'` and `invert` toggle; the result is a banded silky overlay clipped to the layer alpha.
+A086. User can `Layer > Layer Style > Copy Layer Style` to capture the active layer's `effects` array into an in-memory clipboard.
+A087. User can `Paste Layer Style` onto any other layer to replace its effects with the clipboard contents (history-wrapped).
+A088. User can `Clear Layer Style` to remove all effects from the active layer (undoable).
+A089. User can open the `Scale Effects…` dialog and multiply every numeric size / distance / spread / depth across all of the active layer's effects by a percentage (10–1000%).
+A090. User can open the Brush Presets panel and see each preset rendered as a thumbnail showing the actual tip stamp at the preset's size/hardness/opacity.
+A091. User can right-click a brush preset to Rename / Delete / Duplicate.
+A092. User can drag-reorder brush presets in the panel; localStorage persists the order.
+A093. User can open the Pattern Presets panel and see each preset rendered as a tile-thumbnail preview, with Rename / Delete affordances.
+A094. User can pick a Custom Shape preset from the option bar (heart, 5-point star, 7-point star, arrow, lightning bolt, speech bubble, gear, checkmark) and draw it on the canvas; the result is a `kind: 'shape'` layer with `shapeData.kind === 'custom'` and the preset's SVG `pathD`.
+A095. User can type into the FontPicker's search box and see the dropdown filter to fonts containing the substring; each row renders its name in that font for live preview.
+A096. User can use ArrowDown/ArrowUp in the FontPicker to navigate the filtered list and Enter to commit.
+A097. User can see a one-shot info toast when a type layer's font is missing and gets replaced with `sans-serif` ("Missing font 'Foo' replaced with sans-serif"); the toast fires once per layer per session, not on every re-render.
+A098. User can open any dialog and tab through the controls without focus escaping the modal; Esc closes the dialog.
+A099. User can hover any toolbar button and a screen reader will read the same label that the tooltip shows (`aria-label` matches the tooltip text).
+A100. User can rely on every dialog having `role="dialog"` and `aria-modal="true"` so assistive technologies treat them as modal surfaces.

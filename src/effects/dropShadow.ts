@@ -41,23 +41,50 @@ export const dropShadowEffect: Effect = {
         ctx.fillRect(0, 0, out.width, out.height);
         ctx.globalCompositeOperation = 'source-over';
 
-        // Blur with a spread by drawing the silhouette multiple times to bake
-        // in the hardened core, then a final blurred pass.
+        // Spread (0..1) hardens the shadow edge by dilating the silhouette by
+        // `spread * size` pixels, then blurring by the remaining `(1 - spread) *
+        // size` budget. At spread=0 the shadow is a soft Gaussian; at spread=1
+        // it's a hard, slightly-grown silhouette. This mirrors Photoshop's
+        // semantics: "Spread" enlarges the matte boundaries of the shadow
+        // before the Size blur is applied.
+        const rad = (p.angle * Math.PI) / 180;
+        const dx = Math.cos(rad) * p.distance;
+        const dy = Math.sin(rad) * p.distance;
+        const sizePx = Math.max(0, p.size);
+        const spreadFrac = Math.max(0, Math.min(1, p.spread));
+        const dilatePx = Math.round(spreadFrac * sizePx);
+        const blurPx = Math.max(0, sizePx - dilatePx);
+
+        // Dilate by stamping the tinted silhouette at small radial offsets so
+        // every pixel within `dilatePx` of an opaque pixel becomes opaque too.
+        // 8 cardinal/diagonal stamps approximate a circular dilation.
+        const dilated = document.createElement('canvas');
+        dilated.width = out.width;
+        dilated.height = out.height;
+        const dctx = dilated.getContext('2d');
+        if (!dctx) return { canvas: out, placement: 'underlay', blendMode: p.blendMode, opacity: p.opacity };
+        dctx.drawImage(out, 0, 0);
+        if (dilatePx > 0) {
+            const offsets: Array<[number, number]> = [
+                [dilatePx, 0], [-dilatePx, 0], [0, dilatePx], [0, -dilatePx],
+                [dilatePx, dilatePx], [-dilatePx, dilatePx], [dilatePx, -dilatePx], [-dilatePx, -dilatePx],
+            ];
+            for (const [ox, oy] of offsets) dctx.drawImage(out, ox, oy);
+        }
+
+        // Blur the (possibly dilated) silhouette by the remaining size budget.
         const blurred = document.createElement('canvas');
         blurred.width = out.width;
         blurred.height = out.height;
         const bctx = blurred.getContext('2d');
-        if (!bctx) return { canvas: out, placement: 'underlay', blendMode: p.blendMode, opacity: p.opacity };
-        const rad = (p.angle * Math.PI) / 180;
-        const dx = Math.cos(rad) * p.distance;
-        const dy = Math.sin(rad) * p.distance;
-        // Pre-blur "spread" intensifies opaque core; we approximate by drawing the
-        // tinted silhouette N times where N grows with spread.
-        const spreadPasses = 1 + Math.round(p.spread * 8);
-        for (let i = 0; i < spreadPasses; i++) bctx.drawImage(out, 0, 0);
-        bctx.filter = `blur(${Math.max(0, p.size)}px)`;
-        bctx.drawImage(out, 0, 0);
-        bctx.filter = 'none';
+        if (!bctx) return { canvas: dilated, placement: 'underlay', blendMode: p.blendMode, opacity: p.opacity };
+        if (blurPx > 0) {
+            bctx.filter = `blur(${blurPx}px)`;
+            bctx.drawImage(dilated, 0, 0);
+            bctx.filter = 'none';
+        } else {
+            bctx.drawImage(dilated, 0, 0);
+        }
 
         // Place the blurred silhouette at the offset.
         const placed = document.createElement('canvas');

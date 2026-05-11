@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { getAdjustment } from '../../adjustments';
 import { buildSelectionMask, blendWithMask } from '../../filters/selectionMask';
 import type { SelectionState } from '../../store/types';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface AdjustmentDialogProps {
     isOpen: boolean;
@@ -387,6 +388,7 @@ export function AdjustmentDialog({
     const [params, setParams] = useState<Record<string, unknown>>({});
     const previewRef = useRef<HTMLCanvasElement>(null);
     const [curveChannel, setCurveChannel] = useState<'rgb' | 'r' | 'g' | 'b'>('rgb');
+    const dialogRef = useDialogA11y(isOpen, onClose);
     const [previewEnabled, setPreviewEnabled] = useState(true);
 
     const mergedParams = useMemo(() => ({
@@ -421,6 +423,8 @@ export function AdjustmentDialog({
             image: sourceImage,
             width: sourceImage.width,
             height: sourceImage.height,
+            selectionMask: null,
+            dirtyRect: null,
         });
         const previewSelection = sourceScale === 1
             ? selection
@@ -466,6 +470,7 @@ export function AdjustmentDialog({
                     <>
                         <SliderRow label="Brightness" value={numberValue(mergedParams, 'brightness', 0)} min={-150} max={150} onChange={v => setParam('brightness', v)} />
                         <SliderRow label="Contrast" value={numberValue(mergedParams, 'contrast', 0)} min={-50} max={100} onChange={v => setParam('contrast', v)} />
+                        <CheckboxRow label="Use Legacy" checked={booleanValue(mergedParams, 'useLegacy', false)} onChange={v => setParam('useLegacy', v)} />
                     </>
                 );
             case 'levels':
@@ -569,6 +574,30 @@ export function AdjustmentDialog({
                         <CheckboxRow label="Monochrome" checked={booleanValue(mergedParams, 'monochrome', false)} onChange={v => setParam('monochrome', v)} />
                     </>
                 );
+            case 'selective-color':
+                return (
+                    <>
+                        <SelectRow label="Colors" value={stringValue(mergedParams, 'range', 'reds')} options={[
+                            { value: 'reds', label: 'Reds' },
+                            { value: 'yellows', label: 'Yellows' },
+                            { value: 'greens', label: 'Greens' },
+                            { value: 'cyans', label: 'Cyans' },
+                            { value: 'blues', label: 'Blues' },
+                            { value: 'magentas', label: 'Magentas' },
+                            { value: 'whites', label: 'Whites' },
+                            { value: 'neutrals', label: 'Neutrals' },
+                            { value: 'blacks', label: 'Blacks' },
+                        ]} onChange={v => setParam('range', v)} />
+                        <SliderRow label="Cyan" value={numberValue(mergedParams, 'cyan', 0)} min={-100} max={100} onChange={v => setParam('cyan', v)} />
+                        <SliderRow label="Magenta" value={numberValue(mergedParams, 'magenta', 0)} min={-100} max={100} onChange={v => setParam('magenta', v)} />
+                        <SliderRow label="Yellow" value={numberValue(mergedParams, 'yellow', 0)} min={-100} max={100} onChange={v => setParam('yellow', v)} />
+                        <SliderRow label="Black" value={numberValue(mergedParams, 'black', 0)} min={-100} max={100} onChange={v => setParam('black', v)} />
+                        <SelectRow label="Method" value={stringValue(mergedParams, 'method', 'relative')} options={[
+                            { value: 'relative', label: 'Relative' },
+                            { value: 'absolute', label: 'Absolute' },
+                        ]} onChange={v => setParam('method', v)} />
+                    </>
+                );
             case 'posterize':
                 return <SliderRow label="Levels" value={numberValue(mergedParams, 'levels', 4)} min={2} max={255} onChange={v => setParam('levels', v)} />;
             case 'threshold':
@@ -614,6 +643,11 @@ export function AdjustmentDialog({
             onClick={onClose}
         >
             <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="adjustment-dialog-title"
+                tabIndex={-1}
                 style={{
                     width: dialogWidth,
                     maxHeight: '84vh',
@@ -636,10 +670,11 @@ export function AdjustmentDialog({
                     background: 'linear-gradient(#454545, #3b3b3b)',
                 }}>
                     <div style={{ width: 24 }} />
-                    <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#e4e4e4', letterSpacing: 0.2 }}>
+                    <h3 id="adjustment-dialog-title" style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#e4e4e4', letterSpacing: 0.2 }}>
                         {adjustment.label}
                     </h3>
                     <button
+                        aria-label="Close"
                         onClick={onClose}
                         style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: 4, display: 'flex', borderRadius: 4 }}
                     >

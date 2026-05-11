@@ -1,11 +1,15 @@
 import type { StateCreator } from 'zustand';
-import type { EditorStore, ToolsSlice, BrushPreset, ToolPreset, PatternPreset } from './types';
+import type {
+    EditorStore, ToolsSlice, BrushPreset, ToolPreset, PatternPreset,
+    GradientPresetEntry, GradientColorStop, GradientOpacityStop,
+} from './types';
 import { commitActiveEditingType } from '../tools/type';
 import { getTool } from '../tools/registry';
 import { setBrushOptions } from '../tools/brush';
 
 const BRUSH_PRESETS_KEY = 'photoweb:brushPresets:v1';
 const TOOL_PRESETS_KEY = 'photoweb:toolPresets:v1';
+const GRADIENT_PRESETS_KEY = 'photoweb:gradientPresets:v1';
 const PATTERN_PRESETS_KEY = 'photoweb:patternPresets:v1';
 
 function loadStoredToolPresets(): ToolPreset[] {
@@ -51,6 +55,19 @@ function loadStoredPatternPresets(): PatternPreset[] {
 function persistPatternPresets(presets: PatternPreset[]): void {
     if (typeof localStorage === 'undefined') return;
     try { localStorage.setItem(PATTERN_PRESETS_KEY, JSON.stringify(presets)); } catch { /* quota */ }
+}
+
+function loadStoredGradientPresets(): GradientPresetEntry[] {
+    if (typeof localStorage === 'undefined') return [];
+    try {
+        const raw = localStorage.getItem(GRADIENT_PRESETS_KEY);
+        return raw ? JSON.parse(raw) as GradientPresetEntry[] : [];
+    } catch { return []; }
+}
+
+function persistGradientPresets(presets: GradientPresetEntry[]): void {
+    if (typeof localStorage === 'undefined') return;
+    try { localStorage.setItem(GRADIENT_PRESETS_KEY, JSON.stringify(presets)); } catch { /* quota */ }
 }
 
 function patternSourceToDataUrl(source: HTMLCanvasElement | ImageData): { dataUrl: string; width: number; height: number; tile: HTMLCanvasElement } {
@@ -100,6 +117,7 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
     brushPresets: loadStoredBrushPresets(),
     toolPresets: loadStoredToolPresets(),
     patternPresets: loadStoredPatternPresets(),
+    gradientPresets: loadStoredGradientPresets(),
     activePatternId: null,
 
     setTool: (tool) => {
@@ -162,6 +180,41 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
         return { brushPresets: next };
     }),
 
+    renameBrushPreset: (id, name) => set(state => {
+        const next = state.brushPresets.map(p => p.id === id ? { ...p, name } : p);
+        persistBrushPresets(next);
+        return { brushPresets: next };
+    }),
+
+    reorderBrushPreset: (fromIdx, toIdx) => set(state => {
+        if (fromIdx === toIdx) return state;
+        if (fromIdx < 0 || fromIdx >= state.brushPresets.length) return state;
+        if (toIdx < 0 || toIdx > state.brushPresets.length) return state;
+        const next = state.brushPresets.slice();
+        const [moved] = next.splice(fromIdx, 1);
+        const clampedTo = Math.min(Math.max(0, toIdx), next.length);
+        next.splice(clampedTo, 0, moved);
+        persistBrushPresets(next);
+        return { brushPresets: next };
+    }),
+
+    duplicateBrushPreset: (id) => set(state => {
+        const source = state.brushPresets.find(p => p.id === id);
+        if (!source) return state;
+        const copy: BrushPreset = {
+            id: crypto.randomUUID(),
+            name: `${source.name} copy`,
+            settings: { ...source.settings },
+            smoothing: source.smoothing,
+            spacing: source.spacing,
+        };
+        const idx = state.brushPresets.findIndex(p => p.id === id);
+        const next = state.brushPresets.slice();
+        next.splice(idx + 1, 0, copy);
+        persistBrushPresets(next);
+        return { brushPresets: next };
+    }),
+
     saveToolPreset: (name, optionsBlob) => set(state => {
         const preset: ToolPreset = {
             id: crypto.randomUUID(),
@@ -214,5 +267,38 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
         };
     }),
 
+    renamePatternPreset: (id, name) => set(state => {
+        const next = state.patternPresets.map(p => p.id === id ? { ...p, name } : p);
+        persistPatternPresets(next);
+        return { patternPresets: next };
+    }),
+
     setActivePatternId: (id) => set({ activePatternId: id }),
+
+    saveGradientPreset: (name, colorStops, opacityStops, smoothness) => {
+        const preset: GradientPresetEntry = {
+            id: crypto.randomUUID(),
+            name,
+            colorStops: colorStops.map((s: GradientColorStop) => ({ ...s })),
+            opacityStops: opacityStops.map((s: GradientOpacityStop) => ({ ...s })),
+            smoothness,
+        };
+        set(state => {
+            const next = [...state.gradientPresets, preset];
+            persistGradientPresets(next);
+            return { gradientPresets: next };
+        });
+        return preset.id;
+    },
+
+    applyGradientPreset: (id) => {
+        const preset = get().gradientPresets.find(p => p.id === id);
+        return preset ? { ...preset, colorStops: preset.colorStops.map(s => ({ ...s })), opacityStops: preset.opacityStops.map(s => ({ ...s })) } : null;
+    },
+
+    removeGradientPreset: (id) => set(state => {
+        const next = state.gradientPresets.filter(p => p.id !== id);
+        persistGradientPresets(next);
+        return { gradientPresets: next };
+    }),
 });

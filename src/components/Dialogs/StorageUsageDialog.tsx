@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface Props {
     isOpen: boolean;
@@ -59,6 +60,7 @@ async function computeEstimate(): Promise<Estimate> {
 
 export function StorageUsageDialog({ isOpen, onClose }: Props) {
     const [est, setEst] = useState<Estimate | null>(null);
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -75,8 +77,8 @@ export function StorageUsageDialog({ isOpen, onClose }: Props) {
 
     return (
         <div style={overlayStyle} onClick={onClose}>
-            <div style={cardStyle} onClick={e => e.stopPropagation()}>
-                <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Storage Usage</div>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="storage-usage-title" tabIndex={-1} style={cardStyle} onClick={e => e.stopPropagation()}>
+                <div id="storage-usage-title" style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Storage Usage</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
                     <Row label="Browser quota" value={formatBytes(est?.quotaBytes)} />
                     <Row label="Browser usage" value={`${formatBytes(est?.usageBytes)}${percentUsed !== null ? ` (${percentUsed}%)` : ''}`} />

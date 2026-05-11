@@ -26,13 +26,13 @@ function flat(r: number, g: number, b: number, w = 4, h = 4): ImageData {
 describe('adjustments', () => {
     it('brightness +50 brightens every channel', () => {
         const src = flat(100, 100, 100);
-        const out = brightnessContrast.apply({ brightness: 50, contrast: 0, useLegacy: false }, { image: src, width: src.width, height: src.height });
+        const out = brightnessContrast.apply({ brightness: 50, contrast: 0, useLegacy: false }, { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null });
         expect(out.data[0]).toBeGreaterThan(100);
     });
 
     it('invert flips RGB and preserves alpha', () => {
         const src = flat(40, 60, 80);
-        const out = invert.apply({}, { image: src, width: src.width, height: src.height });
+        const out = invert.apply({}, { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null });
         expect(out.data[0]).toBe(215);
         expect(out.data[1]).toBe(195);
         expect(out.data[2]).toBe(175);
@@ -42,8 +42,8 @@ describe('adjustments', () => {
     it('threshold @128 maps below to 0 and above to 255', () => {
         const dark = flat(50, 50, 50);
         const bright = flat(200, 200, 200);
-        const o1 = threshold.apply({ level: 128 }, { image: dark, width: dark.width, height: dark.height });
-        const o2 = threshold.apply({ level: 128 }, { image: bright, width: bright.width, height: bright.height });
+        const o1 = threshold.apply({ level: 128 }, { image: dark, width: dark.width, height: dark.height, selectionMask: null, dirtyRect: null });
+        const o2 = threshold.apply({ level: 128 }, { image: bright, width: bright.width, height: bright.height, selectionMask: null, dirtyRect: null });
         expect(o1.data[0]).toBe(0);
         expect(o2.data[0]).toBe(255);
     });
@@ -57,7 +57,7 @@ describe('adjustments', () => {
         arr.set([150, 150, 150, 255], 8);
         arr.set([150, 150, 150, 255], 12);
         const src = new ImageData(arr, w, h);
-        const out = autoContrast.apply({}, { image: src, width: w, height: h });
+        const out = autoContrast.apply({}, { image: src, width: w, height: h, selectionMask: null, dirtyRect: null });
         // After stretch, min should be ~0 and max ~255
         expect(out.data[0]).toBe(0);
         expect(out.data[8]).toBe(255);
@@ -67,7 +67,7 @@ describe('adjustments', () => {
         const src = flat(200, 50, 50);
         const out = hueSaturation.apply(
             { hue: 0, saturation: -100, lightness: 0, colorize: false },
-            { image: src, width: src.width, height: src.height },
+            { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null },
         );
         // R G B should converge
         const diff = Math.max(out.data[0], out.data[1], out.data[2]) - Math.min(out.data[0], out.data[1], out.data[2]);
@@ -108,7 +108,7 @@ describe('adjustments', () => {
     it('empty params are safe for every registered adjustment', () => {
         const src = flat(90, 140, 210);
         for (const adjustment of listAdjustments()) {
-            const out = adjustment.apply({}, { image: src, width: src.width, height: src.height });
+            const out = adjustment.apply({}, { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null });
             expect(out.width, adjustment.id).toBe(src.width);
             expect(out.height, adjustment.id).toBe(src.height);
             expect(out.data[3], adjustment.id).toBe(255);
@@ -125,7 +125,7 @@ describe('adjustments', () => {
             hueSaturation,
         ] as unknown as Adjustment<Record<string, unknown>>[];
         for (const adjustment of neutral) {
-            const out = adjustment.apply({}, { image: src, width: src.width, height: src.height });
+            const out = adjustment.apply({}, { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null });
             expect([out.data[0], out.data[1], out.data[2]], adjustment.id).toEqual([90, 140, 210]);
         }
     });
@@ -137,7 +137,7 @@ describe('adjustments', () => {
         ]);
         const src = new ImageData(arr, 2, 1);
         for (const adjustment of [autoTone, autoContrast, autoColor]) {
-            const out = adjustment.apply({}, { image: src, width: src.width, height: src.height });
+            const out = adjustment.apply({}, { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null });
             expect([out.data[0], out.data[1], out.data[2]], adjustment.id).toEqual([100, 100, 100]);
             expect([out.data[4], out.data[5], out.data[6], out.data[7]], adjustment.id).toEqual([0, 0, 0, 0]);
         }
@@ -147,7 +147,7 @@ describe('adjustments', () => {
         const src = flat(128, 128, 128);
         const out = hueSaturation.apply(
             { hue: 120, saturation: 50, lightness: 0, colorize: true },
-            { image: src, width: src.width, height: src.height },
+            { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null },
         );
         expect(out.data[1]).toBeGreaterThan(out.data[0]);
         expect(out.data[1]).toBeGreaterThan(out.data[2]);
@@ -166,7 +166,7 @@ describe('adjustments', () => {
                     { position: 0.75, color: '#0000ff' },
                 ],
             },
-            { image: src, width: src.width, height: src.height },
+            { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null },
         );
         expect([out.data[0], out.data[1], out.data[2]]).toEqual([255, 0, 0]);
         expect([out.data[4], out.data[5], out.data[6]]).toEqual([0, 0, 255]);

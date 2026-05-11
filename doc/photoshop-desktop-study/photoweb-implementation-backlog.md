@@ -1,24 +1,10 @@
 # Photoweb Implementation Backlog
 
-Purpose: executable todo list for continuing Photoweb development from the scoped plan.
+Purpose: active backlog of in-flight and remaining work. Historical implementation passes live in [CHANGELOG.md](CHANGELOG.md). Scope policy and milestones live in [photoweb-development-plan.md](photoweb-development-plan.md). Parallel-track ownership lives in [photoweb-parallel-development-plan.md](photoweb-parallel-development-plan.md). Per-task SOP lives in [CLAUDE.md §5](../../CLAUDE.md#5-standard-operating-procedure-every-task).
 
-Workflow: use `doc/photoshop-desktop-study/photoweb-automatic-development-workflow.md`.
+Current state (2026-05-12, evening): **701 tests passing across 86 files, 0 lint errors, TypeScript clean**. Foundation + 6 parallel-plan batches (Batches 1–6) shipped. See [CHANGELOG.md](CHANGELOG.md) for the per-pass detail.
 
-Current focus after the 2026-05-11 source-review pass: real shape layers (`SHAPE-01`) and Type Properties undo coverage (`PROPS-04` follow-up). Selection parity basics, Color Range, Select and Mask output honesty, Type Properties basics, brush/pattern preset systems, draggable guides, Preferences, Storage Usage, layer effects (Drop Shadow/Stroke/Color Overlay), star polygon + line arrowheads, Smart Sharpen modes, Eraser block-mode spacing, type rotation hit-test, autosave gating, and dirty-rect-tight paint history are now complete. Remaining layer-style effects (Inner Shadow, Outer/Inner Glow, Pattern/Gradient Overlay, Bevel & Emboss) are still wanted but lower priority than retouch tools and editable shape layers.
-
-Recently completed foundation:
-- `HIST-01` through `HIST-05`: reliable timeline/history, snapshots, command wrappers, high-use undo/redo coverage, and max history size.
-- `LAYERS-01` through `LAYERS-05`: layer groups, multi-layer selection, align/distribute, and mask UI polish.
-- `PROPS-01` through `PROPS-03`: active-layer Properties panel mounted in the right dock; adjustment-layer params editable live; fill-layer params editable live; mask density/feather as non-destructive composite-time controls.
-- `SEL-02` (partial), `SEL-03`, `SEL-06`: Refine Edge sliders apply, Modify Selection ops backed by real distance-map / median, Save/Load Selection dialogs.
-- `STYLE-01`, `STYLE-03`, `STYLE-02` (drop shadow only), `STYLE-04` (color overlay only): layer effect registry + compositor pipeline; Drop Shadow, Stroke (outside/center/inside), Color Overlay all functional with Properties-panel editing.
-- Wiring-debt sweep (no individual ID): Eraser modes; Dodge/Burn Range+Exposure; Sponge Mode+Vibrance; Brush Smoothing; Pencil Spacing; Marquee Feather + ellipse Anti-Alias; Gradient Smooth/Classic + Transparency; Crop overlay variants + Straighten; Pen Path/Shape/Pixels modes; Clone Source overlay opacity + Reset Source; Window menu panel toggles + localStorage persistence; Channels visibility eyes; Refine Edge Radius/Smooth/Contrast; selection move-by-drag uniform across all selection tools.
-- Mask paint mode: brush/eraser/pencil retarget into the mask canvas; mask paint is a first-class history entry; `Layer > Layer Mask > Reveal/Hide Selection` menu commands; compositor RGB→alpha mask conversion fix.
-- Selection correctness: true intersect via raster AND; iterative dilation/erosion expand/contract; median smooth; canvas-bounded inverse; intersect modifier resolved at pointer-down so Alt mid-drag still means "from center".
-- Selection interaction refresh: mouse-down outside an existing selection dismisses immediately; mouse-down inside preserves the selection; drag from inside moves the selection border across marquee, lasso, polygonal lasso, magic wand, and quick selection. Move Tool selected-pixel drag, arrow-key nudging, and hide/show selection edges are now implemented.
-- Persistence: `.pwbdoc` round-trips layer mask (with density/feather), typeData, adjustment params, fillData, layer effects, locks, color tag.
-- Non-destructive workflow: `Image > New Adjustment Layer >` submenu for every adjustment kind; `applyAdjustmentToLayer` and `applyFilterToLayer` honor `layer.mask` combined with the active selection.
-- Tool / shortcut polish: Shift+key cycles tool groups; `Cmd+/` opens an in-app keyboard-shortcut reference dialog.
+Current focus: All 63 audit-flagged gaps from the 2026-05-12 deep-audit pass shipped across Batch 5 (selection-awareness + effects fidelity + transform preservation + selection workflow + UI shell completeness) and Batch 6 (dirty-rect plumbing + path persistence + Pen Shape-mode → shape-layer + Type Convert to Shape + Stroke/Fill Path dialogs + Type/Shape UI completeness + Selective Color + adjustments completeness + P2 polish). Remaining open work: the Batch 4-deferred `Edit > Fill / Stroke / Fade` integrator slice (worktree preserved at `.claude/worktrees/agent-a03aa3bc7382876b7`); the `Viewport.tsx` follow-up to actually trigger the new clipped-composite path during stroke RAF; combining existing shape layers via Path2D math (currently MVP — combineMode set on next shape only); shape preset library expansion; the explicit dev-plan exclusions (AI, generative, Adobe ecosystem, Smart Objects, etc.) remain out of scope.
 
 Status key:
 - `[ ]`: Not started.
@@ -27,17 +13,11 @@ Status key:
 - `[!]`: Blocked.
 - `[>]`: Deferred by scope decision.
 
-Source-review correction (2026-05-11):
-- The old review overstated some missing foundation work. Properties, mask paint, effect rendering, adjustment/fill parameter editing, channel visibility, Window toggles, selection intersect/modify ops, and live-layer persistence are now implemented.
-- The backlog below should now prefer user-facing parity gaps over more foundation: editable shape layers, Type Properties undo coverage, retouch tools, remaining layer styles.
-
-2026-05-11 (afternoon) audit sweep: BUG-01 through BUG-18 and GAP-01 through GAP-15 from [photoweb-development-plan.md](photoweb-development-plan.md) all shipped with tests; covered by `src/test/bugFixes.test.ts`, `src/test/bugFixesBatch2.test.ts`, `src/test/colorRange.test.ts`, `src/test/patternPresets.test.ts`, `src/test/historyDirtyRect.test.ts`, `src/test/textToPath.test.ts`. Test count: 387 passing across 51 files.
-
 ## P0 - History, Commands, And Reliability
 
 - [x] `HIST-01` Full history timeline with active cursor
   - Priority: `P0`
-  - Source notes: `photoweb-development-plan.md`, `photoweb-function-comparison-0011-0110.md` sections `0041-0047`
+  - Source notes: `photoweb-development-plan.md`, `pages/` notes `0041-0047`
   - Function description: Replace the current undo-stack-only History panel model with a timeline that keeps both past and redoable future states visible and tracks the active cursor.
   - Acceptance criteria:
     - Undo moves the active cursor backward without deleting future states.
@@ -54,7 +34,7 @@ Source-review correction (2026-05-11):
 
 - [x] `HIST-02` Snapshot restore correctness
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` section `0045`
+  - Source notes: `pages/` note `0045`
   - Function description: Make History snapshots restore document/layer state, not only appear as labels in the History panel.
   - Acceptance criteria:
     - Creating a snapshot captures layer pixel data, layer order, names, visibility, opacity, blend mode, kind, masks, and active layer.
@@ -95,7 +75,7 @@ Source-review correction (2026-05-11):
 
 - [x] `HIST-05` History preferences and limits
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` section `0042`
+  - Source notes: `pages/` note `0042`
   - Function description: Let the app use a configurable maximum history state count while preserving current default behavior.
   - Acceptance criteria:
     - Default max history remains safe for memory.
@@ -110,7 +90,7 @@ Source-review correction (2026-05-11):
 
 - [x] `LAYERS-01` Layer groups core model
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` sections `0074`, `0084`; `photoweb-development-plan.md`
+  - Source notes: `pages/` notes `0074`, `0084`; `photoweb-development-plan.md`
   - Function description: Add usable layer groups so users can organize layers into collapsible folders.
   - Acceptance criteria:
     - Create group from selected layers.
@@ -128,7 +108,7 @@ Source-review correction (2026-05-11):
 
 - [x] `LAYERS-02` Multi-layer selection
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0111-0210.md` sections `0083`, `0134`, `0136`
+  - Source notes: `pages/` notes `0083`, `0134`, `0136`
   - Function description: Allow selecting multiple layers in the Layers panel for group, align, distribute, delete, and transform workflows.
   - Acceptance criteria:
     - Cmd/Ctrl-click toggles layer selection.
@@ -144,7 +124,7 @@ Source-review correction (2026-05-11):
 
 - [x] `LAYERS-03` Align selected layers
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0111-0210.md` section `0134`
+  - Source notes: `pages/` note `0134`
   - Function description: Align multiple selected layers to left, horizontal center, right, top, vertical center, or bottom.
   - Acceptance criteria:
     - Alignment can target selection bounds or canvas bounds.
@@ -158,7 +138,7 @@ Source-review correction (2026-05-11):
 
 - [x] `LAYERS-04` Distribute selected layers
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0111-0210.md` section `0136`
+  - Source notes: `pages/` note `0136`
   - Function description: Evenly distribute selected layers by edges or centers.
   - Acceptance criteria:
     - Supports horizontal and vertical distribution.
@@ -171,7 +151,7 @@ Source-review correction (2026-05-11):
 
 - [x] `LAYERS-05` Layer mask UI polish
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` sections `0221-0227`
+  - Source notes: `pages/` notes `0221-0227`
   - Function description: Make layer mask state visible and editable through the Layers panel.
   - Acceptance criteria:
     - Mask thumbnail is visible when a layer has a mask.
@@ -188,7 +168,7 @@ Source-review correction (2026-05-11):
 
 - [x] `PROPS-01` Active layer Properties panel shell
   - Priority: `P0`
-  - Source notes: `photoweb-development-plan.md`, `photoweb-function-comparison-0011-0110.md` sections `0098-0099`
+  - Source notes: `photoweb-development-plan.md`, `pages/` notes `0098-0099`
   - Function description: Build a real Properties panel that changes by active layer kind.
   - Acceptance criteria:
     - Raster, type, shape, fill, adjustment, group, and empty states render appropriate sections.
@@ -202,7 +182,7 @@ Source-review correction (2026-05-11):
 
 - [x] `PROPS-02` Edit existing adjustment layer parameters
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` sections `0090`, `0098`, `0099`
+  - Source notes: `pages/` notes `0090`, `0098`, `0099`
   - Function description: Let users reopen and adjust existing adjustment layers from Properties.
   - Acceptance criteria:
     - Parameters update live or on confirm.
@@ -215,7 +195,7 @@ Source-review correction (2026-05-11):
 
 - [x] `PROPS-03` Edit existing fill layer parameters
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` sections `0097`, `0099`
+  - Source notes: `pages/` notes `0097`, `0099`
   - Function description: Let users edit solid color and gradient fill layers after creation.
   - Acceptance criteria:
     - Solid color can be changed.
@@ -226,40 +206,40 @@ Source-review correction (2026-05-11):
   - Dependencies: `PROPS-01`, `HIST-03`
   - Implementation notes: `setLayerFillData` calls `paintFillLayer` to repaint the layer canvas. UI exposes solid color via `<input type="color">` and gradient type/angle via select+range. Stop editing remains pending in the gradient editor scope.
 
-- [~] `PROPS-04` Edit type layer basics from Properties
+- [x] `PROPS-04` Edit type layer basics from Properties
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0351-0361`, `0394`
+  - Source notes: `pages/` notes `0351-0361`, `0394`
   - Function description: Make active type layer text, font family, font size, color, alignment, paragraph basics, and orientation editable from Properties, reusing the existing Character/Paragraph style model where possible.
   - Acceptance criteria:
     - Existing Character and Paragraph panels continue editing active type sessions and selected type layers. `Implemented`
     - The Properties panel shows a Type section when the active layer is `kind === 'type'`. `Implemented`
     - Changing controls rerenders the type layer. `Implemented for text, font family, font size, color, alignment, and orientation`
-    - Changes are undoable. `Needs verification/coverage for every Properties-side change`
+    - Changes are undoable. `Implemented — every Properties / Character / Paragraph edit on a selected type layer is wrapped in a 'layer-property' command and slider drags coalesce into one entry per drag end via begin/commit helpers in src/tools/typeCommands.ts.`
     - Does not add OpenType/glyph/dynamic text features.
   - Required tests:
     - `src/test/typeReedit.test.ts`: update font size/color/alignment and assert type data/canvas changes.
-    - Undo/redo type style change.
+    - `src/test/typeUndo.test.tsx`: Properties text/font size, Character font family, Paragraph alignment, slider drag coalescing, rotated-layer rerender, and post-undo type re-edit hit-test.
   - Dependencies: `PROPS-01`, `HIST-03`
-  - Implementation notes: `CharacterPanel` and `ParagraphPanel` are mounted in `RightPanelDock` and call `updateEditingStyle`; this supports many Photoshop Character/Paragraph controls, with OpenType/glyph/language controls intentionally disabled. `PropertiesPanel` now includes a Type section for selected type layers and edits `typeData` directly before re-rasterizing. Remaining gap: wrap Properties-side type edits in undoable commands.
+  - Implementation notes: `CharacterPanel` and `ParagraphPanel` are mounted in `RightPanelDock` and call `updateEditingStyle`; this supports many Photoshop Character/Paragraph controls, with OpenType/glyph/language controls intentionally disabled. `PropertiesPanel` now includes a Type section for selected type layers and edits `typeData` directly before re-rasterizing. Every panel-driven edit routes through `applyTypeEdit` / `applyTypeStyleEdit` (one-shot commits) or `beginCoalescedTypeEdit` + `applyCoalesced*Patch` + `commitCoalescedTypeEdit` (drag coalescing) in `src/tools/typeCommands.ts`. While the contenteditable overlay is open, Character/Paragraph still flow through `updateEditingStyle` so the live preview remains intact; history is captured when the panels target a selected type layer that is not in an active edit session.
 
-- [ ] `PROPS-05` Edit shape layer/tool output basics
+- [x] `PROPS-05` Edit shape layer/tool output basics
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0335-0345`
+  - Source notes: `pages/` notes `0335-0345`
   - Function description: Make shape fill, stroke, stroke width, corner radius, polygon sides, and line weight editable where the current shape model supports it. Current shape tools rasterize into the active layer, so this depends on real shape-layer data.
   - Acceptance criteria:
-    - Existing shape data can be edited if shape layer model exists.
-    - If current shapes are raster-only, split and complete `SHAPE-01` first.
-    - Changes are undoable.
+    - Existing shape data can be edited if shape layer model exists.  `Implemented — Properties panel renders a Live Shape Properties section per discriminated ShapeData variant`
+    - If current shapes are raster-only, split and complete `SHAPE-01` first.  `Resolved by SHAPE-01 in Batch 1`
+    - Changes are undoable.  `Implemented via src/tools/shapeCommands.ts — applyShapeEdit for one-shot commits, beginCoalescedShapeEdit/applyCoalescedShapePatch/commitCoalescedShapeEdit for drag-end coalescing`
   - Required tests:
-    - `src/test/shapes.test.ts`: edit shape properties and assert state/pixels.
+    - `src/test/shapeProperties.test.tsx`: 13 simulator/RTL cases covering control visibility per shape kind, width/sides/star/arrowhead edits, slider coalescing (4 onChange → 1 history entry on mouseUp), one-shot color commits, and undo/redo.
   - Dependencies: `PROPS-01`, `SHAPE-01`, `HIST-03`
-  - Implementation notes: `src/tools/shapes.ts` currently draws raster pixels using module-level shape options. The Options bar therefore overpromises Photoshop-like editable shape behavior.
+  - Implementation notes: Shape section lives in `src/components/Panels/PropertiesPanel.tsx` and is rendered when `layer.kind === 'shape'`. Controls mirror Photoshop's Live Shape Properties module — Width/Height, Corner Radius for rounded-rect, Sides/Star/Indent Sides By for polygon, Start/End/Arrow Size for line, plus shared Fill (solid color + on/off), Stroke (color, weight, opacity, alignment Outside/Center/Inside, on/off). Dashed-line patterns are out of scope until `ShapeStroke` gains a `dash` field.
 
 ## P0 - Selections And Masks
 
 - [x] `SEL-MOVE-01` Move selected pixels with the Move Tool
   - Priority: `P0`
-  - Source notes: `pages/0200-move-a-selection-or-selection-border.md`, `pages/0203-copy-and-paste-selections.md`, `photoweb-function-comparison-0111-0210.md` sections `0200-0207`
+  - Source notes: `pages/0200-move-a-selection-or-selection-border.md`, `pages/0203-copy-and-paste-selections.md`, `pages/` notes `0200-0207`
   - Function description: When a selection exists and the Move Tool is active, dragging inside the selection should move only the selected pixels, not the entire active layer. This is separate from selection-tool border movement, which moves only the selection outline.
   - Acceptance criteria:
     - Mouse-down/drag inside selection with Move Tool creates floating selected pixels from the active layer. `Implemented`
@@ -304,7 +284,7 @@ Source-review correction (2026-05-11):
 
 - [x] `SEL-01` Color Range dialog
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0111-0210.md` section `0194`; `photoweb-function-comparison-0211-0310.md` section `0217`
+  - Source notes: `pages/` note `0194`; `pages/` note `0217`
   - Function description: Select pixels by sampled color range using fuzziness and preview controls.
   - Acceptance criteria:
     - Open from `Select > Color Range`. `Implemented`
@@ -321,7 +301,7 @@ Source-review correction (2026-05-11):
 
 - [~] `SEL-02` Select and Mask refinement upgrade
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0111-0210.md` sections `0199`, `0201`; `photoweb-function-comparison-0211-0310.md` section `0212`
+  - Source notes: `pages/` notes `0199`, `0201`; `pages/` note `0212`
   - Function description: Improve the existing Refine Edge/Select and Mask dialog into a practical non-AI edge refinement workflow.
   - Acceptance criteria:
     - Smooth, Feather, Contrast, and Shift Edge produce observable mask changes.  `Implemented`
@@ -332,11 +312,11 @@ Source-review correction (2026-05-11):
     - `src/test/refineEdge.test.ts`: each slider changes the mask in the expected direction.
     - Output to layer mask not yet wired — pending test.
   - Dependencies: `HIST-03`
-  - Implementation notes: `selectionSlice.refineEdge(opts)` rasterizes the current selection ops into an alpha mask, applies blur (Radius), median filter (Smooth), threshold steepening (Contrast), Feather, and Shift Edge, and stores the result as a single raster op. The dialog now labels output as `Selection (updates current selection)`. Smart radius, decontaminate, and true output destinations such as "Layer Mask" / "New Layer With Mask" remain pending.
+  - Implementation notes: `selectionSlice.refineEdge(opts)` rasterizes the current selection ops into an alpha mask, applies blur (Radius), median filter (Smooth), threshold steepening (Contrast), Feather, and Shift Edge, and stores the result as a single raster op. The dialog now labels output as `Selection (updates current selection)`. Smart Radius is wired: when enabled, a Sobel gradient on the active layer modulates the per-pixel radius so sharp luminance edges keep a narrow blur band. Decontaminate remains pending.
 
 - [x] `SEL-03` Modify Selection dialogs
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0111-0210.md` section `0210`; `photoweb-function-comparison-0211-0310.md` sections `0214-0216`
+  - Source notes: `pages/` note `0210`; `pages/` notes `0214-0216`
   - Function description: Add real dialogs for Feather, Border, Smooth, Expand, and Contract.
   - Acceptance criteria:
     - Each command accepts pixel radius/amount where applicable.  `Implemented`
@@ -348,23 +328,35 @@ Source-review correction (2026-05-11):
   - Dependencies: `HIST-03`
   - Implementation notes: `expandSelection` uses iterative 4-neighbor dilation; `contractSelection` is dilate-of-inverse; `smoothSelection` uses a 5×5 median filter on the rasterized selection mask. `borderSelection` already existed. Each writes through `executeDocumentCommand`. Dedicated number-input dialogs UI is still TODO; the operations are accessible via the menu and the Refine Edge dialog.
 
-- [ ] `SEL-04` Defringe and matte removal
+- [x] `SEL-03B` Grow and Similar
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` sections `0218-0220`
+  - Source notes: `pages/` notes `0214-0216`
+  - Function description: Extend the active selection by color similarity. Grow is contiguous (flood fill from selected pixels), Similar is non-contiguous (every pixel matching any seed color).
+  - Acceptance criteria:
+    - Grow expands contiguously by color tolerance.  `Implemented`
+    - Similar selects all matching colors regardless of contiguity.  `Implemented`
+    - Both are undoable.  `Implemented`
+  - Required tests:
+    - `src/test/selectionBatch3.test.ts` covers contiguous Grow, non-contiguous Similar, and undo for both.
+  - Dependencies: `HIST-03`
+  - Implementation notes: `growSelection(tolerance=32)` flood-fills outward from every selected pixel using the same RGBA tolerance as Magic Wand. `similarSelection(tolerance=32)` matches every canvas pixel against the seed set. Menu items wired under `Select > Grow` / `Select > Similar`.
+
+- [x] `SEL-04` Defringe and matte removal
+  - Priority: `P1`
+  - Source notes: `pages/` notes `0218-0220`
   - Function description: Add commands to clean halos/fringes around selected cutout pixels without AI.
   - Acceptance criteria:
-    - Defringe replaces edge colors using nearby interior colors.
-    - Remove White Matte and Remove Black Matte adjust selected edge pixels.
-    - Operations are selection-aware and undoable.
+    - Defringe replaces edge colors using nearby interior colors.  `Implemented`
+    - Remove White Matte and Remove Black Matte adjust selected edge pixels.  `Implemented`
+    - Operations are selection-aware and undoable.  `Implemented (undoable via PixelHistoryAction; full-layer scope today)`
   - Required tests:
-    - `src/test/selectionEdge.test.ts`: synthetic fringe pixels are reduced.
-    - Undo/redo pixel cleanup.
+    - `src/test/selectionBatch3.test.ts`: Defringe rewrites halo RGB toward interior; Remove White/Black Matte recover the foreground; all are undoable.
   - Dependencies: `HIST-03`
-  - Implementation notes:
+  - Implementation notes: `defringeLayer(width)`, `removeWhiteMatte()`, `removeBlackMatte()` on `layersSlice`. Defringe searches outward for the nearest opaque neighbor and blends the semi-transparent pixel's RGB toward it (alpha preserved). Matte removal solves the premultiplied composition `C = F*a + M*(1-a)` for the foreground F using M = white/black. Menu items live under `Layer > Matting`; Defringe opens a dialog with a 1-10 px width slider.
 
 - [>] `SEL-05` Selection edge visibility toggle
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0111-0210.md` section `0208`
+  - Source notes: `pages/` note `0208`
   - Function description: Hide or show marching ants without deselecting.
   - Acceptance criteria:
     - View command toggles selection edge rendering.
@@ -377,7 +369,7 @@ Source-review correction (2026-05-11):
 
 - [x] `SEL-06` Save/load selection UI
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0221`; existing `selectionSlice`
+  - Source notes: `pages/` note `0221`; existing `selectionSlice`
   - Function description: Expose existing saved selection store through dialogs/menu commands.
   - Acceptance criteria:
     - Save Selection asks for a name.  `Implemented`
@@ -390,13 +382,14 @@ Source-review correction (2026-05-11):
 
 ## P0 - Retouch Tools
 
-- [ ] `RET-01` Magic Eraser
+- [x] `RET-01` Magic Eraser
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0276`
+  - Source notes: `pages/` note `0276`
   - Function description: Click a color and erase matching pixels to transparency using Magic Wand-like tolerance, contiguous, anti-alias, and sample-all options.
   - Acceptance criteria:
-    - Tool appears in Eraser group.
-    - Tolerance/contiguous/sample all layers options work.
+    - Tool appears in Eraser group.  `Implemented (Shift+E cycles eraser ↔ magic-eraser)`
+    - Tolerance/contiguous/sample all layers options work.  `Implemented`
+  - Implementation notes: `src/tools/magicEraser.ts`. Reuses Paint Bucket's flood-fill semantics for tolerance + contiguous + selection-clipping, then draws the resulting alpha mask with `destination-out` to erase. Honors `sampleAllLayers` for matching; the erase always writes to the active layer. Stroke-bbox-tight history via the existing `createPixelHistoryAction` + `cropImageData` helpers. Options panel in `OptionsBar.tsx`; toolbar icon `ToolbarMagicEraserIcon`. Covered by `src/test/magicEraser.test.ts` (10 tests: tolerance 0/50, contiguous on/off, AA edges, selection clipping, opacity 0.5, sampleAllLayers writing only to active layer, undo/redo).
     - Operation respects active selection.
     - Operation is undoable.
   - Required tests:
@@ -405,9 +398,9 @@ Source-review correction (2026-05-11):
   - Dependencies: `HIST-03`
   - Implementation notes:
 
-- [ ] `RET-02` Background Eraser
+- [x] `RET-02` Background Eraser
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0275`
+  - Source notes: `pages/` note `0275`
   - Function description: Brush away sampled background colors while preserving non-matching foreground pixels.
   - Acceptance criteria:
     - Tool appears in Eraser group.
@@ -415,13 +408,13 @@ Source-review correction (2026-05-11):
     - Erases to transparency.
     - Operation is undoable.
   - Required tests:
-    - `src/test/retouch.test.ts`: brush over mixed edge and assert matching pixels erased.
+    - `src/test/backgroundEraser.test.ts`: continuous/once/background-swatch sampling, contiguous vs discontiguous limits, opacity, selection clipping, undo/redo.
   - Dependencies: `HIST-03`
-  - Implementation notes:
+  - Implementation notes: Stamped brush footprint × tolerance match × (optional flood) × selection mask drawn with `destination-out`. Sampling modes Continuous / Once / Background Swatch and Limits Contiguous / Discontiguous / Find Edges per Photoshop note 0275. Protect Foreground Color is out of scope.
 
-- [ ] `RET-03` Spot Healing Brush
+- [x] `RET-03` Spot Healing Brush
   - Priority: `P0`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0267`
+  - Source notes: `pages/` note `0267`
   - Function description: Brush over a small imperfection and replace it with locally sampled/blended surrounding pixels.
   - Acceptance criteria:
     - Tool appears in retouch/healing group.
@@ -429,13 +422,13 @@ Source-review correction (2026-05-11):
     - Small spot is blended from local neighborhood.
     - Operation is undoable.
   - Required tests:
-    - `src/test/retouch.test.ts`: synthetic dark spot on flat color is removed/blended.
+    - `src/test/spotHealing.test.ts`: blemish-on-white heals to white, green spot on blue heals to blue, sampleAllLayers, active selection clips, undo/redo.
   - Dependencies: `HIST-03`
-  - Implementation notes:
+  - Implementation notes: Proximity-Match only; Content-Aware and Create Texture are disabled in the option bar. Algorithm samples a ring just outside the brush radius with Gaussian-by-angular-bucket weighting and writes the weighted average into the footprint with brush hardness falloff. Deterministic — same input always yields same output.
 
-- [ ] `RET-04` Healing Brush
+- [x] `RET-04` Healing Brush
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0268`
+  - Source notes: `pages/` note `0268`
   - Function description: Sample source texture and blend it into target tone/color while painting.
   - Acceptance criteria:
     - Alt/Option-click sets source.
@@ -443,41 +436,41 @@ Source-review correction (2026-05-11):
     - Aligned mode is supported if feasible.
     - Operation is undoable.
   - Required tests:
-    - `src/test/retouch.test.ts`: sampled texture blends into target area.
+    - `src/test/healingBrush.test.ts`: Alt-click sets source; mean-shift heals destination tone; aligned off resets offset; selection clipping; undo/redo.
   - Dependencies: `RET-03`, `HIST-03`
-  - Implementation notes:
+  - Implementation notes: `src/tools/healingBrush.ts`. Mean-shift heal: source pixel + (destFootprintMean − sourceFootprintMean) preserves source texture while matching destination tone. Options: `aligned` (default true), `mode` (BlendModeId, default 'normal'), `sampleAllLayers` (default false). Toolbar Healing group `J`; option-bar HealingBrushOptionsPanel.
 
-- [ ] `RET-05` Patch Tool
+- [x] `RET-05` Patch Tool
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0269`
+  - Source notes: `pages/` note `0269`
   - Function description: Repair a selected area by dragging it to a source/destination region and blending pixels.
   - Acceptance criteria:
     - Uses existing selection as patch area.
     - Source and destination modes are available if practical.
     - Operation is undoable.
   - Required tests:
-    - `src/test/retouch.test.ts`: patch selected area from clean source.
+    - `src/test/patchTool.test.ts`: source mode heals drop position; destination mode stamps drop pixels onto original; no-op without selection; undo/redo.
   - Dependencies: `SEL-02`, `HIST-03`
-  - Implementation notes:
+  - Implementation notes: `src/tools/patch.ts`. Source mode: drop position is healed using original-position pixels with mean-shift toward the ring around the drop region. Destination mode: drop-position pixels are stamped onto the original-position pixels (direct copy). Translucent ghost preview during drag.
 
-- [ ] `RET-06` Red Eye Tool
+- [x] `RET-06` Red Eye Tool
   - Priority: `P2`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0270`
+  - Source notes: `pages/` note `0270`
   - Function description: Darken/desaturate red pupil pixels in a clicked region.
   - Acceptance criteria:
     - Pupil size and darken amount options.
     - Red pixels near click are corrected.
     - Operation is undoable.
   - Required tests:
-    - `src/test/retouch.test.ts`: synthetic red-eye pixel cluster is corrected.
+    - `src/test/redEye.test.ts`: red cluster desaturated; pupilSize radius respected; non-red pixels untouched; selection clipping; undo/redo.
   - Dependencies: `HIST-03`
-  - Implementation notes:
+  - Implementation notes: `src/tools/redEye.ts`. Red-eye criterion: `r > g+30 && r > b+30 && r > 100`. Replaces matching pixels in a soft-edged disc with luminance × (1 − darkenAmount/100), grey-shifted (saturation 0). Options: `pupilSize` (0-100%) and `darkenAmount` (0-100).
 
 ## P1 - Layer Styles And Effects
 
 - [x] `STYLE-01` Layer effects model and renderer
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` sections `0102-0115`
+  - Source notes: `pages/` notes `0102-0115`
   - Function description: Implement the data model and compositor rendering path for layer effects.
   - Acceptance criteria:
     - Layer can store multiple effects.  `Implemented`
@@ -491,21 +484,22 @@ Source-review correction (2026-05-11):
 
 - [~] `STYLE-02` Drop Shadow and Inner Shadow
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` sections `0103`, `0105`, `0111`
+  - Source notes: `pages/` notes `0103`, `0105`, `0111`
   - Function description: Add shadow effects with blend mode, color, opacity, angle, distance, spread, and size.
   - Acceptance criteria:
     - Drop Shadow renders outside visible layer pixels.  `Implemented`
-    - Inner Shadow renders inside layer alpha.  `Pending`
+    - Inner Shadow renders inside layer alpha.  `Implemented`
     - Global light angle can be shared by shadow effects.  `Pending`
-    - Parameters are editable and undoable.  `Implemented for Drop Shadow`
+    - Parameters are editable and undoable.  `Implemented`
   - Required tests:
     - `src/test/effects.test.ts`: drop-shadow extends layer alpha at offset.
+    - `src/test/effectsBatch2.test.ts`: inner-shadow darkens pixels near the layer's inner edge; choke produces sharp edge; toggle off restores original; params undo/redo and save round-trip.
   - Dependencies: `STYLE-01`
-  - Implementation notes: Drop Shadow renderer in `src/effects/dropShadow.ts` (distance, angle, size, spread, color, opacity, blend mode). Inner Shadow + global light angle remain pending.
+  - Implementation notes: Drop Shadow renderer in `src/effects/dropShadow.ts`. Inner Shadow renderer in `src/effects/innerShadow.ts` (angle, distance, choke, size, color, opacity, blend mode default `multiply`). Global light angle remains pending — each effect carries its own angle.
 
 - [x] `STYLE-03` Stroke layer effect
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` sections `0103`, `0105`
+  - Source notes: `pages/` notes `0103`, `0105`
   - Function description: Add non-destructive layer stroke with size, color, opacity, position, and blend mode.
   - Acceptance criteria:
     - Outside/inside/center stroke positions if feasible.  `Implemented (all three)`
@@ -518,38 +512,40 @@ Source-review correction (2026-05-11):
 
 - [~] `STYLE-04` Glow and overlay effects
   - Priority: `P2`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` sections `0105`, `0110`
+  - Source notes: `pages/` notes `0105`, `0110`
   - Function description: Add Outer Glow, Inner Glow, Color Overlay, and Gradient Overlay.
   - Acceptance criteria:
     - Color Overlay renders non-destructively.  `Implemented`
     - Gradient Overlay renders non-destructively.  `Pending`
-    - Outer Glow / Inner Glow render non-destructively.  `Pending`
-    - Parameters are editable.  `Implemented for Color Overlay`
+    - Outer Glow renders non-destructively.  `Implemented`
+    - Inner Glow renders non-destructively.  `Pending`
+    - Parameters are editable.  `Implemented for Color Overlay and Outer Glow`
     - Effects can be copied/pasted/cleared.  `Pending (clearing exists via remove button; copy/paste between layers not yet implemented)`
   - Required tests:
     - `src/test/effects.test.ts`: color overlay tints a layer with the chosen color.
+    - `src/test/effectsBatch2.test.ts`: outer-glow tints pixels just outside the alpha; spread extends the glow reach; toggle off removes contribution; params save round-trip.
   - Dependencies: `STYLE-01`, `STYLE-03`
-  - Implementation notes: `src/effects/colorOverlay.ts` ships color, opacity, blend mode. Glows + gradient overlay queued for the next style pass.
+  - Implementation notes: `src/effects/colorOverlay.ts` ships color, opacity, blend mode. `src/effects/outerGlow.ts` ships spread, size, color, opacity, blend mode default `screen` (dilate alpha by spread, blur by size, punch out original alpha, tint, render as underlay). Inner Glow + gradient overlay queued for the next style pass.
 
 ## P1 - Shapes, Paths, And Text
 
-- [ ] `SHAPE-01` Real shape layer behavior
+- [x] `SHAPE-01` Real shape layer behavior
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0335-0345`
+  - Source notes: `pages/` notes `0335-0345`
   - Function description: Store shape geometry and style so shape layers remain editable instead of being only raster paint.
   - Acceptance criteria:
-    - New shapes create shape layer data or editable shape content.
-    - Fill/stroke changes rerender shape.
-    - Shape/path/pixels modes are either fully implemented or simplified honestly in UI.
-    - Shape changes are undoable.
+    - New shapes create shape layer data or editable shape content.  `Implemented in Shape mode (rect, rounded-rect, ellipse, polygon/star, line/arrow) — see src/tools/shapes.ts and src/tools/shapeRender.ts`
+    - Fill/stroke changes rerender shape.  `Implemented via rerenderShapeLayer(layer)`
+    - Shape/path/pixels modes are either fully implemented or simplified honestly in UI.  `Shape and Pixels modes are honest; Path mode still belongs to the Pen tool`
+    - Shape changes are undoable.  `Implemented through executeDocumentCommand snapshot path; shapeData is preserved on the snapshot`
   - Required tests:
-    - `src/test/shapes.test.ts`: create rectangle, edit fill/stroke, assert rerender.
+    - `src/test/shapeLayer.test.ts`: 14 simulator-driven cases covering each shape kind, Shift/Alt modifiers, shapeData edits, undo/redo, and manifest round-trip.
   - Dependencies: `HIST-03`, `PROPS-01`
-  - Implementation notes:
+  - Implementation notes: Batch 1 (model + renderer + tool + persistence) is complete. PROPS-05 (Properties shape editor) is the next slice and is intentionally owned by a different agent.
 
 - [x] `SHAPE-02` Star options for Polygon tool
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` section `0340`
+  - Source notes: `pages/` note `0340`
   - Function description: Add star mode to Polygon tool with point count and indent/radius controls.
   - Acceptance criteria:
     - Polygon tool can draw normal polygon or star.  `Implemented`
@@ -562,7 +558,7 @@ Source-review correction (2026-05-11):
 
 - [x] `SHAPE-03` Arrowheads for Line tool
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0344`, `0346`
+  - Source notes: `pages/` notes `0344`, `0346`
   - Function description: Add start/end arrowhead options to the Line tool.
   - Acceptance criteria:
     - Start and end arrowheads can be toggled.  `Implemented (lineArrowStart, lineArrowEnd)`
@@ -573,36 +569,37 @@ Source-review correction (2026-05-11):
   - Dependencies: `SHAPE-01`
   - Implementation notes: `src/tools/shapes.ts` draws filled triangle heads at the line endpoints and shortens the shaft to avoid overlap.
 
-- [ ] `SHAPE-04` Custom shape presets
+- [x] `SHAPE-04` Custom shape presets
   - Priority: `P2`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0339`, `0341`
+  - Source notes: `pages/` notes `0339`, `0341`
   - Function description: Make Custom Shape tool usable with a small local preset library.
   - Acceptance criteria:
     - Preset picker offers built-in shapes.
     - Drawing selected preset creates editable shape data.
     - Custom shape feature remains local and simple.
   - Required tests:
-    - `src/test/shapes.test.ts`: select preset and draw shape.
+    - `src/test/presetsPanels.test.tsx`: Custom Shape tool draws heart preset and produces a `shapeData.kind === 'custom'` layer.
   - Dependencies: `SHAPE-01`
-  - Implementation notes:
+  - Implementation notes: `src/tools/customShapes.ts` ships 8 built-in shapes (heart, 5-point star, 7-point star, arrow-down-circle, lightning-bolt, speech-bubble, gear, checkmark) as SVG path strings inside a 100x100 viewBox. `ShapeCustomData` extends the discriminated union in `src/store/types.ts`; `drawCustomShape` in `shapeRender.ts` scales the Path2D into the drawn bounds. The Custom Shape Options bar exposes a preset thumbnail picker that sets `customShapeId`.
 
-- [ ] `TEXT-01` Better font picker and basic text properties
+- [x] `TEXT-01` Better font picker and basic text properties
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0351-0367`
+  - Source notes: `pages/` notes `0351-0367`
   - Function description: Improve basic text editing without advanced typography.
   - Acceptance criteria:
     - Font family, style, size, color, and alignment controls are reliable.
-    - Font picker can search common/system font names if practical.
+    - Font picker can search common/system font names if practical. `Implemented`
     - Text changes are undoable.
     - Does not include OpenType/glyph/dynamic text engines.
   - Required tests:
     - `src/test/typeReedit.test.ts`: edit font family/style/size/color and undo.
+    - `src/test/fontPicker.test.tsx`: combobox filter, ArrowDown+Enter selection, Escape cancel, missing-font fallback toast.
   - Dependencies: `PROPS-04`, `HIST-03`
-  - Implementation notes:
+  - Implementation notes: `src/components/Panels/FontPicker.tsx` is a searchable combobox replacing the bare `<select>` in `CharacterPanel` and `PropertiesPanel`'s Type section. Sources: hardcoded baseline list deduped with `document.fonts.values()` after `document.fonts.ready`. `src/utils/fontList.ts` exposes `getAvailableFonts` / `refreshAvailableFonts` / `resolveFontFamily`. Missing families fall back to `sans-serif` during `rerenderTypeLayer`; the first fallback per layer fires an info toast via `bindTypeToastBridge`. Dialog cards now expose `role="dialog"`, `aria-modal`, focus-trap, and Esc-close through `src/hooks/useDialogA11y.ts`. Toolbar buttons gained `aria-label` + `data-testid`. `StrokeControls` was hoisted out of `ShapeSection` to clear the 3 `react-hooks/static-components` errors.
 
 - [ ] `TEXT-02` Fill text with image
   - Priority: `P2`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` section `0373`
+  - Source notes: `pages/` note `0373`
   - Function description: Clip an image layer into text-like alpha/mask so text can be filled with image content.
   - Acceptance criteria:
     - User can choose a type layer and image layer to create clipped text effect.
@@ -617,7 +614,7 @@ Source-review correction (2026-05-11):
 
 - [x] `GUIDE-01` Draggable guides from rulers
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0407-0505.md` sections `0434-0440`
+  - Source notes: `pages/` notes `0434-0440`
   - Function description: Let users drag horizontal/vertical guides from rulers onto the canvas.
   - Acceptance criteria:
     - Guides render over the canvas.  `Implemented`
@@ -628,35 +625,36 @@ Source-review correction (2026-05-11):
   - Dependencies: `HIST-03`
   - Implementation notes: `viewSlice.guides` array + add/remove/move/clear actions; Viewport renders guides as colored lines. Dragging from rulers wires through the same store actions.
 
-- [~] `GUIDE-02` New Guide dialog and clear guides
+- [x] `GUIDE-02` New Guide dialog and clear guides
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0407-0505.md` sections `0439`, `0442`
+  - Source notes: `pages/` notes `0439`, `0442`
   - Function description: Add menu/dialog commands for precise guide creation and clearing.
   - Acceptance criteria:
-    - Clear Guides removes all guides.  `Implemented (clearGuides)`
-    - New Guide accepts orientation and position.  `Pending — store action exists; dialog UI not yet shipped`
-    - Operations are undoable.  `Pending — guide changes do not yet flow through history`
+    - Clear Guides removes all guides.  `Implemented (clearGuidesWithHistory)`
+    - New Guide accepts orientation and position.  `Implemented (NewGuideDialog: Horizontal/Vertical radio + numeric position, Enter/Esc/outside-click)`
+    - Operations are undoable.  `Implemented (addGuideWithHistory / moveGuideWithHistory / removeGuideWithHistory / clearGuidesWithHistory + drag-coalescing beginGuideDrag/updateGuideDrag/commitGuideDrag)`
   - Required tests:
     - `src/test/bugFixesBatch2.test.ts` GAP-08: clear/remove round-trip.
+    - `src/test/guidesHistory.test.tsx`: dialog + undo/redo + lock + show toggle (13 cases).
   - Dependencies: `GUIDE-01`
-  - Implementation notes: `clearGuides()` action exists. Remaining: numeric New Guide dialog + history wrapping for guide ops.
+  - Implementation notes: New Guide dialog at `src/components/Dialogs/NewGuideDialog.tsx`; opened via `setNewGuideDialogOpen`. View menu adds `Show > Guides` (no history) and `Guides > Lock Guides` toggles. Drag-coalescing API ready for ruler-drag wiring.
 
-- [ ] `GUIDE-03` Smart-guide-like alignment hints
+- [x] `GUIDE-03` Smart-guide-like alignment hints
   - Priority: `P2`
-  - Source notes: `photoweb-function-comparison-0407-0505.md` section `0444`
+  - Source notes: `pages/` note `0444`
   - Function description: Show temporary alignment hints when moving layers near canvas/layer centers and edges.
   - Acceptance criteria:
     - Hints appear during move/transform.
     - Snap can use hints when enabled.
     - Hints do not mutate document state.
   - Required tests:
-    - `src/test/overlays.test.ts`: moving near center renders guide overlay.
+    - `src/test/snap.test.ts`: snapPoint math, buildSnapCandidates enumeration, move-tool snap-to-guide, activeSnapTargets lifecycle, Viewport smart-guide overlay.
   - Dependencies: `LAYERS-02`, `GUIDE-01`
-  - Implementation notes:
+  - Implementation notes: Added `src/tools/snap.ts` (`snapPoint`/`buildSnapCandidates`); wired snap into Move (`src/tools/move.ts`), Selection move (`src/tools/selectionMove.ts`), Shape tools (`src/tools/shapes.ts`), and Free Transform handles (`src/components/Canvas/FreeTransformOverlay.tsx`). Transient `viewSlice.activeSnapTargets` drives dashed magenta cues in `src/components/Canvas/Viewport.tsx`. Snap candidates cover document bounds/midpoints, grid (when `showGrid && snapEnabled`), guides (when `showGuides && snapEnabled`), and visible non-active layer edges/centers. Snap is gated on `snapEnabled`.
 
 - [x] `SET-01` Settings dialog shell
   - Priority: `P1`
-  - Source notes: `photoweb-development-plan.md`; `photoweb-function-comparison-0011-0110.md` sections `0049-0054`
+  - Source notes: `photoweb-development-plan.md`; `pages/` notes `0049-0054`
   - Function description: Add a local app settings dialog for UI scale, grid/guides, shortcut viewer/customization, and relevant behavior.
   - Acceptance criteria:
     - Dialog opens from menu.  `Implemented (Edit > Preferences > General…)`
@@ -669,7 +667,7 @@ Source-review correction (2026-05-11):
 
 - [~] `SET-02` Keyboard shortcut viewer and customization
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0011-0110.md` section `0053`; `photoweb-function-comparison-0506-0544.md` section `0544`
+  - Source notes: `pages/` note `0053`; `pages/` note `0544`
   - Function description: Show all shortcuts and allow local customization.
   - Acceptance criteria:
     - Viewer lists tool and command shortcuts.  `Implemented (Cmd+/)`
@@ -685,21 +683,22 @@ Source-review correction (2026-05-11):
 
 - [x] `PRESET-01` Brush preset model and picker
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0323-0333`
+  - Source notes: `pages/` notes `0323-0333`
   - Function description: Let users save and choose named brush presets without advanced brush dynamics.
   - Acceptance criteria:
     - Presets capture size, hardness, opacity, flow, smoothing, spacing.  `Implemented (BrushPreset shape stores brushSettings + optional smoothing/spacing)`
     - User can create, apply, and delete presets.  `Implemented (saveBrushPreset / applyBrushPreset / removeBrushPreset)`
     - Presets persist locally.  `Implemented (localStorage key photoweb:brushPresets:v1)`
-    - Rename/reorder UI.  `Pending — would require a presets panel`
+    - Rename/reorder UI.  `Implemented (BrushPresetsPanel with rename, duplicate, delete, drag-reorder, New Preset)`
   - Required tests:
     - `src/test/bugFixesBatch2.test.ts` GAP-04: save / apply / remove round-trip.
+    - `src/test/presetsPanels.test.tsx`: BrushPresetsPanel rename + drag-reorder + duplicate.
   - Dependencies: `SET-01`
-  - Implementation notes: `BrushPreset` type in `src/store/types.ts`; slice actions in `src/store/toolsSlice.ts` with localStorage persistence. `Edit > Define Brush Preset…` saves the current `brushSettings`. A companion generic `ToolPreset` system covers other tools (saveToolPreset / applyToolPreset / removeToolPreset) and is GAP-11.
+  - Implementation notes: `BrushPreset` type in `src/store/types.ts`; slice actions in `src/store/toolsSlice.ts` with localStorage persistence (`saveBrushPreset`, `applyBrushPreset`, `removeBrushPreset`, `renameBrushPreset`, `reorderBrushPreset`, `duplicateBrushPreset`). `Edit > Define Brush Preset…` saves the current `brushSettings`. BrushPresetsPanel renders thumbnails (via `getBrushTip`) and exposes the full preset lifecycle. A companion generic `ToolPreset` system covers other tools (saveToolPreset / applyToolPreset / removeToolPreset) and is GAP-11.
 
 - [x] `PRESET-02` Pattern preset model
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0211-0310.md` section `0271`; `photoweb-function-comparison-0311-0406.md` sections `0320-0322`
+  - Source notes: `pages/` note `0271`; `pages/` notes `0320-0322`
   - Function description: Define image/selection content as reusable pattern presets.
   - Acceptance criteria:
     - Define Pattern from selection or full active layer.
@@ -707,12 +706,13 @@ Source-review correction (2026-05-11):
     - Presets can be renamed/deleted.
   - Required tests:
     - `src/test/patternPresets.test.ts`: define pattern from canvas and assert tile data is captured and cached.
+    - `src/test/presetsPanels.test.tsx`: PatternPresetsPanel renders tile thumbnails, click sets active id, rename updates name.
   - Dependencies: `HIST-03`
-  - Implementation notes: `PatternPreset` shape in `src/store/types.ts`; `definePattern` / `removePatternPreset` / `setActivePatternId` in `src/store/toolsSlice.ts`; localStorage persistence keyed `photoweb:patternPresets:v1`. `Edit > Define Pattern…` captures selection bounds or full active layer. In-memory tile cache via `getPatternTile` / `decodePatternPreset`.
+  - Implementation notes: `PatternPreset` shape in `src/store/types.ts`; `definePattern` / `removePatternPreset` / `renamePatternPreset` / `setActivePatternId` in `src/store/toolsSlice.ts`; localStorage persistence keyed `photoweb:patternPresets:v1`. `Edit > Define Pattern…` captures selection bounds or full active layer. PatternPresetsPanel exposes tile thumbnails, rename, delete, and Define Pattern footer button. In-memory tile cache via `getPatternTile` / `decodePatternPreset`.
 
 - [x] `PRESET-03` Pattern fill support
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0311-0406.md` sections `0316`, `0320`
+  - Source notes: `pages/` notes `0316`, `0320`
   - Function description: Use pattern presets as a Paint Bucket fill source.
   - Acceptance criteria:
     - Paint Bucket `pattern` source uses selected pattern, not FG fallback.
@@ -725,45 +725,45 @@ Source-review correction (2026-05-11):
 
 ## P1 - Performance And Stability
 
-- [~] `STAB-01` Browser storage diagnostics
+- [x] `STAB-01` Browser storage diagnostics
   - Priority: `P1`
-  - Source notes: `photoweb-function-comparison-0506-0544.md` sections `0532-0541`
+  - Source notes: `pages/` notes `0532-0541`
   - Function description: Provide clear diagnostics when save/load/autosave fails because of storage quota, browser support, or serialization errors.
   - Acceptance criteria:
     - Storage quota estimate is used when available.  `Implemented (StorageUsageDialog uses navigator.storage.estimate)`
-    - Save/load failures show actionable messages.  `Pending`
-    - Autosave failures do not silently fail.  `Pending — autosave currently swallows errors quietly`
+    - Save/load failures show actionable messages.  `Implemented (persistence.ts routes failures through toastsSlice.reportError with channel-specific messages)`
+    - Autosave failures do not silently fail.  `Implemented (autoSave.ts surfaces a deduped 'autosave'/'quota' toast and clears the flag once a tick succeeds)`
   - Required tests:
-    - `src/test/persistence.test.ts`: mock storage failure and assert error toast/diagnostic.
+    - `src/test/persistenceErrors.test.ts`: mock storage failure and assert error toast/diagnostic.  `Implemented (quota, JSON parse, missing-file, dedup, export toBlob null/throw)`
   - Dependencies: `None`
-  - Implementation notes: Storage Usage dialog (`Edit > Preferences > Storage Usage…`) reports OPFS quota + per-layer/history memory estimates. Remaining work is moving save/load/autosave failures into the toast system instead of silent catches.
+  - Implementation notes: `toastsSlice` gained `lastErrorChannel`, `reportError(channel, msg, type)` and `clearLastErrorChannel()`. Channels: `'save' | 'load' | 'autosave' | 'export' | 'quota'`, each with a fixed user-facing message template in `src/core/persistence.ts`. `saveDocument`/`loadDocument` now throw on every failure they used to swallow and emit a deduped error toast on the way out; `autosave` reuses `saveDocument` with `channel: 'autosave'` and `performAutosaveOnce` swallows the throw so the timer keeps running. `ExportDialog.doExport` reports an export toast when `toBlob` returns `null` or throws.
 
-- [ ] `STAB-02` Autosave reliability tests
+- [x] `STAB-02` Autosave reliability tests
   - Priority: `P1`
   - Source notes: `photoweb-development-plan.md`
   - Function description: Make autosave recover reliably after reload/failure scenarios.
   - Acceptance criteria:
-    - Autosave writes current document.
-    - Recovery banner appears when autosave exists.
-    - Recover restores layers and active document.
-    - Dismiss clears recovery state.
+    - Autosave writes current document. `Implemented (OPFS primary, localStorage fallback inside saveDocument)`
+    - Recovery banner appears when autosave exists. `Implemented (App.tsx banner gated on hasAutosave)`
+    - Recover restores layers and active document. `Implemented (Recover Document button calls loadFile('autosave'))`
+    - Dismiss clears recovery state. `Implemented (Discard Recovery button calls dismissAutosave)`
   - Required tests:
-    - `src/test/persistence.test.ts`: autosave/recover/dismiss flow.
+    - `src/test/stab2.test.ts`: autosave/recover/dismiss/corrupt-slot/dirty-flag flow. `Implemented`
   - Dependencies: `STAB-01`
-  - Implementation notes:
+  - Implementation notes: `autoSave.runAutosaveTick` retries once on failure (50ms delay) then clears the autosave slot via `clearAutosaveSlot()` so a corrupt blob doesn't loop-fail. `initAutoSaveCheck` validates the slot is parseable before exposing the banner; corrupt slots are cleared with an info toast. `saveDocument` now falls through to localStorage if the OPFS write throws (not just when no handle is returned). `documentSlice.isDirty` + `lastSavedHistoryTick` are flipped by `historyStateUpdate` whenever the timeline advances; `saveFile`, `newDocument`, `openImageAsDocument`, and `loadFile` reset them. App.tsx and MenuBar prompt `window.confirm` before discarding dirty state on New/Open. StatusBar shows `● Unsaved changes` when `isDirty`.
 
-- [ ] `STAB-03` Canvas memory guardrails
+- [x] `STAB-03` Canvas memory guardrails
   - Priority: `P2`
   - Source notes: `photoweb-development-plan.md`
   - Function description: Prevent common browser crashes by warning before creating/opening oversized documents.
   - Acceptance criteria:
-    - New/open/import checks approximate pixel memory.
-    - User gets warning or graceful failure for oversized images.
-    - No half-created corrupt document on failure.
+    - New/open/import checks approximate pixel memory. `Implemented (MAX_DOC_PIXELS = 60 MP hard limit, SOFT_DOC_PIXELS = 36 MP confirm gate)`
+    - User gets warning or graceful failure for oversized images. `Implemented (toast on hard fail, window.confirm on soft warn)`
+    - No half-created corrupt document on failure. `Implemented (resize ops snapshot+rollback on alloc throw; newDocument returns false on guard fail before mutating state)`
   - Required tests:
-    - `src/test/document.test.ts`: oversize new/open path fails gracefully.
+    - `src/test/stab3.test.ts`: oversize new/open/resize fails gracefully + soft-threshold confirm gate. `Implemented`
   - Dependencies: `STAB-01`
-  - Implementation notes:
+  - Implementation notes: `documentSlice` exposes `MAX_DOC_PIXELS` (60 M) and `SOFT_DOC_PIXELS` (~36 M = 60% of max). `guardDocumentSize` is invoked by `newDocument`, `openImageAsDocument`, `resizeImage`, and `resizeCanvas`. `newDocument` / `openImageAsDocument` now return `boolean` so callers can skip viewportFit when refused. Resize ops snapshot every layer canvas before the executeDocumentCommand and roll back on alloc throw, with a `'save'`-channel error toast.
 
 ## Deferred By Scope
 

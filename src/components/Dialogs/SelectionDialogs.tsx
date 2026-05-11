@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 const overlay: React.CSSProperties = {
     position: 'fixed', inset: 0,
@@ -42,6 +43,7 @@ export function SaveSelectionDialog() {
     const close = useEditorStore.getState().closeSaveSelectionDialog;
     const saveSelection = useEditorStore.getState().saveSelection;
     const [name, setName] = useState('Selection');
+    const dialogRef = useDialogA11y(isOpen, close);
 
     if (!isOpen) return null;
 
@@ -53,8 +55,8 @@ export function SaveSelectionDialog() {
 
     return (
         <div style={overlay} onClick={close}>
-            <div style={card} onClick={e => e.stopPropagation()}>
-                <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Save Selection</div>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="save-selection-title" tabIndex={-1} style={card} onClick={e => e.stopPropagation()}>
+                <div id="save-selection-title" style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Save Selection</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                     <label style={{ fontSize: 11, opacity: 0.7 }}>Name</label>
                     <input type="text" value={name} autoFocus
@@ -79,6 +81,7 @@ export function LoadSelectionDialog() {
     const loadSelection = useEditorStore.getState().loadSelection;
     const [picked, setPicked] = useState<string>(saved[0]?.name ?? '');
     const [mode, setMode] = useState<'replace' | 'add' | 'sub' | 'intersect'>('replace');
+    const dialogRef = useDialogA11y(isOpen, close);
 
     if (!isOpen) return null;
 
@@ -97,8 +100,8 @@ export function LoadSelectionDialog() {
 
     return (
         <div style={overlay} onClick={close}>
-            <div style={card} onClick={e => e.stopPropagation()}>
-                <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Load Selection</div>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="load-selection-title" tabIndex={-1} style={card} onClick={e => e.stopPropagation()}>
+                <div id="load-selection-title" style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Load Selection</div>
                 {saved.length === 0 ? (
                     <div style={{ marginBottom: 12, opacity: 0.7 }}>No saved selections.</div>
                 ) : (

@@ -5,9 +5,11 @@ import { captureLayerRegion, createPixelHistoryAction, cropImageData, expandStro
 interface PencilOptions {
     spacing: number;
     mode: GlobalCompositeOperation;
+    pressureSize: boolean;
+    pressureOpacity: boolean;
 }
 
-const options: PencilOptions = { spacing: 0.4, mode: 'source-over' };
+const options: PencilOptions = { spacing: 0.4, mode: 'source-over', pressureSize: false, pressureOpacity: false };
 
 export function setPencilOptions(next: Partial<PencilOptions>): void {
     Object.assign(options, next);
@@ -47,7 +49,11 @@ export const pencilTool: Tool = {
         state.layerId = layer.id;
         state.before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
         state.bounds = makeStrokeBounds();
-        const { size, opacity } = store.brushSettings;
+        const { size: baseSize, opacity: baseOpacity } = store.brushSettings;
+        const sizeFactor = options.pressureSize ? Math.max(0.05, e.pressure || 0.5) : 1;
+        const opacityFactor = options.pressureOpacity ? Math.max(0.05, e.pressure || 0.5) : 1;
+        const size = baseSize * sizeFactor;
+        const opacity = baseOpacity * opacityFactor;
         stamp(layer.ctx, state.last.x, state.last.y, size, opacity, store.primaryColor);
         expandStrokeBounds(state.bounds, state.last.x, state.last.y, size / 2 + 1);
         layer.markDirty(null);
@@ -58,7 +64,11 @@ export const pencilTool: Tool = {
         const layer = store.layers.find(l => l.id === state.layerId);
         if (!layer) return;
         const next = p(e);
-        const { size, opacity } = store.brushSettings;
+        const { size: baseSize, opacity: baseOpacity } = store.brushSettings;
+        const sizeFactor = options.pressureSize ? Math.max(0.05, e.pressure || 0.5) : 1;
+        const opacityFactor = options.pressureOpacity ? Math.max(0.05, e.pressure || 0.5) : 1;
+        const size = baseSize * sizeFactor;
+        const opacity = baseOpacity * opacityFactor;
         const dist = Math.hypot(next.x - state.last.x, next.y - state.last.y);
         const steps = Math.max(1, Math.ceil(dist / Math.max(1, size * options.spacing)));
         for (let i = 1; i <= steps; i++) {

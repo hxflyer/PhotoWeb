@@ -21,53 +21,90 @@ function gaussianKernel(sigma: number): Float32Array {
     return k;
 }
 
+interface RectBounds { x0: number; y0: number; x1: number; y1: number }
+
+function rectBounds(
+    width: number,
+    height: number,
+    dirty: { x: number; y: number; width: number; height: number } | null,
+): RectBounds {
+    if (!dirty) return { x0: 0, y0: 0, x1: width, y1: height };
+    const x0 = Math.max(0, Math.floor(dirty.x));
+    const y0 = Math.max(0, Math.floor(dirty.y));
+    const x1 = Math.min(width, Math.ceil(dirty.x + dirty.width));
+    const y1 = Math.min(height, Math.ceil(dirty.y + dirty.height));
+    return { x0, y0, x1, y1 };
+}
+
+/**
+ * Separable convolution that, when given a dirty rect, only writes output
+ * pixels inside the rect. The horizontal pass walks an extended row range
+ * (dirty rows ± kernelV-radius) so the vertical pass sees correct neighbors;
+ * similarly the horizontal pass walks an extended column range (± kernelH-
+ * radius) for the same reason. Pixels outside the dirty rect are copied
+ * straight from `src` to `out` unchanged.
+ */
 function separableConvolve(
     src: Uint8ClampedArray,
     width: number,
     height: number,
     kernelH: Float32Array,
     kernelV: Float32Array,
+    dirty: { x: number; y: number; width: number; height: number } | null = null,
 ): Uint8ClampedArray {
-    const tmp = new Float32Array(width * height * 4);
-    const out = new Uint8ClampedArray(width * height * 4);
+    const out = new Uint8ClampedArray(src);
     const rH = (kernelH.length - 1) >> 1;
     const rV = (kernelV.length - 1) >> 1;
+    const b = rectBounds(width, height, dirty);
 
-    // horizontal pass
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            let r = 0, g = 0, b = 0, a = 0;
+    // The vertical pass reads tmp at rows [y0 - rV, y1 + rV); make sure the
+    // horizontal pass populated tmp across that extended range.
+    const tmpY0 = Math.max(0, b.y0 - rV);
+    const tmpY1 = Math.min(height, b.y1 + rV);
+    // Likewise the horizontal pass reads src at cols [x0 - rH, x1 + rH); walk
+    // tmp columns across that range so the vertical pass can mix them.
+    const tmpX0 = Math.max(0, b.x0 - rH);
+    const tmpX1 = Math.min(width, b.x1 + rH);
+
+    const tmp = new Float32Array((tmpY1 - tmpY0) * (tmpX1 - tmpX0) * 4);
+    const tmpW = tmpX1 - tmpX0;
+
+    // horizontal pass — extended rows, extended cols
+    for (let y = tmpY0; y < tmpY1; y++) {
+        for (let x = tmpX0; x < tmpX1; x++) {
+            let r = 0, g = 0, bl = 0, a = 0;
             for (let k = 0; k < kernelH.length; k++) {
                 const sx = Math.max(0, Math.min(width - 1, x + k - rH));
                 const idx = (y * width + sx) * 4;
                 const w = kernelH[k];
                 r += src[idx]     * w;
                 g += src[idx + 1] * w;
-                b += src[idx + 2] * w;
+                bl += src[idx + 2] * w;
                 a += src[idx + 3] * w;
             }
-            const oi = (y * width + x) * 4;
-            tmp[oi] = r; tmp[oi + 1] = g; tmp[oi + 2] = b; tmp[oi + 3] = a;
+            const oi = ((y - tmpY0) * tmpW + (x - tmpX0)) * 4;
+            tmp[oi] = r; tmp[oi + 1] = g; tmp[oi + 2] = bl; tmp[oi + 3] = a;
         }
     }
 
-    // vertical pass
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            let r = 0, g = 0, b = 0, a = 0;
+    // vertical pass — only writes dirty rect
+    for (let y = b.y0; y < b.y1; y++) {
+        for (let x = b.x0; x < b.x1; x++) {
+            let r = 0, g = 0, bl = 0, a = 0;
             for (let k = 0; k < kernelV.length; k++) {
                 const sy = Math.max(0, Math.min(height - 1, y + k - rV));
-                const idx = (sy * width + x) * 4;
+                // sy should always be inside [tmpY0, tmpY1) by construction.
+                const ti = ((sy - tmpY0) * tmpW + (x - tmpX0)) * 4;
                 const w = kernelV[k];
-                r += tmp[idx]     * w;
-                g += tmp[idx + 1] * w;
-                b += tmp[idx + 2] * w;
-                a += tmp[idx + 3] * w;
+                r += tmp[ti]     * w;
+                g += tmp[ti + 1] * w;
+                bl += tmp[ti + 2] * w;
+                a += tmp[ti + 3] * w;
             }
             const oi = (y * width + x) * 4;
             out[oi]     = clamp(r);
             out[oi + 1] = clamp(g);
-            out[oi + 2] = clamp(b);
+            out[oi + 2] = clamp(bl);
             out[oi + 3] = clamp(a);
         }
     }
@@ -82,10 +119,10 @@ registerFilter<GaussianBlurParams>({
     id: 'blur-gaussian',
     label: 'Gaussian Blur',
     defaultParams: { radius: 2 },
-    apply({ radius }: GaussianBlurParams, { image, width, height }: FilterApplyContext): ImageData {
+    apply({ radius }: GaussianBlurParams, { image, width, height, dirtyRect }: FilterApplyContext): ImageData {
         const sigma = Math.max(0.1, radius);
         const k = gaussianKernel(sigma);
-        const data = separableConvolve(image.data, width, height, k, k);
+        const data = separableConvolve(image.data, width, height, k, k, dirtyRect);
         return new ImageData(new Uint8ClampedArray(data), width, height);
     },
     renderUI(params, onChange) {
@@ -109,11 +146,11 @@ registerFilter<BoxBlurParams>({
     id: 'blur-box',
     label: 'Box Blur',
     defaultParams: { radius: 3 },
-    apply({ radius }: BoxBlurParams, { image, width, height }: FilterApplyContext): ImageData {
+    apply({ radius }: BoxBlurParams, { image, width, height, dirtyRect }: FilterApplyContext): ImageData {
         const r = Math.max(0, Math.round(radius));
         const size = r * 2 + 1;
         const k = new Float32Array(size).fill(1 / size);
-        const data = separableConvolve(image.data, width, height, k, k);
+        const data = separableConvolve(image.data, width, height, k, k, dirtyRect);
         return new ImageData(new Uint8ClampedArray(data), width, height);
     },
     renderUI(params, onChange) {
@@ -195,14 +232,16 @@ registerFilter<SurfaceBlurParams>({
     id: 'blur-surface',
     label: 'Surface Blur',
     defaultParams: { radius: 5, threshold: 15 },
-    apply({ radius, threshold }: SurfaceBlurParams, { image, width, height }: FilterApplyContext): ImageData {
+    apply({ radius, threshold }: SurfaceBlurParams, { image, width, height, dirtyRect }: FilterApplyContext): ImageData {
         const r = Math.max(1, Math.round(radius));
         const t = Math.max(1, threshold);
         const src = image.data;
-        const out = new Uint8ClampedArray(width * height * 4);
+        // Start from src so pixels outside the dirty rect pass through unchanged.
+        const out = new Uint8ClampedArray(src);
+        const b = rectBounds(width, height, dirtyRect ?? null);
 
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
+        for (let y = b.y0; y < b.y1; y++) {
+            for (let x = b.x0; x < b.x1; x++) {
                 const ci = (y * width + x) * 4;
                 let sumR = 0, sumG = 0, sumB = 0, sumA = 0, sumW = 0;
                 const cr = src[ci], cg = src[ci + 1], cb = src[ci + 2];

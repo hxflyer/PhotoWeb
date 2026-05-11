@@ -1,3 +1,5 @@
+import { useDialogA11y } from '../../hooks/useDialogA11y';
+
 interface Props {
     isOpen: boolean;
     onClose: () => void;
@@ -75,21 +77,29 @@ const SHORTCUT_GROUPS: { title: string; items: { keys: string; label: string }[]
     },
 ];
 
-export function ShortcutsDialog({ isOpen, onClose }: Props) {
-    if (!isOpen) return null;
+function ShortcutsDialogInner({ onClose }: { onClose: () => void }) {
+    const dialogRef = useDialogA11y(true, onClose);
     return (
         <div style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }} onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} style={{
-                background: '#2a2a2a', border: '1px solid #444', borderRadius: 6,
-                padding: 16, color: 'white', fontSize: 12, minWidth: 480, maxWidth: 600, maxHeight: '80vh', overflowY: 'auto',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            }}>
+            <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="shortcuts-title"
+                tabIndex={-1}
+                onClick={e => e.stopPropagation()}
+                style={{
+                    background: '#2a2a2a', border: '1px solid #444', borderRadius: 6,
+                    padding: 16, color: 'white', fontSize: 12, minWidth: 480, maxWidth: 600, maxHeight: '80vh', overflowY: 'auto',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                }}
+            >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>Keyboard Shortcuts</div>
-                    <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #555', color: 'white', borderRadius: 3, padding: '2px 8px', cursor: 'pointer' }}>Close</button>
+                    <div id="shortcuts-title" style={{ fontWeight: 600, fontSize: 13 }}>Keyboard Shortcuts</div>
+                    <button aria-label="Close" onClick={onClose} style={{ background: 'transparent', border: '1px solid #555', color: 'white', borderRadius: 3, padding: '2px 8px', cursor: 'pointer' }}>Close</button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     {SHORTCUT_GROUPS.map(group => (
@@ -109,4 +119,9 @@ export function ShortcutsDialog({ isOpen, onClose }: Props) {
             </div>
         </div>
     );
+}
+
+export function ShortcutsDialog({ isOpen, onClose }: Props) {
+    if (!isOpen) return null;
+    return <ShortcutsDialogInner onClose={onClose} />;
 }

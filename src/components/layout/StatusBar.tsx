@@ -1,5 +1,51 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
+import { computeMemoryEstimate, formatMemoryMB } from '../../utils/storageEstimate';
+import type { ToolId } from '../../store/types';
+
+const TOOL_LABELS: Record<ToolId, string> = {
+  move: 'Move',
+  brush: 'Brush',
+  eraser: 'Eraser',
+  select: 'Selection',
+  fill: 'Paint Bucket',
+  'clone-stamp': 'Clone Stamp',
+  gradient: 'Gradient',
+  crop: 'Crop',
+  'shape-rect': 'Rectangle Shape',
+  'shape-circle': 'Ellipse Shape',
+  'marquee-rect': 'Rectangular Marquee',
+  'marquee-ellipse': 'Elliptical Marquee',
+  lasso: 'Lasso',
+  'lasso-poly': 'Polygonal Lasso',
+  'magic-wand': 'Magic Wand',
+  'quick-selection': 'Quick Selection',
+  pencil: 'Pencil',
+  dodge: 'Dodge',
+  burn: 'Burn',
+  sponge: 'Sponge',
+  pen: 'Pen',
+  'freeform-pen': 'Freeform Pen',
+  'path-selection': 'Path Selection',
+  'direct-selection': 'Direct Selection',
+  eyedropper: 'Eyedropper',
+  'type-horizontal': 'Horizontal Type',
+  'type-vertical': 'Vertical Type',
+  hand: 'Hand',
+  zoom: 'Zoom',
+  'shape-rectangle': 'Rectangle',
+  'shape-rounded-rectangle': 'Rounded Rectangle',
+  'shape-ellipse': 'Ellipse',
+  'shape-polygon': 'Polygon',
+  'shape-line': 'Line',
+  'shape-custom': 'Custom Shape',
+  'magic-eraser': 'Magic Eraser',
+  'background-eraser': 'Background Eraser',
+  'spot-healing': 'Spot Healing Brush',
+  'healing-brush': 'Healing Brush',
+  patch: 'Patch',
+  'red-eye': 'Red Eye',
+};
 
 export function StatusBar() {
   const zoom = useEditorStore(s => s.zoom);
@@ -7,26 +53,50 @@ export function StatusBar() {
   const height = useEditorStore(s => s.height);
   const layers = useEditorStore(s => s.layers);
   const documentName = useEditorStore(s => s.documentName);
+  const isDirty = useEditorStore(s => s.isDirty);
+  const activeTool = useEditorStore(s => s.activeTool);
+  const pan = useEditorStore(s => s.pan);
 
   const cursorRef = useRef<HTMLSpanElement>(null);
 
-  // Track cursor globally — no store update needed
+  // Track cursor in canvas-space using the document canvas geometry. The
+  // document is rendered with `transform: translate(pan) scale(zoom)` on a
+  // [data-photoweb-document] element; convert client coordinates through that
+  // mapping so reported X/Y match the underlying pixel grid.
   useEffect(() => {
     const move = (e: MouseEvent) => {
-      if (cursorRef.current) {
-        cursorRef.current.textContent = `X: ${e.clientX}  Y: ${e.clientY}`;
+      if (!cursorRef.current) return;
+      const docEl = document.querySelector('[data-photoweb-document]') as HTMLElement | null;
+      if (!docEl) {
+        cursorRef.current.textContent = 'X: —  Y: —';
+        return;
+      }
+      const rect = docEl.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const x = Math.round(((e.clientX - rect.left) / rect.width) * width);
+      const y = Math.round(((e.clientY - rect.top) / rect.height) * height);
+      if (x < 0 || y < 0 || x > width || y > height) {
+        cursorRef.current.textContent = 'X: —  Y: —';
+      } else {
+        cursorRef.current.textContent = `X: ${x}  Y: ${y}`;
       }
     };
     window.addEventListener('mousemove', move);
     return () => window.removeEventListener('mousemove', move);
-  }, []);
+    // pan/zoom are read indirectly via getBoundingClientRect on the rendered doc.
+  }, [width, height, pan.x, pan.y, zoom]);
 
   const pct = Math.round(zoom * 100);
   const visibleLayers = layers.filter(l => l.visible).length;
-  const docSizeMB = ((width * height * 4 * layers.length) / 1024 / 1024).toFixed(1);
+  // Memory estimate accounts for layers, masks, and undo-history buffers.
+  const estimate = computeMemoryEstimate(useEditorStore.getState());
+  const docSizeMB = formatMemoryMB(estimate.totalBytes);
+  const flatSizeMB = formatMemoryMB(width * height * 4);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [infoMode, setInfoMode] = useState<'size' | 'layers'>('size');
+
+  const toolLabel = TOOL_LABELS[activeTool] ?? activeTool;
 
   return (
     <div style={{
@@ -55,7 +125,7 @@ export function StatusBar() {
       >
         <span>
           {infoMode === 'size'
-            ? `Doc: ${(width * height * 4 / 1024 / 1024).toFixed(1)}M / ${docSizeMB}M`
+            ? `Doc: ${flatSizeMB}M / ${docSizeMB}M`
             : `Layers: ${visibleLayers}/${layers.length}`}
         </span>
         {dropdownOpen && (
@@ -90,12 +160,28 @@ export function StatusBar() {
       {/* Dimensions */}
       <span>{width} × {height} px</span>
 
+      <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
+
+      {/* Active tool */}
+      <span data-testid="status-active-tool" style={{ color: 'hsl(var(--text-main))' }}>
+        {toolLabel}
+      </span>
+
       <div style={{ flex: 1 }} />
 
       {/* Cursor coordinates */}
-      <span ref={cursorRef} style={{ fontVariantNumeric: 'tabular-nums', minWidth: 110 }}>
+      <span ref={cursorRef} data-testid="status-cursor-coords" style={{ fontVariantNumeric: 'tabular-nums', minWidth: 110 }}>
         X: —  Y: —
       </span>
+
+      <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
+
+      {/* Dirty-state indicator */}
+      {isDirty && (
+        <span data-testid="dirty-indicator" style={{ color: 'hsl(var(--accent-warning, 38 92% 60%))', fontVariantNumeric: 'tabular-nums' }}>
+          ● Unsaved changes
+        </span>
+      )}
 
       <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
 

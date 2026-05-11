@@ -87,7 +87,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         layers, activeLayerId, brushSettings,
         selection, setSelectionPath, setHasSelection, setIsDraggingSelection, clearSelection,
         addSelectionOperation, setSelectionOperations, setFreeEditMode, setPolyPoints,
-        showRulers, showGrid, gridSize, activeChannel, channelVisibility,
+        showRulers, showGrid, gridSize, activeChannel, channelVisibility, activeSnapTargets,
     } = useEditorStore();
     // primaryColor is subscribed imperatively in the brush tip effect to avoid
     // re-rendering the entire Viewport on every color slider change.
@@ -117,6 +117,10 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
     const overlayDrawFnRef = useRef<() => void>(() => {});
     const quickMaskCacheRef = useRef<HTMLCanvasElement | null>(null);
     const quickMaskSourceRef = useRef<HTMLCanvasElement | null>(null);
+    // Transient buffer for Quick Mask painting. Brush/Eraser dabs stamp into this
+    // canvas while quickMaskMode is on; toggling Quick Mask off converts the
+    // accumulated mask into a selection via convertQuickMaskBufferToSelection.
+    const quickMaskBufferRef = useRef<HTMLCanvasElement | null>(null);
 
     // Ruler cursor marks — updated via direct DOM mutation so mousemove doesn't re-render the whole viewport.
     const hRulerMarkRef = useRef<HTMLDivElement>(null);
@@ -279,8 +283,8 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         }
 
         // Guides — draw on top of layer content so they're always visible.
-        const guides = useEditorStore.getState().guides;
-        if (guides.length > 0) {
+        const { guides, showGuides } = useEditorStore.getState();
+        if (showGuides && guides.length > 0) {
             ctx.save();
             ctx.strokeStyle = 'rgba(0,200,255,0.85)';
             ctx.lineWidth = 1 / zoom;
@@ -295,6 +299,29 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                 }
                 ctx.stroke();
             }
+            ctx.restore();
+        }
+
+        // Smart guides — dashed magenta lines for every active snap target
+        // during a drag. Cleared by the tool / overlay code on pointer-up.
+        const liveSnap = useEditorStore.getState().activeSnapTargets;
+        if (liveSnap && liveSnap.length > 0) {
+            ctx.save();
+            ctx.strokeStyle = '#ff00ff';
+            ctx.lineWidth = 1 / zoom;
+            ctx.setLineDash([4 / zoom, 3 / zoom]);
+            for (const t of liveSnap) {
+                ctx.beginPath();
+                if (t.axis === 'x') {
+                    ctx.moveTo(t.value, 0);
+                    ctx.lineTo(t.value, height);
+                } else {
+                    ctx.moveTo(0, t.value);
+                    ctx.lineTo(width, t.value);
+                }
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
             ctx.restore();
         }
 
@@ -322,7 +349,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             }
         });
 
-    }, [layers, activeLayerId, width, height, showGrid, gridSize, renderTick, activeChannel]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [layers, activeLayerId, width, height, showGrid, gridSize, renderTick, activeChannel, activeSnapTargets]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Free Edit Initialization
     useEffect(() => {
@@ -574,18 +601,28 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         const dash = dashOffsetRef.current;
         const fp = floatingPixelsRef.current;
 
-        // 1. Quick mask — rebuild cache only when selection ops version changes
+        // 1. Quick mask — draw a 50% red overlay masking the inverse of the
+        // selection. If the user has painted into the quick-mask buffer, blend
+        // that on top so brushed regions show as red too.
         if (oqm) {
-            if (selectionMask && (quickMaskSourceRef.current !== selectionMask || !quickMaskCacheRef.current)) {
-                quickMaskSourceRef.current = selectionMask;
+            const buf = quickMaskBufferRef.current;
+            if ((selectionMask || buf) && (
+                quickMaskSourceRef.current !== (selectionMask ?? buf) ||
+                !quickMaskCacheRef.current
+            )) {
+                quickMaskSourceRef.current = selectionMask ?? buf;
                 const qc = document.createElement('canvas');
                 qc.width = width; qc.height = height;
                 const qCtx = qc.getContext('2d')!;
                 qCtx.fillStyle = 'rgba(255,0,0,0.5)';
                 qCtx.fillRect(0, 0, qc.width, qc.height);
-                if (osel.hasSelection) {
+                if (osel.hasSelection && selectionMask) {
                     qCtx.globalCompositeOperation = 'destination-out';
                     qCtx.drawImage(selectionMask, 0, 0);
+                }
+                if (buf) {
+                    qCtx.globalCompositeOperation = 'source-over';
+                    qCtx.drawImage(buf, 0, 0);
                 }
                 qCtx.globalCompositeOperation = 'source-over';
                 quickMaskCacheRef.current = qc;
@@ -596,6 +633,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         } else {
             quickMaskCacheRef.current = null;
             quickMaskSourceRef.current = null;
+            quickMaskBufferRef.current = null;
         }
 
         // 2. Tool overlay (renderOverlay reads from tool module-level state — no store needed)
@@ -851,8 +889,51 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         }
     };
 
+    // Paint into the Quick Mask transient buffer. Brush adds red mask coverage;
+    // Eraser subtracts it. The buffer is converted to a selection when the user
+    // toggles Quick Mask off via setQuickMaskMode in the view slice.
+    const paintQuickMaskDab = (x: number, y: number) => {
+        let buf = quickMaskBufferRef.current;
+        if (!buf || buf.width !== width || buf.height !== height) {
+            buf = document.createElement('canvas');
+            buf.width = width;
+            buf.height = height;
+            quickMaskBufferRef.current = buf;
+        }
+        const bctx = buf.getContext('2d');
+        if (!bctx) return;
+        const radius = Math.max(0.5, brushSettings.size / 2);
+        const opacity = Math.max(0, Math.min(1, brushSettings.opacity));
+        if (opacity <= 0) return;
+        bctx.save();
+        bctx.globalAlpha = opacity;
+        if (activeTool === 'eraser') {
+            bctx.globalCompositeOperation = 'destination-out';
+        } else {
+            bctx.globalCompositeOperation = 'source-over';
+        }
+        bctx.fillStyle = '#ff0000';
+        bctx.beginPath();
+        bctx.arc(x, y, radius, 0, Math.PI * 2);
+        bctx.fill();
+        bctx.restore();
+        // Mirror onto the store so other listeners (and the post-Q convertor) see it.
+        try {
+            const data = bctx.getImageData(0, 0, width, height);
+            useEditorStore.getState().setQuickMaskBuffer(data);
+        } catch { /* node-canvas during tests may briefly fail; ignore */ }
+        // Force the overlay's quick-mask cache to invalidate by clearing the
+        // source ref so the next overlay frame re-builds it from the buffer.
+        quickMaskCacheRef.current = null;
+        quickMaskSourceRef.current = null;
+    };
+
     // Plot Point helper (Updated for Clipping)
     const plotPoint = (x: number, y: number, targetCtx: CanvasRenderingContext2D) => {
+        if (useEditorStore.getState().quickMaskMode) {
+            paintQuickMaskDab(x, y);
+            return;
+        }
         const size = brushSettings.size;
         const hardness = Math.max(0, Math.min(1, brushSettings.hardness));
         const opacityCap = Math.max(0, Math.min(1, brushSettings.opacity));
@@ -1287,22 +1368,54 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         clearSelection();
     };
 
-    // Handle image file drop
+    // Handle image / .pwbdoc file drop (MVP: single-file drops only).
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
         const files = e.dataTransfer.files;
         if (files.length === 0) return;
+        if (files.length > 1) {
+            useEditorStore.getState().addToast('Only one file can be dropped at a time', 'info');
+            return;
+        }
 
         const file = files[0];
-        if (!file.type.startsWith('image/')) return;
+        const lowerName = file.name.toLowerCase();
+        const isPhotoweb = lowerName.endsWith('.pwbdoc');
+
+        if (isPhotoweb) {
+            const base = file.name.replace(/\.pwbdoc$/i, '');
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const text = reader.result as string;
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.setItem(`photoweb-doc:${base}`, text);
+                    }
+                    useEditorStore.getState().loadFile(base)
+                        .then(() => useEditorStore.getState().addToast(`Opened "${file.name}"`, 'success'))
+                        .catch(() => useEditorStore.getState().addToast(`Could not open ${file.name}`, 'error'));
+                } catch {
+                    useEditorStore.getState().addToast(`Could not read ${file.name}`, 'error');
+                }
+            };
+            reader.onerror = () => useEditorStore.getState().addToast(`Could not read ${file.name}`, 'error');
+            reader.readAsText(file);
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            useEditorStore.getState().addToast(`Unsupported file: ${file.name}`, 'info');
+            return;
+        }
 
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
                 useEditorStore.getState().addLayerFromImage(img, file.name);
+                useEditorStore.getState().addToast(`Added "${file.name}"`, 'success');
             };
             img.src = event.target?.result as string;
         };

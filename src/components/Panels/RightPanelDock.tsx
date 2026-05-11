@@ -8,6 +8,10 @@ import { SwatchesPanel } from './SwatchesPanel';
 import { CharacterPanel } from './CharacterPanel';
 import { ParagraphPanel } from './ParagraphPanel';
 import { PropertiesPanel } from './PropertiesPanel';
+import { BrushPresetsPanel } from './BrushPresetsPanel';
+import { PatternPresetsPanel } from './PatternPresetsPanel';
+import { NavigatorPanel } from './NavigatorPanel';
+import { InfoPanel } from './InfoPanel';
 import { useEditorStore } from '../../store/editorStore';
 
 const ADJUSTMENTS: { id: string; label: string; short: string }[] = [
@@ -79,15 +83,15 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
 
 export function RightPanelDock() {
     const panelVisibility = useEditorStore(s => s.panelVisibility);
-    const [topTab, setTopTab] = useState<'color' | 'swatches' | 'adjustments'>('color');
+    const [topTab, setTopTab] = useState<'navigator' | 'info' | 'color' | 'swatches' | 'adjustments'>('navigator');
     const [showTop, setShowTop] = useState(true);
     const [textTab, setTextTab] = useState<'character' | 'paragraph'>('character');
     const [showText, setShowText] = useState(true);
-    const [bottomTab, setBottomTab] = useState<'layers' | 'channels' | 'paths' | 'history' | 'properties'>('layers');
+    const [bottomTab, setBottomTab] = useState<'layers' | 'channels' | 'paths' | 'history' | 'properties' | 'brush-presets' | 'pattern-presets'>('layers');
 
-    const topVisibleTabs = (['color', 'swatches', 'adjustments'] as const).filter(t => panelVisibility[t]);
+    const topVisibleTabs = (['navigator', 'info', 'color', 'swatches', 'adjustments'] as const).filter(t => panelVisibility[t]);
     const textVisibleTabs = (['character', 'paragraph'] as const).filter(t => panelVisibility[t]);
-    const bottomVisibleTabs = (['layers', 'channels', 'paths', 'history', 'properties'] as const).filter(t => panelVisibility[t]);
+    const bottomVisibleTabs = (['layers', 'channels', 'paths', 'history', 'properties', 'brush-presets', 'pattern-presets'] as const).filter(t => panelVisibility[t]);
     const activeTopTab = topVisibleTabs.includes(topTab) ? topTab : topVisibleTabs[0];
     const activeTextTab = textVisibleTabs.includes(textTab) ? textTab : textVisibleTabs[0];
     const activeBottomTab = bottomVisibleTabs.includes(bottomTab) ? bottomTab : bottomVisibleTabs[0];
@@ -127,6 +131,8 @@ export function RightPanelDock() {
                     </div>
                     {showTop && (
                         <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {activeTopTab === 'navigator' && <NavigatorPanel />}
+                            {activeTopTab === 'info' && <InfoPanel />}
                             {activeTopTab === 'color' && <ColorPanel />}
                             {activeTopTab === 'swatches' && <SwatchesPanel />}
                             {activeTopTab === 'adjustments' && <AdjustmentsPanel />}
@@ -187,7 +193,11 @@ export function RightPanelDock() {
                     }}>
                         {bottomVisibleTabs.map(t => (
                             <button key={t} style={tabStyle(activeBottomTab === t)} onClick={() => setBottomTab(t)}>
-                                {t.charAt(0).toUpperCase() + t.slice(1)}
+                                {t === 'brush-presets'
+                                    ? 'Brush Presets'
+                                    : t === 'pattern-presets'
+                                        ? 'Pattern Presets'
+                                        : t.charAt(0).toUpperCase() + t.slice(1)}
                             </button>
                         ))}
                         <div style={{ flex: 1 }} />
@@ -204,6 +214,16 @@ export function RightPanelDock() {
                         {activeBottomTab === 'properties' && (
                             <div style={{ flex: 1, overflowY: 'auto' }}>
                                 <PropertiesPanel />
+                            </div>
+                        )}
+                        {activeBottomTab === 'brush-presets' && (
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <BrushPresetsPanel />
+                            </div>
+                        )}
+                        {activeBottomTab === 'pattern-presets' && (
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <PatternPresetsPanel />
                             </div>
                         )}
                     </div>

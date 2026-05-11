@@ -9,7 +9,10 @@ This folder was generated from Adobe's Photoshop Desktop Help left navigation at
 - Per-item notes: [pages/](./pages/)
 - Active backlog: [photoweb-implementation-backlog.md](./photoweb-implementation-backlog.md)
 - Scoped development plan: [photoweb-development-plan.md](./photoweb-development-plan.md)
-- Per-task SOP: [photoweb-automatic-development-workflow.md](./photoweb-automatic-development-workflow.md)
+- Parallel-track plan: [photoweb-parallel-development-plan.md](./photoweb-parallel-development-plan.md)
+- User-case behavior matrix: [photoweb-user-cases.md](./photoweb-user-cases.md)
+- Implementation changelog: [CHANGELOG.md](./CHANGELOG.md)
+- Per-task SOP: [../../CLAUDE.md §5](../../CLAUDE.md#5-standard-operating-procedure-every-task)
 
 Notes:
 

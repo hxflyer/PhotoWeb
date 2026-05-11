@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { requestViewportFit } from '../../utils/viewportFit';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface Preset {
     label: string;
@@ -33,6 +34,7 @@ export function NewDocumentDialog({ isOpen, onClose }: Props) {
     const [height, setHeight] = useState(PRESETS[2].height);
     const [resolution, setResolution] = useState(72);
     const [background, setBackground] = useState<'white' | 'black' | 'transparent'>('white');
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     function onPresetSelect(idx: number) {
         setPresetIndex(idx);
@@ -46,9 +48,14 @@ export function NewDocumentDialog({ isOpen, onClose }: Props) {
         const bg = background === 'white' ? '#ffffff'
             : background === 'black' ? '#000000'
             : 'transparent';
-        newDocument(width, height, bg);
-        requestViewportFit();
-        onClose();
+        // STAB-03: newDocument enforces MAX_DOC_PIXELS internally and pushes a
+        // toast on refusal. Only close + fit when the document was actually
+        // created.
+        const created = newDocument(width, height, bg);
+        if (created) {
+            requestViewportFit();
+            onClose();
+        }
     }
 
     if (!isOpen) return null;
@@ -56,6 +63,11 @@ export function NewDocumentDialog({ isOpen, onClose }: Props) {
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="new-document-title"
+                tabIndex={-1}
                 data-testid="new-document-dialog"
                 style={{
                     background: '#2a2a2a',
@@ -93,7 +105,7 @@ export function NewDocumentDialog({ isOpen, onClose }: Props) {
 
                 {/* Settings */}
                 <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px' }}>New Document</div>
+                    <div id="new-document-title" style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px' }}>New Document</div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -64,16 +64,22 @@ describe('pen modes', () => {
         expect(px.a).toBe(0);
     });
 
-    it('shape mode: rasterizes the closed path filled with the primary color and discards the path entry', () => {
+    it('shape mode: creates a new kind:shape layer with custom shapeData and discards the path entry', () => {
         setPenOptions({ mode: 'shape' });
+        const layersBefore = useEditorStore.getState().layers.length;
         buildTriangle();
         const pathsBefore = getPaths().length;
         pressEnter();
-        const layer = useEditorStore.getState().layers[0];
-        const inside = layerPixelAt(layer, 100, 100);
-        expect(inside.r).toBe(255);
-        expect(inside.a).toBeGreaterThan(0);
-        expect(getPaths().length).toBeLessThan(pathsBefore + 1); // discarded after rasterize
+        const layers = useEditorStore.getState().layers;
+        // A new shape layer was appended above the original raster layer.
+        expect(layers.length).toBe(layersBefore + 1);
+        const created = layers.at(-1)!;
+        expect(created.kind).toBe('shape');
+        const data = created.shapeData as { kind: string; pathD: string };
+        expect(data?.kind).toBe('custom');
+        expect(typeof data?.pathD).toBe('string');
+        expect((data?.pathD ?? '').length).toBeGreaterThan(0);
+        expect(getPaths().length).toBeLessThan(pathsBefore + 1); // discarded after creating the shape layer
     });
 
     it('pixels mode: strokes the path at brush size and discards the path entry', () => {

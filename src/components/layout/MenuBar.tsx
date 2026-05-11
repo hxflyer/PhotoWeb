@@ -5,6 +5,8 @@ import { getLastFilter, applyFilterToLayer } from '../../filters/index';
 import { requestViewportFit } from '../../utils/viewportFit';
 import { applyAdjustmentToLayer } from '../../adjustments';
 import { createWorkPathFromLayer } from '../../tools/textToPath';
+import { convertActiveLayerToShape } from '../../tools/typeCommands';
+import { getActivePath } from '../../tools/pen';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MI =
@@ -181,6 +183,13 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       act('Fill…', () => {}, '⇧F5', true),
       act('Stroke…', () => {}, undefined, true),
       sep,
+      act('Stroke Path…', () => {
+        window.dispatchEvent(new Event('photoweb:open-stroke-path'));
+      }, undefined, !getActivePath()),
+      act('Fill Path…', () => {
+        window.dispatchEvent(new Event('photoweb:open-fill-path'));
+      }, undefined, !getActivePath()),
+      sep,
       act('Free Transform', onFreeTransform, '⌘T'),
       sub('Transform',
         act('Scale', () => {}, undefined, true),
@@ -273,6 +282,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Black & White', () => useEditorStore.getState().addAdjustmentLayer('black-and-white')),
         act('Photo Filter', () => useEditorStore.getState().addAdjustmentLayer('photo-filter')),
         act('Channel Mixer', () => useEditorStore.getState().addAdjustmentLayer('channel-mixer')),
+        act('Selective Color', () => useEditorStore.getState().addAdjustmentLayer('selective-color')),
         act('Gradient Map', () => useEditorStore.getState().addAdjustmentLayer('gradient-map')),
         sep,
         act('Invert', () => useEditorStore.getState().addAdjustmentLayer('invert')),
@@ -291,6 +301,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Black & White…', () => openAdjustment('black-and-white'), '⌘⌥⇧B'),
         act('Photo Filter…', () => openAdjustment('photo-filter')),
         act('Channel Mixer…', () => openAdjustment('channel-mixer')),
+        act('Selective Color…', () => openAdjustment('selective-color')),
         act('Gradient Map…', () => openAdjustment('gradient-map')),
         sep,
         act('Invert', () => applyDirectAdjustment('invert'), '⌘I'),
@@ -357,11 +368,20 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Black & White…', () => useEditorStore.getState().addAdjustmentLayer('black-and-white', {})),
         act('Photo Filter…', () => useEditorStore.getState().addAdjustmentLayer('photo-filter', {})),
         act('Channel Mixer…', () => useEditorStore.getState().addAdjustmentLayer('channel-mixer', {})),
+        act('Selective Color…', () => useEditorStore.getState().addAdjustmentLayer('selective-color', {})),
         act('Gradient Map…', () => useEditorStore.getState().addAdjustmentLayer('gradient-map', {})),
         sep,
         act('Invert', () => useEditorStore.getState().addAdjustmentLayer('invert', {})),
         act('Posterize…', () => useEditorStore.getState().addAdjustmentLayer('posterize', {})),
         act('Threshold…', () => useEditorStore.getState().addAdjustmentLayer('threshold', {})),
+      ),
+      sep,
+      sub('Layer Style',
+        act('Copy Layer Style', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.copyLayerStyle(s.activeLayerId); }),
+        act('Paste Layer Style', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.pasteLayerStyle(s.activeLayerId); }),
+        act('Clear Layer Style', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.clearLayerStyle(s.activeLayerId); }),
+        sep,
+        act('Scale Effects…', () => useEditorStore.getState().openScaleEffectsDialog()),
       ),
       sep,
       sub('Layer Mask',
@@ -373,6 +393,12 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Disable', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.setLayerMaskEnabled(s.activeLayerId, false); }),
         act('Apply', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.applyLayerMask(s.activeLayerId); }),
         act('Delete', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.removeLayerMask(s.activeLayerId); }),
+      ),
+      sep,
+      sub('Matting',
+        act('Defringe…', () => useEditorStore.getState().openDefringeDialog()),
+        act('Remove White Matte', () => useEditorStore.getState().removeWhiteMatte()),
+        act('Remove Black Matte', () => useEditorStore.getState().removeBlackMatte()),
       ),
       sep,
       sub('Arrange',
@@ -426,12 +452,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         if (added === 0) window.alert('Could not trace any path from this layer.');
       }),
       act('Convert to Shape', () => {
-        // Shape layers in photoweb are still raster, so "Convert to Shape" is
-        // equivalent to Rasterize Type — the visual stays, the source data
-        // becomes pixels. Track GAP-07 to make this produce a real vector
-        // shape layer once shape-kind editing lands.
-        const s = useEditorStore.getState();
-        if (s.activeLayerId) s.rasterizeTypeLayer(s.activeLayerId);
+        convertActiveLayerToShape();
       }),
       act('Rasterize Type Layer', () => {
         const s = useEditorStore.getState();
@@ -458,16 +479,16 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       act('Select and Mask…', () => useEditorStore.getState().openRefineEdgeDialog(), '⌘⌥R'),
       sep,
       sub('Modify',
-        act('Border…', () => useEditorStore.getState().borderSelection(1)),
-        act('Smooth…', () => {}, undefined, true),
+        act('Border…', () => useEditorStore.getState().openBorderSelectionDialog()),
+        act('Smooth…', () => useEditorStore.getState().openSmoothSelectionDialog()),
         act('Expand…', () => {}, undefined, true),
         act('Contract…', () => {}, undefined, true),
         act('Feather…', () => useEditorStore.getState().setFeatherDialogOpen(true), '⇧F6'),
       ),
-      act('Grow', () => {}, undefined, true),
-      act('Similar', () => {}, undefined, true),
+      act('Grow', () => useEditorStore.getState().growSelection()),
+      act('Similar', () => useEditorStore.getState().similarSelection()),
       sep,
-      act('Transform Selection', () => {}, undefined, true),
+      act('Transform Selection', () => useEditorStore.getState().openTransformSelection()),
       chk('Edit in Quick Mask Mode', () => useEditorStore.getState().quickMaskMode, () => {
         const s = useEditorStore.getState(); s.setQuickMaskMode(!s.quickMaskMode);
       }, 'Q'),
@@ -503,6 +524,8 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Add Noise…', () => openFilter('noise-add', { amount: 25, monochromatic: false })),
         act('Reduce Noise…', () => openFilter('noise-reduce', { strength: 6, preserveDetails: 50, reduceColorNoise: 50, sharpenDetails: 25 })),
         act('Median…', () => openFilter('noise-median', { radius: 2 })),
+        act('Dust & Scratches…', () => openFilter('noise-dust-scratches', { radius: 4, threshold: 30 })),
+        act('Despeckle', () => { const s = useEditorStore.getState(); const l = s.layers.find(x => x.id === s.activeLayerId); if (l) applyFilterToLayer(l, 'noise-despeckle', {}, s.selection); }),
       ),
       sub('Distort',
         act('Pinch…', () => openFilter('distort-pinch', { amount: 50 })),
@@ -529,6 +552,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       sub('Show',
         chk('Rulers', () => useEditorStore.getState().showRulers, () => { const s = useEditorStore.getState(); s.setShowRulers(!s.showRulers); }, '⌘R'),
         chk('Grid', () => useEditorStore.getState().showGrid, () => { const s = useEditorStore.getState(); s.setShowGrid(!s.showGrid); }, "⌘'"),
+        chk('Guides', () => useEditorStore.getState().showGuides, () => { const s = useEditorStore.getState(); s.setShowGuides(!s.showGuides); }, '⌘;'),
         chk('Selection Edges', () => useEditorStore.getState().showSelectionEdges, () => { const s = useEditorStore.getState(); s.setShowSelectionEdges(!s.showSelectionEdges); }, '⌘H'),
         chk('Snap', () => useEditorStore.getState().snapEnabled, () => { const s = useEditorStore.getState(); s.setSnapEnabled(!s.snapEnabled); }, '⌘⇧;'),
       ),
@@ -544,16 +568,18 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       ),
       sep,
       sub('Guides',
+        act('New Guide…', () => useEditorStore.getState().setNewGuideDialogOpen(true)),
         act('New Horizontal Guide', () => {
           const s = useEditorStore.getState();
-          s.addGuide('horizontal', Math.round(s.height / 2));
+          s.addGuideWithHistory('horizontal', Math.round(s.height / 2));
         }),
         act('New Vertical Guide', () => {
           const s = useEditorStore.getState();
-          s.addGuide('vertical', Math.round(s.width / 2));
+          s.addGuideWithHistory('vertical', Math.round(s.width / 2));
         }),
         sep,
-        act('Clear Guides', () => useEditorStore.getState().clearGuides()),
+        chk('Lock Guides', () => useEditorStore.getState().guidesLocked, () => { const s = useEditorStore.getState(); s.setGuidesLocked(!s.guidesLocked); }, '⌘⌥;'),
+        act('Clear Guides', () => useEditorStore.getState().clearGuidesWithHistory()),
       ),
     ],
 

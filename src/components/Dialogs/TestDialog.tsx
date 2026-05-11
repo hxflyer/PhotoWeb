@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 
 interface TestDialogProps {
@@ -7,6 +8,7 @@ interface TestDialogProps {
 }
 
 export function TestDialog({ isOpen, onClose }: TestDialogProps) {
+    const dialogRef = useDialogA11y(isOpen, onClose);
     if (!isOpen) return null;
 
     return (
@@ -23,7 +25,13 @@ export function TestDialog({ isOpen, onClose }: TestDialogProps) {
             zIndex: 1000,
             backdropFilter: 'blur(2px)'
         }} onClick={onClose}>
-            <div style={{
+            <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="test-dialog-title"
+                tabIndex={-1}
+                style={{
                 width: '400px',
                 backgroundColor: 'hsl(var(--bg-panel))',
                 border: '1px solid hsl(var(--border-light))',
@@ -42,8 +50,8 @@ export function TestDialog({ isOpen, onClose }: TestDialogProps) {
                     justifyContent: 'space-between',
                     backgroundColor: 'hsl(var(--bg-header))'
                 }}>
-                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Test Dialog</h3>
-                    <button onClick={onClose} style={{
+                    <h3 id="test-dialog-title" style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Test Dialog</h3>
+                    <button aria-label="Close" onClick={onClose} style={{
                         background: 'none',
                         border: 'none',
                         color: 'hsl(var(--text-muted))',

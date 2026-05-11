@@ -6,9 +6,14 @@
 import { useSyncExternalStore } from 'react';
 import {
     subscribeTypeTool, getTypeVersion, getEditingStyle, updateEditingStyle, defaultTextStyle,
+    typeToolState,
 } from '../../tools/type';
+import {
+    applyCharacterPanelEdit, commitCoalescedTypeEdit,
+} from '../../tools/typeCommands';
 import { useEditorStore } from '../../store/editorStore';
 import type { TextStyle } from '../Canvas/TextEditOverlay';
+import { FontPicker } from './FontPicker';
 import {
     AllCapsIcon, AlternateGlyphIcon, AntiAliasIcon, BaselineShiftIcon, ContextualAlternatesIcon,
     FauxBoldIcon, FauxItalicIcon, FontSizeIcon, FractionsIcon, HorizontalScaleIcon,
@@ -17,12 +22,6 @@ import {
     SwashIcon, TextColorIcon, TitlingAlternatesIcon, TrackingIcon, UnderlineTextIcon,
     VerticalScaleIcon,
 } from '../icons/PhotowebIcons';
-
-const FONT_FAMILIES = [
-    'system-ui', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman',
-    'Courier New', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Impact',
-    'Comic Sans MS', 'Myriad Pro', 'Inter',
-];
 
 const FONT_STYLES: { label: string; weight: number; italic: boolean }[] = [
     { label: 'Light',       weight: 300, italic: false },
@@ -73,14 +72,17 @@ const disabledFeatureStyle: React.CSSProperties = {
     cursor: 'not-allowed',
 };
 
-function NumField({ value, onChange, suffix, width = 60, min, max }: {
-    value: number; onChange: (v: number) => void; suffix?: string; width?: number; min?: number; max?: number;
+function NumField({ value, onChange, onCommit, suffix, width = 60, min, max }: {
+    value: number; onChange: (v: number) => void; onCommit?: () => void;
+    suffix?: string; width?: number; min?: number; max?: number;
 }) {
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <input
                 type="number" value={value} min={min} max={max}
                 onChange={e => onChange(Number(e.target.value) || 0)}
+                onMouseUp={() => onCommit?.()}
+                onBlur={() => onCommit?.()}
                 style={{ ...inputStyle, width }}
             />
             {suffix && <span style={{ fontSize: 10, color: 'hsl(var(--text-muted))' }}>{suffix}</span>}
@@ -93,26 +95,52 @@ export function CharacterPanel() {
     useSyncExternalStore(subscribeTypeTool, getTypeVersion);
     const s: TextStyle = getEditingStyle();
     const openColorPicker = useEditorStore.getState().openColorPicker;
+    // Subscribe to the active layer id so the FontPicker can mirror the store's
+    // value via the shared `layerId` prop (single source of truth across panels).
+    const activeLayerId = useEditorStore(st => st.activeLayerId);
+    const activeLayerKind = useEditorStore(st => {
+        const l = st.layers.find(ly => ly.id === st.activeLayerId);
+        return l?.kind ?? null;
+    });
+    const sharedLayerId = activeLayerKind === 'type' ? activeLayerId ?? undefined : undefined;
 
-    const update = (patch: Partial<TextStyle>) => updateEditingStyle(patch);
+    // While the contenteditable overlay is active, edits flow live through
+    // updateEditingStyle (no per-keystroke history). Otherwise route through
+    // applyCharacterPanelEdit so each Character panel change to the selected
+    // type layer is a single undoable command (coalesced across slider drags).
+    function update(patch: Partial<TextStyle>, label = 'Edit Type Style'): void {
+        if (typeToolState.editing) {
+            updateEditingStyle(patch);
+            return;
+        }
+        const state = useEditorStore.getState();
+        const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+        if (activeLayer?.kind === 'type' && activeLayer.typeData) {
+            applyCharacterPanelEdit(label, patch);
+            return;
+        }
+        updateEditingStyle(patch);
+    }
+    const commitEdit = () => commitCoalescedTypeEdit();
     const styleNow = styleLabel(s);
 
     return (
         <div style={{ padding: 8, fontSize: 11, color: 'hsl(var(--text-main))', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {/* Font family + style */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 4 }}>
-                <select
+                <FontPicker
+                    testIdPrefix="character-font-picker"
+                    layerId={sharedLayerId}
                     value={s.fontFamily}
-                    onChange={e => update({ fontFamily: e.target.value })}
-                    style={inputStyle}
-                >
-                    {FONT_FAMILIES.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                    onChange={next => update({ fontFamily: next }, 'Edit Font Family')}
+                    onCommit={commitEdit}
+                />
                 <select
                     value={styleNow}
                     onChange={e => {
                         const cfg = FONT_STYLES.find(f => f.label === e.target.value)!;
-                        update({ fontWeight: cfg.weight, fontStyle: cfg.italic ? 'italic' : 'normal' });
+                        update({ fontWeight: cfg.weight, fontStyle: cfg.italic ? 'italic' : 'normal' }, 'Edit Font Style');
+                        commitEdit();
                     }}
                     style={inputStyle}
                 >
@@ -123,11 +151,11 @@ export function CharacterPanel() {
             {/* Size (T) + Leading (auto) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto 1fr', gap: 4, alignItems: 'center' }}>
                 <span style={labelIconStyle} title="Font size"><FontSizeIcon size={14} /></span>
-                <NumField value={s.fontSize} onChange={v => update({ fontSize: Math.max(1, v) })} suffix="pt" min={1} max={500} />
+                <NumField value={s.fontSize} onChange={v => update({ fontSize: Math.max(1, v) }, 'Edit Font Size')} onCommit={commitEdit} suffix="pt" min={1} max={500} />
                 <span style={labelIconStyle} title="Leading"><LeadingIcon size={14} /></span>
                 <select
                     value={s.lineHeight}
-                    onChange={e => update({ lineHeight: Number(e.target.value) })}
+                    onChange={e => { update({ lineHeight: Number(e.target.value) }, 'Edit Leading'); commitEdit(); }}
                     style={inputStyle}
                 >
                     <option value={0}>(Auto)</option>
@@ -145,21 +173,21 @@ export function CharacterPanel() {
                     <option value="metrics">Metrics</option>
                 </select>
                 <span style={labelIconStyle} title="Tracking"><TrackingIcon size={18} /></span>
-                <NumField value={s.letterSpacing} onChange={v => update({ letterSpacing: v })} width={60} />
+                <NumField value={s.letterSpacing} onChange={v => update({ letterSpacing: v }, 'Edit Tracking')} onCommit={commitEdit} width={60} />
             </div>
 
             {/* Vertical scaling + Horizontal scaling */}
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto 1fr', gap: 4, alignItems: 'center' }}>
                 <span style={labelIconStyle} title="Vertical scaling"><VerticalScaleIcon size={14} /></span>
-                <NumField value={Math.round(s.scaleY * 100)} onChange={v => update({ scaleY: Math.max(0.01, v / 100) })} suffix="%" min={1} max={1000} />
+                <NumField value={Math.round(s.scaleY * 100)} onChange={v => update({ scaleY: Math.max(0.01, v / 100) }, 'Edit Vertical Scale')} onCommit={commitEdit} suffix="%" min={1} max={1000} />
                 <span style={labelIconStyle} title="Horizontal scaling"><HorizontalScaleIcon size={14} /></span>
-                <NumField value={Math.round(s.scaleX * 100)} onChange={v => update({ scaleX: Math.max(0.01, v / 100) })} suffix="%" min={1} max={1000} />
+                <NumField value={Math.round(s.scaleX * 100)} onChange={v => update({ scaleX: Math.max(0.01, v / 100) }, 'Edit Horizontal Scale')} onCommit={commitEdit} suffix="%" min={1} max={1000} />
             </div>
 
             {/* Baseline shift + Color */}
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: 4, alignItems: 'center' }}>
                 <span style={labelIconStyle} title="Baseline shift"><BaselineShiftIcon size={14} /></span>
-                <NumField value={s.baselineShift} onChange={v => update({ baselineShift: v })} suffix="pt" />
+                <NumField value={s.baselineShift} onChange={v => update({ baselineShift: v }, 'Edit Baseline Shift')} onCommit={commitEdit} suffix="pt" />
                 <span style={labelIconStyle} title="Text color"><TextColorIcon size={18} /></span>
                 <div
                     onClick={() => openColorPicker('type')}
@@ -175,14 +203,14 @@ export function CharacterPanel() {
 
             {/* Type variant buttons row 1 */}
             <div style={{ display: 'flex', gap: 2 }}>
-                <button title="Faux Bold"        style={toggleStyle(s.fauxBold)}      onClick={() => update({ fauxBold: !s.fauxBold })}><FauxBoldIcon size={18} /></button>
-                <button title="Faux Italic"      style={toggleStyle(s.fauxItalic)}    onClick={() => update({ fauxItalic: !s.fauxItalic })}><FauxItalicIcon size={18} /></button>
-                <button title="All Caps"         style={toggleStyle(s.allCaps)}       onClick={() => update({ allCaps: !s.allCaps, smallCaps: false })}><AllCapsIcon size={18} /></button>
-                <button title="Small Caps"       style={toggleStyle(s.smallCaps)}     onClick={() => update({ smallCaps: !s.smallCaps, allCaps: false })}><SmallCapsIcon size={18} /></button>
-                <button title="Superscript"      style={toggleStyle(s.superscript)}   onClick={() => update({ superscript: !s.superscript, subscript: false })}><SuperscriptIcon size={18} /></button>
-                <button title="Subscript"        style={toggleStyle(s.subscript)}     onClick={() => update({ subscript: !s.subscript, superscript: false })}><SubscriptIcon size={18} /></button>
-                <button title="Underline"        style={toggleStyle(s.underline)}     onClick={() => update({ underline: !s.underline })}><UnderlineTextIcon size={18} /></button>
-                <button title="Strikethrough"    style={toggleStyle(s.strikethrough)} onClick={() => update({ strikethrough: !s.strikethrough })}><StrikethroughTextIcon size={18} /></button>
+                <button title="Faux Bold"        style={toggleStyle(s.fauxBold)}      onClick={() => { update({ fauxBold: !s.fauxBold }, 'Toggle Faux Bold'); commitEdit(); }}><FauxBoldIcon size={18} /></button>
+                <button title="Faux Italic"      style={toggleStyle(s.fauxItalic)}    onClick={() => { update({ fauxItalic: !s.fauxItalic }, 'Toggle Faux Italic'); commitEdit(); }}><FauxItalicIcon size={18} /></button>
+                <button title="All Caps"         style={toggleStyle(s.allCaps)}       onClick={() => { update({ allCaps: !s.allCaps, smallCaps: false }, 'Toggle All Caps'); commitEdit(); }}><AllCapsIcon size={18} /></button>
+                <button title="Small Caps"       style={toggleStyle(s.smallCaps)}     onClick={() => { update({ smallCaps: !s.smallCaps, allCaps: false }, 'Toggle Small Caps'); commitEdit(); }}><SmallCapsIcon size={18} /></button>
+                <button title="Superscript"      style={toggleStyle(s.superscript)}   onClick={() => { update({ superscript: !s.superscript, subscript: false }, 'Toggle Superscript'); commitEdit(); }}><SuperscriptIcon size={18} /></button>
+                <button title="Subscript"        style={toggleStyle(s.subscript)}     onClick={() => { update({ subscript: !s.subscript, superscript: false }, 'Toggle Subscript'); commitEdit(); }}><SubscriptIcon size={18} /></button>
+                <button title="Underline"        style={toggleStyle(s.underline)}     onClick={() => { update({ underline: !s.underline }, 'Toggle Underline'); commitEdit(); }}><UnderlineTextIcon size={18} /></button>
+                <button title="Strikethrough"    style={toggleStyle(s.strikethrough)} onClick={() => { update({ strikethrough: !s.strikethrough }, 'Toggle Strikethrough'); commitEdit(); }}><StrikethroughTextIcon size={18} /></button>
             </div>
 
             {/* OpenType feature row mirrors Photoshop's character panel controls. */}

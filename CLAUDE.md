@@ -15,8 +15,10 @@ Build photoweb: a browser-based, layer-aware raster editor that feels like Photo
 | What | Where |
 |---|---|
 | **Current scoped development plan** | [doc/photoshop-desktop-study/photoweb-development-plan.md](doc/photoshop-desktop-study/photoweb-development-plan.md) |
-| **Automatic workflow** | [doc/photoshop-desktop-study/photoweb-automatic-development-workflow.md](doc/photoshop-desktop-study/photoweb-automatic-development-workflow.md) |
+| **Parallel development plan** (tracks + batches + chokepoints) | [doc/photoshop-desktop-study/photoweb-parallel-development-plan.md](doc/photoshop-desktop-study/photoweb-parallel-development-plan.md) |
+| **Implementation changelog** | [doc/photoshop-desktop-study/CHANGELOG.md](doc/photoshop-desktop-study/CHANGELOG.md) |
 | **Implementation backlog** | [doc/photoshop-desktop-study/photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md) |
+| **User-case matrix** | [doc/photoshop-desktop-study/photoweb-user-cases.md](doc/photoshop-desktop-study/photoweb-user-cases.md) |
 | Photoshop source notes | [doc/photoshop-desktop-study/pages/](doc/photoshop-desktop-study/pages/) |
 | Photoshop source note images | [doc/photoshop-desktop-study/images/](doc/photoshop-desktop-study/images/) |
 | Source PDFs (Photoshop guides, reference only) | [doc/](doc/) — `*.pdf` and extracted `*.txt` |
@@ -151,7 +153,7 @@ Do not implement these unless the user explicitly changes scope:
 
 Follow this loop without skipping steps. The point is reproducible quality.
 
-1. **Read state.** Skim this CLAUDE.md, [photoweb-development-plan.md](doc/photoshop-desktop-study/photoweb-development-plan.md), [photoweb-automatic-development-workflow.md](doc/photoshop-desktop-study/photoweb-automatic-development-workflow.md), and the relevant backlog item before touching code. Also read the related Photoshop source note(s) in [doc/photoshop-desktop-study/pages/](doc/photoshop-desktop-study/pages/) and inspect any matching images in [doc/photoshop-desktop-study/images/](doc/photoshop-desktop-study/images/) so the UI behavior, buttons, cursors, panels, and terminology are grounded in the reference material. If the task references an existing file, read it.
+1. **Read state.** Skim this CLAUDE.md, [photoweb-development-plan.md](doc/photoshop-desktop-study/photoweb-development-plan.md), and the relevant backlog item before touching code. Also read the related Photoshop source note(s) in [doc/photoshop-desktop-study/pages/](doc/photoshop-desktop-study/pages/) and inspect any matching images in [doc/photoshop-desktop-study/images/](doc/photoshop-desktop-study/images/) so the UI behavior, buttons, cursors, panels, and terminology are grounded in the reference material. If the task references an existing file, read it.
 2. **Pick the next unchecked task** from [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md), in order. Do not skip ahead unless a dependency forces it (and note the reason).
 3. **Plan the change.** State (in chat) what files will change and what the contract of the new code is. Keep it to a few sentences. If the change is non-trivial, list the steps before starting.
 4. **Implement.** Edit existing files; create new ones only when the layout in §3 calls for it. Match the existing TS/React style. No new dependencies without flagging it.
@@ -183,7 +185,7 @@ Follow this loop without skipping steps. The point is reproducible quality.
 
 Use [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md) as the only active todo list. Do not add feature tasks to this file.
 
-Current synced focus: history and core layer foundation are implemented; continue with the first unchecked Properties item in the backlog unless the user redirects.
+Current synced focus: history, layer foundation, Properties shell, adjustment/fill/mask editing, selection basics, brush/pattern preset foundations, draggable guides, preferences/storage usage, and the first layer-effect set are implemented. Continue with the next scoped gap in [photoweb-parallel-development-plan.md](doc/photoshop-desktop-study/photoweb-parallel-development-plan.md): real editable shape layers (`SHAPE-01`), Type Properties undo coverage (`PROPS-04`), non-AI retouch tools, true Select and Mask output destinations, storage/autosave diagnostics, and remaining practical layer effects.
 
 When a requirement is completed, update its status in the backlog after tests pass. If new follow-up work is discovered, add it to the backlog as a separate requirement instead of reopening a stale checklist here.
 

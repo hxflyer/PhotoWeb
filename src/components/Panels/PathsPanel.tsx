@@ -3,7 +3,7 @@
  * Selecting a row sets it as the active path so the pen extends that path.
  * Bottom toolbar: Duplicate + Delete only (per request).
  */
-import { Trash2, Copy } from 'lucide-react';
+import { Trash2, Copy, Edit3, PaintBucket } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import {
     getPaths, getActivePathId, setActivePath,
@@ -161,6 +161,20 @@ export function PathsPanel() {
                 backgroundColor: 'hsl(var(--bg-header))',
                 flexShrink: 0,
             }}>
+                <button
+                    title="Stroke Path"
+                    onClick={() => { if (activeId) window.dispatchEvent(new Event('photoweb:open-stroke-path')); }}
+                    disabled={!activeId}
+                    data-testid="paths-panel-stroke-path"
+                    style={{ ...HEAD_BTN, opacity: activeId ? 1 : 0.4 }}
+                ><Edit3 size={14} /></button>
+                <button
+                    title="Fill Path"
+                    onClick={() => { if (activeId) window.dispatchEvent(new Event('photoweb:open-fill-path')); }}
+                    disabled={!activeId}
+                    data-testid="paths-panel-fill-path"
+                    style={{ ...HEAD_BTN, opacity: activeId ? 1 : 0.4 }}
+                ><PaintBucket size={14} /></button>
                 <button
                     title="Duplicate Path"
                     onClick={() => { if (activeId) { duplicatePath(activeId); refresh(); } }}

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { getFilter } from '../../filters/registry';
 import type { FilterApplyContext } from '../../filters/Filter';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface FilterDialogProps {
     isOpen: boolean;
@@ -19,6 +20,7 @@ export function FilterDialog({ isOpen, filterId, sourceImage, initialParams, onC
         initialParams ?? filter?.defaultParams ?? {}
     );
     const previewRef = useRef<HTMLCanvasElement>(null);
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     const renderPreview = useCallback(() => {
         if (!filter || !sourceImage || !previewRef.current) return;
@@ -83,6 +85,11 @@ export function FilterDialog({ isOpen, filterId, sourceImage, initialParams, onC
             onClick={onClose}
         >
             <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="filter-dialog-title"
+                tabIndex={-1}
                 style={{
                     width: '560px',
                     maxHeight: '80vh',
@@ -105,10 +112,11 @@ export function FilterDialog({ isOpen, filterId, sourceImage, initialParams, onC
                     justifyContent: 'space-between',
                     backgroundColor: 'hsl(var(--bg-header))',
                 }}>
-                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>
+                    <h3 id="filter-dialog-title" style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>
                         {filter.label}
                     </h3>
                     <button
+                        aria-label="Close"
                         onClick={onClose}
                         style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '4px', display: 'flex', borderRadius: '4px' }}
                     >

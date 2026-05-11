@@ -1,4 +1,4 @@
-import type { CompositeRequest, Compositor } from './Compositor';
+import type { CompositeRequest, Compositor, DirtyRect } from './Compositor';
 import { getAdjustment } from '../adjustments';
 import { getEffect } from '../effects';
 import type { Layer } from '../core/Layer';
@@ -10,14 +10,61 @@ interface LayerWithAdjustment {
 export class Canvas2DCompositor implements Compositor {
     private maskCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
     private frameCanvas: HTMLCanvasElement | null = null;
+    private framePainted = false;
+    private lastFrameSize: { width: number; height: number } | null = null;
 
     beginFrame(target: HTMLCanvasElement): void {
-        const ctx = target.getContext('2d');
-        if (!ctx) return;
-        ctx.clearRect(0, 0, target.width, target.height);
-        const frame = this.ensureFrameCanvas(target.width, target.height);
-        const frameCtx = frame.getContext('2d');
-        frameCtx?.clearRect(0, 0, frame.width, frame.height);
+        // Signal the start of a new frame. Buffers are NOT cleared here; the
+        // following render() decides between a full repaint (which clears the
+        // frame buffer + target) and a clipped composite (which preserves
+        // the previous frame outside the dirty union). This lets sequential
+        // render() calls reuse the off-screen frame buffer for cheap incremental
+        // composites; full-repaint is forced by setting framePainted = false.
+        this.ensureFrameCanvas(target.width, target.height);
+        this.framePainted = false;
+    }
+
+    /**
+     * Compute the union of all visible layers' dirty rects, expanded by `pad`
+     * pixels on each side (to cover selection-edge anti-alias). Returns null
+     * when no layer has a non-full dirty rect set; the caller treats that as
+     * "no localized hint" and falls back to a full-canvas composite.
+     */
+    unionDirtyRect(layers: Layer[], width: number, height: number, pad = 1): DirtyRect | null {
+        let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+        let any = false;
+        for (const layer of layers) {
+            if (!layer.visible) continue;
+            const r = layer.dirtyRect;
+            if (!r) continue;
+            any = true;
+            if (r.x < x1) x1 = r.x;
+            if (r.y < y1) y1 = r.y;
+            if (r.x + r.width > x2) x2 = r.x + r.width;
+            if (r.y + r.height > y2) y2 = r.y + r.height;
+        }
+        if (!any) return null;
+        x1 = Math.max(0, Math.floor(x1 - pad));
+        y1 = Math.max(0, Math.floor(y1 - pad));
+        x2 = Math.min(width, Math.ceil(x2 + pad));
+        y2 = Math.min(height, Math.ceil(y2 + pad));
+        if (x2 <= x1 || y2 <= y1) return null;
+        return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
+    }
+
+    private rectIsFullCanvas(rect: DirtyRect, width: number, height: number): boolean {
+        return rect.x <= 0 && rect.y <= 0 && rect.x + rect.width >= width && rect.y + rect.height >= height;
+    }
+
+    private hasAdjustmentLayer(layers: Layer[]): boolean {
+        for (const layer of layers) {
+            if (layer.visible && layer.kind === 'adjustment') return true;
+        }
+        return false;
+    }
+
+    private markFrameClean(layers: Layer[]): void {
+        for (const layer of layers) layer.clearDirty();
     }
 
     render(req: CompositeRequest): void {
@@ -26,25 +73,78 @@ export class Canvas2DCompositor implements Compositor {
         const targetCtx = req.target.getContext('2d');
         if (!ctx || !targetCtx) return;
 
-        req.layers
-            .filter(layer => layer.parentId === null)
-            .forEach(layer => this.renderLayer(ctx, layer, req.layers, req.skipTypeLayers));
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = 'source-over';
+        const w = req.target.width;
+        const h = req.target.height;
 
-        // Channel isolation — when a single channel is active, replace each pixel's
-        // RGB with the selected channel's value (greyscale view of that channel).
-        if (req.activeChannel && req.activeChannel !== 'rgb') {
-            this.applyChannelFilter(frame, req.activeChannel);
-        } else if (req.channelVisibility && (!req.channelVisibility.r || !req.channelVisibility.g || !req.channelVisibility.b)) {
-            // Visibility eye icons in the Channels panel: zero out hidden channels
-            // so the user can preview the composite without one or more channels.
-            this.applyChannelVisibility(frame, req.channelVisibility);
+        // Channel isolation / visibility post-process needs to walk the whole
+        // frame, so it forces a full repaint. Adjustment layers do the same
+        // (their applyAdjustmentToTarget putImageData ignores canvas clipping).
+        const channelPostprocess = (req.activeChannel && req.activeChannel !== 'rgb')
+            || (req.channelVisibility && (!req.channelVisibility.r || !req.channelVisibility.g || !req.channelVisibility.b));
+
+        const sizeChanged = !this.lastFrameSize || this.lastFrameSize.width !== w || this.lastFrameSize.height !== h;
+        const union = this.unionDirtyRect(req.layers, w, h, 1);
+        const unionIsFullCanvas = union ? this.rectIsFullCanvas(union, w, h) : false;
+
+        // A clipped composite is only safe when the off-screen frame buffer
+        // still holds a valid previous-frame composite. framePainted tracks
+        // whether the buffer survived the last render; beginFrame() forces it
+        // to false so callers that explicitly start a new frame still see a
+        // full repaint. The optimization kicks in for callers that issue
+        // back-to-back render() calls (e.g., a tool that marks a tight rect
+        // dirty and re-renders without calling beginFrame in between).
+        const canUseClip = this.framePainted
+            && !sizeChanged
+            && !channelPostprocess
+            && !this.hasAdjustmentLayer(req.layers)
+            && union !== null
+            && !unionIsFullCanvas;
+
+        if (canUseClip && union) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(union.x, union.y, union.width, union.height);
+            ctx.clip();
+            ctx.clearRect(union.x, union.y, union.width, union.height);
+            req.layers
+                .filter(layer => layer.parentId === null)
+                .forEach(layer => this.renderLayer(ctx, layer, req.layers, req.skipTypeLayers));
+            ctx.restore();
+
+            targetCtx.save();
+            targetCtx.beginPath();
+            targetCtx.rect(union.x, union.y, union.width, union.height);
+            targetCtx.clip();
+            targetCtx.clearRect(union.x, union.y, union.width, union.height);
+            this.drawCheckerboard(targetCtx, w, h);
+            targetCtx.drawImage(frame, 0, 0);
+            targetCtx.restore();
+        } else {
+            ctx.clearRect(0, 0, w, h);
+            req.layers
+                .filter(layer => layer.parentId === null)
+                .forEach(layer => this.renderLayer(ctx, layer, req.layers, req.skipTypeLayers));
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+
+            // Channel isolation — when a single channel is active, replace each pixel's
+            // RGB with the selected channel's value (greyscale view of that channel).
+            if (req.activeChannel && req.activeChannel !== 'rgb') {
+                this.applyChannelFilter(frame, req.activeChannel);
+            } else if (req.channelVisibility && (!req.channelVisibility.r || !req.channelVisibility.g || !req.channelVisibility.b)) {
+                // Visibility eye icons in the Channels panel: zero out hidden channels
+                // so the user can preview the composite without one or more channels.
+                this.applyChannelVisibility(frame, req.channelVisibility);
+            }
+
+            targetCtx.clearRect(0, 0, w, h);
+            this.drawCheckerboard(targetCtx, w, h);
+            targetCtx.drawImage(frame, 0, 0);
         }
 
-        targetCtx.clearRect(0, 0, req.target.width, req.target.height);
-        this.drawCheckerboard(targetCtx, req.target.width, req.target.height);
-        targetCtx.drawImage(frame, 0, 0);
+        this.framePainted = true;
+        this.lastFrameSize = { width: w, height: h };
+        this.markFrameClean(req.layers);
     }
 
     private applyChannelVisibility(frame: HTMLCanvasElement, vis: { r: boolean; g: boolean; b: boolean }): void {
@@ -157,11 +257,59 @@ export class Canvas2DCompositor implements Compositor {
             .filter(layer => layer.parentId === group.id)
             .forEach(layer => this.renderLayer(groupCtx, layer, layers, skipTypeLayers));
         const sourceCanvas = group.mask && group.mask.enabled
-            ? this.applyMask(groupCanvas, group.mask.canvas)
+            ? this.applyMask(groupCanvas, group.mask.canvas, { density: group.mask.density, feather: group.mask.feather })
             : groupCanvas;
+
+        const enabledEffects = group.effects?.filter(e => e.enabled) ?? [];
+        if (enabledEffects.length === 0) {
+            ctx.globalAlpha = group.opacity * group.fill;
+            ctx.globalCompositeOperation = group.blendMode;
+            ctx.drawImage(sourceCanvas, 0, 0);
+            return;
+        }
+
+        // Mirror renderDrawableLayer's underlay/overlay split so a group's
+        // effects (e.g. a shared Drop Shadow under the whole group) render
+        // exactly like a layer's. The group's composited result is the
+        // alpha silhouette every effect renderer sees.
+        const scratch = document.createElement('canvas');
+        scratch.width = ctx.canvas.width;
+        scratch.height = ctx.canvas.height;
+        const sctx = scratch.getContext('2d');
+        if (!sctx) {
+            ctx.globalAlpha = group.opacity * group.fill;
+            ctx.globalCompositeOperation = group.blendMode;
+            ctx.drawImage(sourceCanvas, 0, 0);
+            return;
+        }
+
+        for (const e of enabledEffects) {
+            const renderer = getEffect(e.kind);
+            if (!renderer) continue;
+            const result = renderer.apply(e.params, { layer: group, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height });
+            if (!result || result.placement !== 'underlay') continue;
+            sctx.globalAlpha = result.opacity;
+            sctx.globalCompositeOperation = result.blendMode;
+            sctx.drawImage(result.canvas, 0, 0);
+        }
+
+        sctx.globalAlpha = 1;
+        sctx.globalCompositeOperation = 'source-over';
+        sctx.drawImage(sourceCanvas, 0, 0);
+
+        for (const e of enabledEffects) {
+            const renderer = getEffect(e.kind);
+            if (!renderer) continue;
+            const result = renderer.apply(e.params, { layer: group, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height });
+            if (!result || result.placement !== 'overlay') continue;
+            sctx.globalAlpha = result.opacity;
+            sctx.globalCompositeOperation = result.blendMode;
+            sctx.drawImage(result.canvas, 0, 0);
+        }
+
         ctx.globalAlpha = group.opacity * group.fill;
         ctx.globalCompositeOperation = group.blendMode;
-        ctx.drawImage(sourceCanvas, 0, 0);
+        ctx.drawImage(scratch, 0, 0);
     }
 
     private applyChannelFilter(frame: HTMLCanvasElement, channel: 'r' | 'g' | 'b'): void {
@@ -189,7 +337,7 @@ export class Canvas2DCompositor implements Compositor {
         const adj = getAdjustment(adjustment.id);
         if (!adj) return;
         const image = ctx.getImageData(0, 0, target.width, target.height);
-        const adjusted = adj.apply(adjustment.params, { image, width: target.width, height: target.height });
+        const adjusted = adj.apply(adjustment.params, { image, width: target.width, height: target.height, selectionMask: null, dirtyRect: null });
         if (amount >= 1) {
             ctx.putImageData(adjusted, 0, 0);
             return;

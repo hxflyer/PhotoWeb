@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { rasterizeSelectionOperations } from '../../utils/selectionUtils';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface Props {
     isOpen: boolean;
@@ -17,16 +18,18 @@ type OutputTarget = 'selection' | 'layer-mask' | 'new-layer-with-mask';
 export function RefineEdgeDialog({ isOpen, onClose }: Props) {
     const { refineEdge } = useEditorStore();
     const [radius, setRadius] = useState(0);
+    const [smartRadius, setSmartRadius] = useState(false);
     const [smooth, setSmooth] = useState(0);
     const [feather, setFeather] = useState(0);
     const [contrast, setContrast] = useState(0);
     const [shiftEdge, setShiftEdge] = useState(0);
     const [viewMode, setViewMode] = useState<ViewMode>('on-white');
     const [output, setOutput] = useState<OutputTarget>('selection');
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     function handleApply() {
         // Always refine the selection first so the output reflects the refined edges.
-        refineEdge({ radius, smooth, feather, contrast, shiftEdge });
+        refineEdge({ radius, smooth, feather, contrast, shiftEdge, smartRadius });
 
         if (output === 'selection') {
             onClose();
@@ -98,6 +101,11 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="refine-edge-title"
+                tabIndex={-1}
                 data-testid="refine-edge-dialog"
                 style={{
                     background: '#2a2a2a',
@@ -110,7 +118,7 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                     boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                 }}
             >
-                <div style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px' }}>Select and Mask</div>
+                <div id="refine-edge-title" style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px' }}>Select and Mask</div>
 
                 {/* View Mode */}
                 <div style={{ marginBottom: '10px' }}>
@@ -147,6 +155,16 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                             <span style={{ width: '32px', textAlign: 'right', fontSize: '11px' }}>{val as number}</span>
                         </label>
                     ))}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '80px', fontSize: '11px' }} />
+                        <input
+                            type="checkbox"
+                            checked={smartRadius}
+                            onChange={e => setSmartRadius(e.target.checked)}
+                            data-testid="smart-radius-toggle"
+                        />
+                        <span style={{ fontSize: '11px' }}>Smart Radius</span>
+                    </label>
                 </div>
 
                 {/* Output section */}

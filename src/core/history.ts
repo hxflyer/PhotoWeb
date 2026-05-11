@@ -93,6 +93,7 @@ export interface SerializedDocumentSnapshot {
         parentId: string | null;
         expanded: boolean;
         typeData: unknown;
+        shapeData: unknown;
         mask: {
             imageData: ImageData;
             enabled: boolean;

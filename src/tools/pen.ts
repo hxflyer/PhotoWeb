@@ -37,6 +37,11 @@
 import type { OverlayRenderContext, Tool, ToolContext, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
+import type { ShapeCustomData } from '../store/types';
+import { Layer } from '../core/Layer';
+import { useEditorStore } from '../store/editorStore';
+import { rerenderShapeLayer } from './shapeRender';
+import { CUSTOM_SHAPE_VIEWBOX } from './customShapes';
 
 export type PenMode = 'path' | 'shape' | 'pixels';
 
@@ -85,6 +90,11 @@ export function setActivePath(id: string | null): void { pathStore.activeId = id
 export function addPath(path: PathShape): void {
     pathStore.paths.push(path);
     pathStore.activeId = path.id;
+}
+export function clearPaths(): void {
+    pathStore.paths.length = 0;
+    pathStore.activeId = null;
+    selection = { pathId: null, anchorIndices: new Set() };
 }
 export function removePath(id: string): void {
     const idx = pathStore.paths.findIndex(p => p.id === id);
@@ -237,7 +247,7 @@ function splitSegment(path: PathShape, segIndex: number, t: number): void {
 }
 
 // ── Pointer handlers ──────────────────────────────────────────────────────
-function onPenDown(e: ToolPointerEvent): void {
+function onPenDown(e: ToolPointerEvent, ctx?: ToolContext): void {
     if (e.button !== 0) return;
     const x = e.canvasX;
     const y = e.canvasY;
@@ -298,6 +308,12 @@ function onPenDown(e: ToolPointerEvent): void {
         // 1a. First-anchor click on open path with ≥2 anchors → close
         if (anchorHit.isFirst && !path.closed && path.anchors.length >= 2) {
             path.closed = true;
+            if (ctx && penOptions.mode !== 'path') {
+                commitPathToActiveLayer(path, penOptions.mode, ctx);
+                removePath(path.id);
+                pathStore.activeId = null;
+                selection = { pathId: null, anchorIndices: new Set() };
+            }
             return;
         }
         // 1b. Plain click on existing anchor → delete it
@@ -606,6 +622,121 @@ function drawSquare(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
 
 // ── Tools ──────────────────────────────────────────────────────────────────
 
+export function pathToSvgD(path: PathShape): string {
+    if (path.anchors.length === 0) return '';
+    const fmt = (n: number) => Number(n.toFixed(3)).toString();
+    const first = path.anchors[0];
+    const parts: string[] = [`M${fmt(first.x)},${fmt(first.y)}`];
+    for (let i = 1; i < path.anchors.length; i++) {
+        const prev = path.anchors[i - 1];
+        const curr = path.anchors[i];
+        const cp1 = prev.outHandle ?? { x: prev.x, y: prev.y };
+        const cp2 = curr.inHandle ?? { x: curr.x, y: curr.y };
+        parts.push(`C${fmt(cp1.x)},${fmt(cp1.y)} ${fmt(cp2.x)},${fmt(cp2.y)} ${fmt(curr.x)},${fmt(curr.y)}`);
+    }
+    if (path.closed && path.anchors.length >= 2) {
+        const prev = path.anchors[path.anchors.length - 1];
+        const curr = path.anchors[0];
+        const cp1 = prev.outHandle ?? { x: prev.x, y: prev.y };
+        const cp2 = curr.inHandle ?? { x: curr.x, y: curr.y };
+        parts.push(`C${fmt(cp1.x)},${fmt(cp1.y)} ${fmt(cp2.x)},${fmt(cp2.y)} ${fmt(curr.x)},${fmt(curr.y)}`);
+        parts.push('Z');
+    }
+    return parts.join(' ');
+}
+
+function anchorBounds(path: PathShape): { x: number; y: number; w: number; h: number } | null {
+    if (path.anchors.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const a of path.anchors) {
+        if (a.x < minX) minX = a.x; if (a.y < minY) minY = a.y;
+        if (a.x > maxX) maxX = a.x; if (a.y > maxY) maxY = a.y;
+        if (a.inHandle) {
+            if (a.inHandle.x < minX) minX = a.inHandle.x; if (a.inHandle.y < minY) minY = a.inHandle.y;
+            if (a.inHandle.x > maxX) maxX = a.inHandle.x; if (a.inHandle.y > maxY) maxY = a.inHandle.y;
+        }
+        if (a.outHandle) {
+            if (a.outHandle.x < minX) minX = a.outHandle.x; if (a.outHandle.y < minY) minY = a.outHandle.y;
+            if (a.outHandle.x > maxX) maxX = a.outHandle.x; if (a.outHandle.y > maxY) maxY = a.outHandle.y;
+        }
+    }
+    return { x: minX, y: minY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY) };
+}
+
+/**
+ * Build a ShapeCustomData payload from a closed Pen path. The pathD is
+ * normalized into the CUSTOM_SHAPE_VIEWBOX (100x100) coordinate space along
+ * its dominant axis and the bounds are recorded with the matching aspect ratio
+ * so the renderer's letterboxing reproduces the original geometry.
+ */
+export function pathToCustomShapeData(path: PathShape, fillColor: string): ShapeCustomData | null {
+    const bbox = anchorBounds(path);
+    if (!bbox) return null;
+    const scale = bbox.w >= bbox.h
+        ? CUSTOM_SHAPE_VIEWBOX / Math.max(1, bbox.w)
+        : CUSTOM_SHAPE_VIEWBOX / Math.max(1, bbox.h);
+    const normalize = (p: { x: number; y: number }) => ({
+        x: (p.x - bbox.x) * scale,
+        y: (p.y - bbox.y) * scale,
+    });
+    const fmt = (n: number) => Number(n.toFixed(3)).toString();
+    const parts: string[] = [];
+    if (path.anchors.length === 0) return null;
+    const first = normalize(path.anchors[0]);
+    parts.push(`M${fmt(first.x)},${fmt(first.y)}`);
+    for (let i = 1; i < path.anchors.length; i++) {
+        const prev = path.anchors[i - 1];
+        const curr = path.anchors[i];
+        const cp1 = normalize(prev.outHandle ?? prev);
+        const cp2 = normalize(curr.inHandle ?? curr);
+        const end = normalize(curr);
+        parts.push(`C${fmt(cp1.x)},${fmt(cp1.y)} ${fmt(cp2.x)},${fmt(cp2.y)} ${fmt(end.x)},${fmt(end.y)}`);
+    }
+    if (path.closed && path.anchors.length >= 2) {
+        const prev = path.anchors[path.anchors.length - 1];
+        const curr = path.anchors[0];
+        const cp1 = normalize(prev.outHandle ?? prev);
+        const cp2 = normalize(curr.inHandle ?? curr);
+        const end = normalize(curr);
+        parts.push(`C${fmt(cp1.x)},${fmt(cp1.y)} ${fmt(cp2.x)},${fmt(cp2.y)} ${fmt(end.x)},${fmt(end.y)}`);
+        parts.push('Z');
+    }
+    return {
+        kind: 'custom',
+        presetId: 'pen-path',
+        pathD: parts.join(' '),
+        bounds: bbox,
+        fill: { type: 'solid', color: fillColor },
+        stroke: null,
+    };
+}
+
+export function createShapeLayerFromPath(path: PathShape, fillColor: string, label = 'Shape'): string | null {
+    const data = pathToCustomShapeData(path, fillColor);
+    if (!data) return null;
+    const store = useEditorStore.getState();
+    let createdId: string | null = null;
+    store.executeDocumentCommand({
+        kind: 'layer-add',
+        label: `Add ${label}`,
+        run: () => {
+            const state = useEditorStore.getState();
+            const newLayer = new Layer(state.width, state.height, label, 'shape');
+            newLayer.shapeData = data;
+            rerenderShapeLayer(newLayer);
+            createdId = newLayer.id;
+            useEditorStore.setState({
+                layers: [...state.layers, newLayer],
+                activeLayerId: newLayer.id,
+                selectedLayerIds: [newLayer.id],
+                layerSelectionAnchorId: newLayer.id,
+                activeLayerEditTarget: 'layer',
+            });
+        },
+    });
+    return createdId;
+}
+
 function tracePathIntoContext(path: PathShape, lctx: CanvasRenderingContext2D): void {
     if (path.anchors.length === 0) return;
     const first = path.anchors[0];
@@ -631,30 +762,29 @@ function tracePathIntoContext(path: PathShape, lctx: CanvasRenderingContext2D): 
 function commitPathToActiveLayer(path: PathShape, mode: PenMode, ctx: ToolContext): void {
     if (mode === 'path') return;
     const store = ctx.getStore();
+    if (mode === 'shape') {
+        createShapeLayerFromPath(path, store.primaryColor, 'Shape');
+        return;
+    }
     const layer = store.layers.find(l => l.id === store.activeLayerId);
     if (!layer) return;
     const before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
     const lctx = layer.ctx;
     lctx.save();
     tracePathIntoContext(path, lctx);
-    if (mode === 'shape') {
-        lctx.fillStyle = store.primaryColor;
-        lctx.fill();
-    } else {
-        // Pixels: stroke at brush size with the primary color.
-        lctx.strokeStyle = store.primaryColor;
-        lctx.lineWidth = Math.max(1, store.brushSettings.size);
-        lctx.lineCap = 'round';
-        lctx.lineJoin = 'round';
-        lctx.stroke();
-    }
+    // Pixels: stroke at brush size with the primary color.
+    lctx.strokeStyle = store.primaryColor;
+    lctx.lineWidth = Math.max(1, store.brushSettings.size);
+    lctx.lineCap = 'round';
+    lctx.lineJoin = 'round';
+    lctx.stroke();
     lctx.restore();
     layer.markDirty(null);
     store.commitHistory(createPixelHistoryAction(
         layer,
         { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height },
         before,
-        mode === 'shape' ? 'Pen Shape' : 'Pen Pixels',
+        'Pen Pixels',
     ));
 }
 
@@ -662,7 +792,7 @@ export const penTool: Tool = {
     id: 'pen',
     label: 'Pen',
     cursor: 'crosshair',
-    onPointerDown: onPenDown,
+    onPointerDown: (e, ctx) => onPenDown(e, ctx),
     onPointerMove: onPenMove,
     onPointerUp: onPenUp,
     onKeyDown: (e, ctx) => {

@@ -1,10 +1,19 @@
 import type { Layer } from '../core/Layer';
 import type { SelectionState } from '../store/types';
 import { getFilter } from './registry';
-import { buildSelectionMask, blendWithMask } from './selectionMask';
+import { buildSelectionMask, blendWithMask, buildEffectiveMask } from './selectionMask';
 
 /**
- * Applies a registered filter to a layer, respecting the active selection and dirty rect.
+ * Applies a registered filter to a layer, respecting the active selection,
+ * the layer's mask (density + feather), and the dirty rect.
+ *
+ * If `layer.dirtyRect` is non-null, it is threaded through `FilterApplyContext`
+ * so the filter only walks that region. Filters that honor `dirtyRect` are
+ * expected to leave pixels outside that rect equal to the input — so the
+ * downstream `blendWithMask` and `putImageData` paths see correct values
+ * across the whole canvas. When `layer.dirtyRect` is null the filter walks
+ * the full image (legacy behavior, preserved for backwards compatibility).
+ *
  * Writes the result back to layer.canvas and calls layer.markDirty(null).
  */
 export function applyFilterToLayer(
@@ -31,20 +40,8 @@ export function applyFilterToLayer(
         dirtyRect,
     });
 
-    let combinedMask = selectionMask;
-    if (layer.mask && layer.mask.enabled) {
-        const lm = layer.mask.ctx.getImageData(0, 0, w, h);
-        const data = new Uint8ClampedArray(w * h * 4);
-        for (let i = 0; i < lm.data.length; i += 4) {
-            const luma = (0.299 * lm.data[i] + 0.587 * lm.data[i + 1] + 0.114 * lm.data[i + 2]);
-            const sel = selectionMask ? selectionMask.data[i + 3] / 255 : 1;
-            const a = Math.round(luma * sel);
-            data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = a;
-        }
-        combinedMask = new ImageData(data, w, h);
-    }
-
-    const result = blendWithMask(original, filtered, combinedMask);
+    const effectiveMask = buildEffectiveMask(selection, layer.mask, w, h);
+    const result = blendWithMask(original, filtered, effectiveMask);
     layer.ctx.putImageData(result, 0, 0);
     layer.markDirty(null);
     return true;

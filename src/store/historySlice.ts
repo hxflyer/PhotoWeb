@@ -49,6 +49,7 @@ function captureDocumentSnapshot(state: EditorStore): SerializedDocumentSnapshot
                 parentId: layer.parentId,
                 expanded: layer.expanded,
                 typeData: cloneValue(layer.typeData),
+                shapeData: cloneValue(layer.shapeData),
                 mask: layer.mask
                     ? {
                         imageData: layer.mask.ctx.getImageData(0, 0, layer.mask.canvas.width, layer.mask.canvas.height),
@@ -80,6 +81,7 @@ function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<
         layer.parentId = data.parentId;
         layer.expanded = data.expanded;
         layer.typeData = cloneValue(data.typeData);
+        layer.shapeData = cloneValue(data.shapeData);
         layer.ctx.putImageData(data.imageData, 0, 0);
         layer.dirtyRect = data.dirtyRect ? { ...data.dirtyRect } : null;
         if (data.mask) {
@@ -113,14 +115,17 @@ function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<
     };
 }
 
-function historyStateUpdate(state: EditorStore): Pick<EditorStore, 'historyTick' | 'historyEntries' | 'currentHistoryIndex' | 'historyMaxSize' | 'canUndo' | 'canRedo'> {
+function historyStateUpdate(state: EditorStore): Pick<EditorStore, 'historyTick' | 'historyEntries' | 'currentHistoryIndex' | 'historyMaxSize' | 'canUndo' | 'canRedo' | 'isDirty'> {
+    const nextTick = state.historyTick + 1;
     return {
-        historyTick: state.historyTick + 1,
+        historyTick: nextTick,
         historyEntries: globalHistory.states(),
         currentHistoryIndex: globalHistory.currentIndex(),
         historyMaxSize: globalHistory.getMaxSize(),
         canUndo: globalHistory.canUndo(),
         canRedo: globalHistory.canRedo(),
+        // STAB-02: any history advance past lastSavedHistoryTick marks dirty.
+        isDirty: nextTick !== state.lastSavedHistoryTick,
     };
 }
 

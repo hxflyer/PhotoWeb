@@ -26,7 +26,10 @@ export type LayerEffectKind =
     | 'inner-glow'
     | 'stroke'
     | 'color-overlay'
-    | 'gradient-overlay';
+    | 'gradient-overlay'
+    | 'pattern-overlay'
+    | 'bevel-emboss'
+    | 'satin';
 
 export interface LayerEffect {
     kind: LayerEffectKind;
@@ -97,6 +100,11 @@ export class Layer {
     // the layer's text + style without losing data after rasterization.
     // Stored as `unknown` here to avoid a circular type import; the type tool casts.
     typeData: unknown = null;
+    // Shape-layer source-of-truth — present when kind === 'shape'. Holds the
+    // editable geometry/fill/stroke so the rasterized pixels can be regenerated
+    // from data after any geometry edit. Stored as `unknown` to avoid a
+    // circular type import; shape tools cast to ShapeData.
+    shapeData: unknown = null;
 
     constructor(width: number, height: number, name: string = 'New Layer', kind: LayerKind = 'raster') {
         this.id = crypto.randomUUID();

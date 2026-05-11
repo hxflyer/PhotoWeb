@@ -22,11 +22,68 @@ function copyCanvasContent(dst: HTMLCanvasElement, src: HTMLCanvasElement): void
     ctx.drawImage(src, 0, 0);
 }
 
+// STAB-03: Browser-friendly raster ceiling. 60 MP (~7745x7745 RGBA = ~240MB
+// for a single full-frame layer) is the upper limit before the typical desktop
+// Chrome / Safari tab risks an out-of-memory crash during a getImageData /
+// drawImage round-trip across multiple layers. Photoshop's PSB ceiling is
+// 30,000x30,000 (~900MP), but that's a native, tile-paged engine — browsers
+// must keep the entire ImageData in a contiguous ArrayBuffer.
+export const MAX_DOC_PIXELS = 60_000_000;
+// Soft threshold (60% of MAX): we still allow it, but ask the user to confirm
+// before the allocation, since once-allocated, undo/transform overhead doubles
+// the working set quickly.
+export const SOFT_DOC_PIXELS = Math.floor(MAX_DOC_PIXELS * 0.6);
+
+interface MemoryConfirmDeps {
+    confirm?: (msg: string) => boolean;
+}
+
+// Indirection so tests can stub. window.confirm is the only browser primitive
+// available without bringing a modal library into the new-document path.
+function defaultConfirm(msg: string): boolean {
+    if (typeof window === 'undefined' || typeof window.confirm !== 'function') return false;
+    return window.confirm(msg);
+}
+
+function guardDocumentSize(
+    w: number,
+    h: number,
+    reportError: (channel: import('./types').ToastErrorChannel, message: string, type?: import('./types').Toast['type']) => void,
+    deps: MemoryConfirmDeps = {},
+): boolean {
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1) {
+        reportError('save', `Could not create document: invalid dimensions ${w}×${h}.`, 'error');
+        return false;
+    }
+    const px = w * h;
+    if (px > MAX_DOC_PIXELS) {
+        const mp = (px / 1_000_000).toFixed(1);
+        const limitMp = (MAX_DOC_PIXELS / 1_000_000).toFixed(0);
+        reportError(
+            'save',
+            `Document size ${mp} megapixels exceeds the browser limit of ${limitMp} MP. Reduce width or height.`,
+            'error',
+        );
+        return false;
+    }
+    if (px > SOFT_DOC_PIXELS) {
+        const mp = (px / 1_000_000).toFixed(1);
+        const confirmFn = deps.confirm ?? defaultConfirm;
+        const ok = confirmFn(
+            `This document is ${mp} megapixels. Large canvases may slow editing or fail to allocate. Continue?`,
+        );
+        if (!ok) return false;
+    }
+    return true;
+}
+
 export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlice> = (set, get) => ({
     width: 800,
     height: 600,
     hasAutosave: false,
     documentName: 'Untitled',
+    isDirty: false,
+    lastSavedHistoryTick: 0,
 
     setCanvasSize: (width, height) => get().executeDocumentCommand({
         kind: 'transform',
@@ -77,33 +134,82 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         },
     }),
 
-    resizeImage: (newW, newH, method: ResampleMethod) => get().executeDocumentCommand({
-        kind: 'transform',
-        label: 'Image Size',
-        run: () => {
-        const { layers } = get();
-        layers.forEach(layer => {
-            const result = resampleCanvas(layer.canvas, newW, newH, method);
-            copyCanvasContent(layer.canvas, result);
-            layer.markDirty(null);
+    resizeImage: (newW, newH, method: ResampleMethod) => {
+        if (!guardDocumentSize(newW, newH, get().reportError)) return;
+        const beforeState = get();
+        const beforeSnapshots = beforeState.layers.map(l => {
+            const tmp = document.createElement('canvas');
+            tmp.width = l.canvas.width; tmp.height = l.canvas.height;
+            tmp.getContext('2d')?.drawImage(l.canvas, 0, 0);
+            return { id: l.id, canvas: tmp };
         });
-        set({ width: newW, height: newH });
-        },
-    }),
+        try {
+            get().executeDocumentCommand({
+                kind: 'transform',
+                label: 'Image Size',
+                run: () => {
+                    const { layers } = get();
+                    layers.forEach(layer => {
+                        const result = resampleCanvas(layer.canvas, newW, newH, method);
+                        copyCanvasContent(layer.canvas, result);
+                        layer.markDirty(null);
+                    });
+                    set({ width: newW, height: newH });
+                },
+            });
+        } catch (err) {
+            // STAB-03: roll back if a layer-canvas allocation throws.
+            beforeState.layers.forEach(layer => {
+                const snap = beforeSnapshots.find(s => s.id === layer.id);
+                if (!snap) return;
+                layer.canvas.width = snap.canvas.width;
+                layer.canvas.height = snap.canvas.height;
+                layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+                layer.ctx.drawImage(snap.canvas, 0, 0);
+                layer.markDirty(null);
+            });
+            set({ width: beforeState.width, height: beforeState.height });
+            get().reportError('save', `Image size failed: ${(err as Error)?.message ?? 'allocation error'}.`, 'error');
+        }
+    },
 
-    resizeCanvas: (newW, newH, anchorX, anchorY, extensionColor) => get().executeDocumentCommand({
-        kind: 'transform',
-        label: 'Canvas Size',
-        run: () => {
-        const { layers } = get();
-        layers.forEach(layer => {
-            const result = resizeCanvasWithAnchor(layer.canvas, newW, newH, anchorX, anchorY, extensionColor);
-            copyCanvasContent(layer.canvas, result);
-            layer.markDirty(null);
+    resizeCanvas: (newW, newH, anchorX, anchorY, extensionColor) => {
+        if (!guardDocumentSize(newW, newH, get().reportError)) return;
+        const beforeState = get();
+        const beforeSnapshots = beforeState.layers.map(l => {
+            const tmp = document.createElement('canvas');
+            tmp.width = l.canvas.width; tmp.height = l.canvas.height;
+            tmp.getContext('2d')?.drawImage(l.canvas, 0, 0);
+            return { id: l.id, canvas: tmp };
         });
-        set({ width: newW, height: newH });
-        },
-    }),
+        try {
+            get().executeDocumentCommand({
+                kind: 'transform',
+                label: 'Canvas Size',
+                run: () => {
+                    const { layers } = get();
+                    layers.forEach(layer => {
+                        const result = resizeCanvasWithAnchor(layer.canvas, newW, newH, anchorX, anchorY, extensionColor);
+                        copyCanvasContent(layer.canvas, result);
+                        layer.markDirty(null);
+                    });
+                    set({ width: newW, height: newH });
+                },
+            });
+        } catch (err) {
+            beforeState.layers.forEach(layer => {
+                const snap = beforeSnapshots.find(s => s.id === layer.id);
+                if (!snap) return;
+                layer.canvas.width = snap.canvas.width;
+                layer.canvas.height = snap.canvas.height;
+                layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+                layer.ctx.drawImage(snap.canvas, 0, 0);
+                layer.markDirty(null);
+            });
+            set({ width: beforeState.width, height: beforeState.height });
+            get().reportError('save', `Canvas size failed: ${(err as Error)?.message ?? 'allocation error'}.`, 'error');
+        }
+    },
 
     trimCanvas: (basis: TrimBasis, sides) => get().executeDocumentCommand({
         kind: 'transform',
@@ -129,12 +235,19 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
     }),
 
     newDocument: (w, h, bg) => {
-        const newLayer = new LayerClass(w, h, 'Background');
-        if (bg !== 'transparent') {
-            newLayer.ctx.fillStyle = bg;
-            newLayer.ctx.fillRect(0, 0, w, h);
+        if (!guardDocumentSize(w, h, get().reportError)) return false;
+        let newLayer: LayerClass;
+        try {
+            newLayer = new LayerClass(w, h, 'Background');
+            if (bg !== 'transparent') {
+                newLayer.ctx.fillStyle = bg;
+                newLayer.ctx.fillRect(0, 0, w, h);
+            }
+            newLayer.markDirty(null);
+        } catch (err) {
+            get().reportError('save', `Could not allocate canvas: ${(err as Error)?.message ?? 'unknown error'}.`, 'error');
+            return false;
         }
-        newLayer.markDirty(null);
         set({
             width: w,
             height: h,
@@ -143,6 +256,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             selectedLayerIds: [newLayer.id],
             layerSelectionAnchorId: newLayer.id,
             documentName: 'Untitled',
+            isDirty: false,
+            lastSavedHistoryTick: get().historyTick,
             selection: {
                 ...get().selection,
                 hasSelection: false,
@@ -152,14 +267,22 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
                 isDraggingSelection: false,
             },
         });
+        return true;
     },
 
     openImageAsDocument: (img, name) => {
         const w = Math.max(1, Math.round(img.naturalWidth || img.width));
         const h = Math.max(1, Math.round(img.naturalHeight || img.height));
-        const newLayer = new LayerClass(w, h, name);
-        newLayer.ctx.drawImage(img, 0, 0, w, h);
-        newLayer.markDirty(null);
+        if (!guardDocumentSize(w, h, get().reportError)) return false;
+        let newLayer: LayerClass;
+        try {
+            newLayer = new LayerClass(w, h, name);
+            newLayer.ctx.drawImage(img, 0, 0, w, h);
+            newLayer.markDirty(null);
+        } catch (err) {
+            get().reportError('save', `Could not open image: ${(err as Error)?.message ?? 'allocation error'}.`, 'error');
+            return false;
+        }
         set({
             width: w,
             height: h,
@@ -168,6 +291,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             selectedLayerIds: [newLayer.id],
             layerSelectionAnchorId: newLayer.id,
             documentName: name,
+            isDirty: false,
+            lastSavedHistoryTick: get().historyTick,
             selection: {
                 ...get().selection,
                 hasSelection: false,
@@ -178,19 +303,25 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             },
             quickMaskMode: false,
         });
+        return true;
     },
 
     setDocumentName: (name) => set({ documentName: name }),
     setHasAutosave: (has) => set({ hasAutosave: has }),
     dismissAutosave: () => set({ hasAutosave: false }),
+    markDocumentDirty: () => {
+        if (!get().isDirty) set({ isDirty: true });
+    },
+    markDocumentClean: () => set({ isDirty: false, lastSavedHistoryTick: get().historyTick }),
 
     saveFile: async (name) => {
         const store = get();
         await saveDocument(store, name);
-        set({ documentName: name });
+        set({ documentName: name, isDirty: false, lastSavedHistoryTick: get().historyTick });
     },
 
     loadFile: async (name) => {
         await loadDocument(name, get, set);
+        set({ isDirty: false, lastSavedHistoryTick: get().historyTick });
     },
 });

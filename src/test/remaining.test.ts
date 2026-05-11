@@ -475,10 +475,18 @@ describe('5.3 Modify Selection', () => {
         expect(count).toBeGreaterThan(3000);
     });
 
-    it('borderSelection adds two operations (outer expand + inner contract)', () => {
-        const before = useEditorStore.getState().selection.operations.length;
+    it('borderSelection produces a ring mask (outer dilation minus inner erosion)', () => {
         useEditorStore.getState().borderSelection(5);
-        expect(useEditorStore.getState().selection.operations.length).toBeGreaterThanOrEqual(before + 2);
+        const ops = useEditorStore.getState().selection.operations;
+        expect(ops.length).toBeGreaterThanOrEqual(1);
+        const ring = ops.find(op => op.mask);
+        expect(ring).toBeTruthy();
+        let count = 0;
+        for (const v of ring!.mask!.data) if (v > 0) count++;
+        // Ring should be substantially fewer pixels than the filled 80x80 rect (6400)
+        // but not zero; a 5px border around 80x80 is roughly 1500 ring px.
+        expect(count).toBeGreaterThan(100);
+        expect(count).toBeLessThan(6400);
     });
 });
 

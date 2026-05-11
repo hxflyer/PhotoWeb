@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { TrimBasis } from '../../core/imageTransforms';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface TrimDialogProps {
     isOpen: boolean;
@@ -11,15 +12,16 @@ interface TrimDialogProps {
 export function TrimDialog({ isOpen, onConfirm, onClose }: TrimDialogProps) {
     const [basis, setBasis] = useState<TrimBasis>('transparent');
     const [sides, setSides] = useState({ top: true, right: true, bottom: true, left: true });
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     if (!isOpen) return null;
 
     return (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }} onClick={onClose}>
-            <div style={{ width: '300px', background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: '8px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="trim-title" tabIndex={-1} style={{ width: '300px', background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: '8px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid hsl(var(--border-light))', background: 'hsl(var(--bg-header))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Trim</h3>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer' }}><X size={16} /></button>
+                    <h3 id="trim-title" style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Trim</h3>
+                    <button aria-label="Close" onClick={onClose} style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer' }}><X size={16} /></button>
                 </div>
                 <div style={{ padding: '20px' }}>
                     <div style={{ marginBottom: '12px' }}>

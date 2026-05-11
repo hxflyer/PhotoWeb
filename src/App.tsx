@@ -21,18 +21,29 @@ import { ColorPickerDialog } from './components/Dialogs/ColorPickerDialog';
 import { ExportDialog } from './components/Dialogs/ExportDialog';
 import { NewDocumentDialog } from './components/Dialogs/NewDocumentDialog';
 import { RefineEdgeDialog } from './components/Dialogs/RefineEdgeDialog';
+import { DefringeDialog } from './components/Dialogs/DefringeDialog';
+import { ScaleEffectsDialog } from './components/Dialogs/ScaleEffectsDialog';
 import { SaveSelectionDialog, LoadSelectionDialog } from './components/Dialogs/SelectionDialogs';
 import { ColorRangeDialog } from './components/Dialogs/ColorRangeDialog';
+import { BorderSelectionDialog } from './components/Dialogs/BorderSelectionDialog';
+import { SmoothSelectionDialog } from './components/Dialogs/SmoothSelectionDialog';
+import { TransformSelectionOverlay } from './components/Canvas/TransformSelectionOverlay';
 import { ShortcutsDialog } from './components/Dialogs/ShortcutsDialog';
 import { PreferencesDialog } from './components/Dialogs/PreferencesDialog';
+import { NewGuideDialog } from './components/Dialogs/NewGuideDialog';
 import { StorageUsageDialog } from './components/Dialogs/StorageUsageDialog';
+import { StrokePathDialog } from './components/Dialogs/StrokePathDialog';
+import { FillPathDialog } from './components/Dialogs/FillPathDialog';
 import { RequirementsOverlay } from './components/Overlay/RequirementsOverlay';
 import { getLastFilter, getFilter, applyFilterToLayer, setLastFilter } from './filters/index';
 import { applyAdjustmentToLayer } from './adjustments';
 import { initAutoSaveCheck } from './core/autoSave';
 import { captureLayerRegion, createPixelHistoryAction } from './core/history';
-import { bindTypePanelStore, getEditingStyle, updateEditingStyle, type TypeLayerData } from './tools/type';
+import { bindTypePanelStore, bindTypeToastBridge, getEditingStyle, updateEditingStyle, type TypeLayerData } from './tools/type';
 import { moveSelectedPixelsBy } from './tools/move';
+import { cloneShapeData } from './tools/shapeCommands';
+import { rerenderShapeLayer } from './tools/shapeRender';
+import type { ShapeData } from './store/types';
 import { nudgeSelectionBorderBy } from './tools/selectionMove';
 import { loadImage } from './utils/imageLoader';
 import { requestViewportFit } from './utils/viewportFit';
@@ -43,13 +54,16 @@ const START_FREE_TRANSFORM_EVENT = 'photoweb:start-free-transform';
 
 function App() {
   // Narrow subscription: only fields that affect App's JSX (not color, brushSettings, etc.)
-  const { dialogs, hasAutosave, selection, zoom, pan } = useEditorStore(
+  const { dialogs, hasAutosave, selection, zoom, pan, isNewGuideDialogOpen, isScaleEffectsDialogOpen, isTransformSelectionOpen } = useEditorStore(
     useShallow(s => ({
       dialogs: s.dialogs,
       hasAutosave: s.hasAutosave,
       selection: s.selection,
       zoom: s.zoom,
       pan: s.pan,
+      isNewGuideDialogOpen: s.isNewGuideDialogOpen,
+      isScaleEffectsDialogOpen: s.isScaleEffectsDialogOpen,
+      isTransformSelectionOpen: s.isTransformSelectionOpen,
     }))
   );
   // Shorthand for imperative reads — actions are stable Zustand references
@@ -63,15 +77,23 @@ function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
+  const [strokePathOpen, setStrokePathOpen] = useState(false);
+  const [fillPathOpen, setFillPathOpen] = useState(false);
 
   useEffect(() => {
     const openPrefs = () => setPreferencesOpen(true);
     const openStorage = () => setStorageOpen(true);
+    const openStroke = () => setStrokePathOpen(true);
+    const openFill = () => setFillPathOpen(true);
     window.addEventListener('photoweb:open-preferences', openPrefs);
     window.addEventListener('photoweb:open-storage-usage', openStorage);
+    window.addEventListener('photoweb:open-stroke-path', openStroke);
+    window.addEventListener('photoweb:open-fill-path', openFill);
     return () => {
       window.removeEventListener('photoweb:open-preferences', openPrefs);
       window.removeEventListener('photoweb:open-storage-usage', openStorage);
+      window.removeEventListener('photoweb:open-stroke-path', openStroke);
+      window.removeEventListener('photoweb:open-fill-path', openFill);
     };
   }, []);
   const autoSaveStarted = useRef(false);
@@ -79,7 +101,25 @@ function App() {
   const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (gs().layers.length === 0) gs().addLayer();
+    // Re-apply persisted UI scale on every boot so users don't need to open
+    // Preferences to see their saved font size again.
+    if (typeof document !== 'undefined' && document.documentElement && typeof localStorage !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('photoweb:userPrefs:v1');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { uiScale?: number };
+          if (parsed && typeof parsed.uiScale === 'number' && Number.isFinite(parsed.uiScale) && parsed.uiScale > 0) {
+            document.documentElement.style.fontSize = `${parsed.uiScale}rem`;
+          }
+        }
+      } catch { /* malformed prefs — ignore */ }
+    }
+
+    if (gs().layers.length === 0) {
+      gs().addLayer();
+      // STAB-02: the boot-time addLayer is not a user edit; keep the doc clean.
+      gs().markDocumentClean();
+    }
     bindTypePanelStore(() => {
       const s = gs();
       return {
@@ -89,6 +129,7 @@ function App() {
         forceRender: () => useEditorStore.setState(state => ({ layers: [...state.layers] })),
       };
     });
+    bindTypeToastBridge((message, type) => gs().addToast(message, type));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -163,8 +204,18 @@ function App() {
         return;
       }
 
-      if (meta && key === 'n' && !e.shiftKey) { e.preventDefault(); gs().openNewDocumentDialog(); return; }
-      if (meta && key === 'o') { e.preventDefault(); openFileRef.current?.click(); return; }
+      if (meta && key === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        if (gs().isDirty && !window.confirm('Unsaved changes will be lost. Create a new document anyway?')) return;
+        gs().openNewDocumentDialog();
+        return;
+      }
+      if (meta && key === 'o') {
+        e.preventDefault();
+        if (gs().isDirty && !window.confirm('Unsaved changes will be lost. Open another file anyway?')) return;
+        openFileRef.current?.click();
+        return;
+      }
       if (meta && key === 's' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         const name = gs().documentName;
@@ -180,6 +231,16 @@ function App() {
       if (meta && e.shiftKey && key === ';') { e.preventDefault(); const s = gs(); s.setSnapEnabled(!s.snapEnabled); return; }
 
       if (!meta && !e.shiftKey && !e.altKey && key === 'q') { e.preventDefault(); const s = gs(); s.setQuickMaskMode(!s.quickMaskMode); return; }
+
+      // Tab / Shift+Tab toggles workspace chrome visibility (Photoshop style).
+      // Skip when focus is in a text input / contenteditable so users can still
+      // tab through form fields.
+      if (!meta && !e.altKey && key === 'tab') {
+        e.preventDefault();
+        if (e.shiftKey) gs().toggleAllPanelsExceptCanvas();
+        else gs().toggleAllPanels();
+        return;
+      }
 
       if (meta && key === 'd') { e.preventDefault(); gs().clearSelection(); return; }
       if (meta && key === 'a') {
@@ -223,9 +284,10 @@ function App() {
         const toolGroups: Record<string, TID[]> = {
           v: ['move'],
           b: ['brush', 'pencil'],
-          e: ['eraser'],
+          e: ['eraser', 'magic-eraser', 'background-eraser'],
           g: ['fill', 'gradient'],
           i: ['eyedropper'],
+          j: ['spot-healing', 'healing-brush', 'patch', 'red-eye'],
           m: ['marquee-rect', 'marquee-ellipse'],
           l: ['lasso', 'lasso-poly'],
           w: ['quick-selection', 'magic-wand'],
@@ -285,6 +347,9 @@ function App() {
     if (!layer) return;
     const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
     const typeData = layer.kind === 'type' ? layer.typeData as TypeLayerData | null : null;
+    const shapeData = layer.kind === 'shape' && layer.shapeData
+      ? cloneShapeData(layer.shapeData as ShapeData)
+      : null;
     const bounds = typeData?.bounds
       ? { x: typeData.bounds.x, y: typeData.bounds.y, w: typeData.bounds.w, h: typeData.bounds.h }
       : typeData
@@ -304,6 +369,7 @@ function App() {
       sourceX: bounds.x,
       sourceY: bounds.y,
       typeDataSnapshot: typeData ? structuredClone(typeData) : undefined,
+      shapeDataSnapshot: shapeData ?? undefined,
       x: bounds.x,
       y: bounds.y,
       width: bounds.w,
@@ -336,8 +402,8 @@ function App() {
     if (file) {
       try {
         const img = await loadImage(file);
-        gs().openImageAsDocument(img, file.name);
-        requestViewportFit();
+        const opened = gs().openImageAsDocument(img, file.name);
+        if (opened) requestViewportFit();
       }
       catch { gs().addToast('Failed to open file', 'error'); }
     }
@@ -417,11 +483,17 @@ function App() {
       <MainLayout
         menuBar={
           <MenuBar
-            onNew={() => gs().openNewDocumentDialog()}
+            onNew={() => {
+              if (gs().isDirty && !window.confirm('Unsaved changes will be lost. Create a new document anyway?')) return;
+              gs().openNewDocumentDialog();
+            }}
             onSaveAs={() => { setSaveDialogName(gs().documentName); setSaveDialogOpen(true); }}
             onFreeTransform={startFreeTransform}
             onWarp={startWarp}
-            onOpenFile={() => openFileRef.current?.click()}
+            onOpenFile={() => {
+              if (gs().isDirty && !window.confirm('Unsaved changes will be lost. Open another file anyway?')) return;
+              openFileRef.current?.click();
+            }}
             onImportImage={() => importFileRef.current?.click()}
           />
         }
@@ -438,20 +510,25 @@ function App() {
 
       {/* Autosave recovery banner */}
       {hasAutosave && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0,
-          background: '#2a6090', color: 'white',
-          padding: '6px 16px', fontSize: 12,
-          display: 'flex', alignItems: 'center', gap: 12, zIndex: 10001,
-        }}>
-          <span>Unsaved changes from a previous session were found.</span>
-          <button onClick={() => gs().loadFile('autosave').then(() => gs().dismissAutosave())}
-            style={{ padding: '2px 10px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 2, color: 'white', cursor: 'pointer', fontSize: 11 }}>
-            Recover
+        <div data-testid="autosave-recovery-banner"
+          role="status"
+          aria-live="assertive"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0,
+            background: 'hsl(var(--accent-primary))', color: 'hsl(var(--text-on-accent, 0 0% 100%))',
+            padding: '6px 16px', fontSize: 12,
+            display: 'flex', alignItems: 'center', gap: 12, zIndex: 10001,
+          }}>
+          <span>Recovery information from a previous session was found.</span>
+          <button data-testid="autosave-recover-btn"
+            onClick={() => gs().loadFile('autosave').then(() => gs().dismissAutosave()).catch(() => { /* loadDocument already toasted */ })}
+            style={{ padding: '2px 10px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 2, color: 'inherit', cursor: 'pointer', fontSize: 11 }}>
+            Recover Document
           </button>
-          <button onClick={() => gs().dismissAutosave()}
-            style={{ padding: '2px 10px', background: 'none', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 2, color: 'white', cursor: 'pointer', fontSize: 11 }}>
-            Dismiss
+          <button data-testid="autosave-discard-btn"
+            onClick={() => gs().dismissAutosave()}
+            style={{ padding: '2px 10px', background: 'none', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 2, color: 'inherit', cursor: 'pointer', fontSize: 11 }}>
+            Discard Recovery
           </button>
         </div>
       )}
@@ -531,23 +608,68 @@ function App() {
       <ExportDialog isOpen={dialogs.isExportDialogOpen} onClose={() => gs().closeExportDialog()} />
       <NewDocumentDialog isOpen={dialogs.isNewDocumentDialogOpen} onClose={() => gs().closeNewDocumentDialog()} />
       <RefineEdgeDialog isOpen={dialogs.isRefineEdgeDialogOpen} onClose={() => gs().closeRefineEdgeDialog()} />
+      <DefringeDialog isOpen={dialogs.isDefringeDialogOpen} onClose={() => gs().closeDefringeDialog()}
+        onConfirm={(width) => gs().defringeLayer(width)} />
+      <ScaleEffectsDialog
+        isOpen={isScaleEffectsDialogOpen}
+        onClose={() => gs().closeScaleEffectsDialog()}
+        onConfirm={(scale) => {
+          const s = gs();
+          if (s.activeLayerId) s.scaleLayerEffects(s.activeLayerId, scale);
+        }}
+      />
       <SaveSelectionDialog />
       <LoadSelectionDialog />
       <ColorRangeDialog />
+      <BorderSelectionDialog />
+      <SmoothSelectionDialog />
+      {isTransformSelectionOpen && (
+        <TransformSelectionOverlay zoom={zoom} panX={pan.x} panY={pan.y} onClose={() => gs().closeTransformSelection()} />
+      )}
       <ShortcutsDialog isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <PreferencesDialog isOpen={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+      <NewGuideDialog isOpen={isNewGuideDialogOpen} onClose={() => gs().setNewGuideDialogOpen(false)} />
       <StorageUsageDialog isOpen={storageOpen} onClose={() => setStorageOpen(false)} />
+      <StrokePathDialog open={strokePathOpen} onClose={() => setStrokePathOpen(false)} />
+      <FillPathDialog open={fillPathOpen} onClose={() => setFillPathOpen(false)} />
 
       {freeTransform && (
         <FreeTransformOverlay state={freeTransform} zoom={zoom} panX={pan.x} panY={pan.y}
-          onCommit={() => setFreeTransform(null)}
+          onCommit={() => {
+            // Commit shape transforms via history so the geometry change is undoable.
+            const s = gs();
+            const layer = s.layers.find(l => l.id === freeTransform.layerId);
+            if (layer && layer.kind === 'shape' && freeTransform.shapeDataSnapshot && layer.shapeData) {
+              const before = freeTransform.shapeDataSnapshot;
+              const after = cloneShapeData(layer.shapeData as ShapeData);
+              s.commitHistory({
+                kind: 'transform',
+                label: 'Free Transform Shape',
+                timestamp: Date.now(),
+                apply: () => {
+                  const l = gs().layers.find(x => x.id === freeTransform.layerId);
+                  if (l) { l.shapeData = cloneShapeData(after); rerenderShapeLayer(l); useEditorStore.setState(st => ({ layers: [...st.layers] })); }
+                },
+                revert: () => {
+                  const l = gs().layers.find(x => x.id === freeTransform.layerId);
+                  if (l) { l.shapeData = cloneShapeData(before); rerenderShapeLayer(l); useEditorStore.setState(st => ({ layers: [...st.layers] })); }
+                },
+              });
+            }
+            setFreeTransform(null);
+          }}
           onCancel={() => {
             const s = gs();
             const layer = s.layers.find(l => l.id === freeTransform.layerId);
             if (layer) {
-              layer.ctx.putImageData(freeTransform.snapshot, 0, 0);
-              if (freeTransform.typeDataSnapshot) layer.typeData = structuredClone(freeTransform.typeDataSnapshot);
-              layer.markDirty(null);
+              if (freeTransform.shapeDataSnapshot) {
+                layer.shapeData = structuredClone(freeTransform.shapeDataSnapshot);
+                rerenderShapeLayer(layer);
+              } else {
+                layer.ctx.putImageData(freeTransform.snapshot, 0, 0);
+                if (freeTransform.typeDataSnapshot) layer.typeData = structuredClone(freeTransform.typeDataSnapshot);
+                layer.markDirty(null);
+              }
               useEditorStore.setState(state => ({ layers: [...state.layers] }));
             }
             setFreeTransform(null);

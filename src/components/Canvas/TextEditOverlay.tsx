@@ -315,9 +315,13 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
         }
     };
 
+    // Apply the type layer's stored rotation so the live <contenteditable>
+    // overlay matches the rasterized text orientation. Hit-test code in
+    // type.ts already accounts for rotation; this completes the loop.
+    const rotationRad = typeof transform.rotation === 'number' ? transform.rotation : 0;
     const transformCss = [
         `translate(${transform.x}px, ${transform.y}px)`,
-        `rotate(${transform.rotation}rad)`,
+        `rotate(${rotationRad}rad)`,
     ].join(' ');
 
     const boxHandles = [

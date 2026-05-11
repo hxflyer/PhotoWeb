@@ -12,8 +12,9 @@ import { createPortal } from 'react-dom';
 import type { ToolId, SelectionMode } from '../../store/types';
 import {
     DefaultColorsIcon, QuickMaskIcon, ToolbarBurnIcon, ToolbarDodgeIcon,
-    ToolbarGradientIcon, ToolbarMarqueeIcon, ToolbarQuickSelectionIcon,
-    ToolbarSpongeIcon,
+    ToolbarGradientIcon, ToolbarMagicEraserIcon, ToolbarMarqueeIcon, ToolbarQuickSelectionIcon,
+    ToolbarSpongeIcon, ToolbarBackgroundEraserIcon, ToolbarSpotHealingIcon,
+    ToolbarHealingBrushIcon, ToolbarPatchIcon, ToolbarRedEyeIcon,
 } from '../icons/PhotowebIcons';
 
 interface ToolDef {
@@ -60,10 +61,22 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
         ],
     },
     {
+        primary: { id: 'spot-healing', icon: ToolbarSpotHealingIcon, label: 'Spot Healing Brush Tool', shortcut: 'J' },
+        subs: [
+            { id: 'healing-brush', icon: ToolbarHealingBrushIcon, label: 'Healing Brush Tool', shortcut: 'J' },
+            { id: 'patch', icon: ToolbarPatchIcon, label: 'Patch Tool', shortcut: 'J' },
+            { id: 'red-eye', icon: ToolbarRedEyeIcon, label: 'Red Eye Tool', shortcut: 'J' },
+        ],
+    },
+    {
         primary: { id: 'clone-stamp', icon: Stamp, label: 'Clone Stamp Tool', shortcut: 'S' },
     },
     {
         primary: { id: 'eraser', icon: Eraser, label: 'Eraser Tool', shortcut: 'E' },
+        subs: [
+            { id: 'magic-eraser', icon: ToolbarMagicEraserIcon, label: 'Magic Eraser Tool', shortcut: 'E' },
+            { id: 'background-eraser', icon: ToolbarBackgroundEraserIcon, label: 'Background Eraser Tool', shortcut: 'E' },
+        ],
     },
     {
         primary: { id: 'fill', icon: PaintBucket, label: 'Paint Bucket Tool', shortcut: 'G' },
@@ -115,7 +128,7 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
 ];
 
 // Groups where PS draws a separator BEFORE them (by group index, 0-based)
-const SEP_BEFORE = new Set([2, 4, 5, 6, 11, 14, 15]);
+const SEP_BEFORE = new Set([2, 4, 5, 6, 12, 15, 16]);
 
 const BTN = 36;
 
@@ -231,7 +244,9 @@ export function Toolbar() {
         <>
             {/* ── Import image ── */}
             <button
+                aria-label="Import Image as Top Layer"
                 title="Import Image as Top Layer"
+                data-testid="toolbar-import-image"
                 onClick={() => fileInputRef.current?.click()}
                 style={{ ...toolBtn(false), marginBottom: 4 }}
             >
@@ -256,6 +271,9 @@ export function Toolbar() {
                             )}
 
                             <button
+                                aria-label={display.label}
+                                aria-pressed={active}
+                                data-testid={`toolbar-${display.id}`}
                                 title={`${display.label}${display.shortcut ? ` (${display.shortcut})` : ''}`}
                                 style={toolBtn(active)}
                                 onClick={(e) => handleGroupClick(gi, e)}
@@ -294,6 +312,9 @@ export function Toolbar() {
 
             {/* ── Quick Mask mode button (Q) ── */}
             <button
+                aria-label={`${quickMaskMode ? 'Exit' : 'Enter'} Quick Mask Mode`}
+                aria-pressed={quickMaskMode}
+                data-testid="toolbar-quick-mask"
                 title={`${quickMaskMode ? 'Exit' : 'Enter'} Quick Mask Mode (Q)`}
                 onClick={() => setQuickMaskMode(!quickMaskMode)}
                 style={{
@@ -308,6 +329,8 @@ export function Toolbar() {
             <div style={{ position: 'relative', width: 38, height: 38, margin: '6px auto 4px' }}>
                 {/* Reset to black/white (D) */}
                 <button
+                    aria-label="Default Colors"
+                    data-testid="toolbar-default-colors"
                     title="Default Colors (D)"
                     onClick={resetColors}
                     style={{
@@ -323,6 +346,8 @@ export function Toolbar() {
                 </button>
                 {/* Swap arrow (X) */}
                 <button
+                    aria-label="Swap Colors"
+                    data-testid="toolbar-swap-colors"
                     title="Swap Colors (X)"
                     onClick={swapColors}
                     style={{

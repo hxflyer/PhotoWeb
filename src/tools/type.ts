@@ -2,6 +2,7 @@ import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import type { TextStyle } from '../components/Canvas/TextEditOverlay';
 import type { Layer } from '../core/Layer';
+import { resolveFontFamily, shouldEmitFallbackToast } from '../utils/fontList';
 
 export type TypeOrientation = 'horizontal' | 'vertical';
 export type TypeTextMode = 'point' | 'box';
@@ -108,6 +109,11 @@ let textEditorBridge: TextEditorBridge | null = null;
 
 export function bindTextEditorBridge(bridge: TextEditorBridge | null): void {
     textEditorBridge = bridge;
+}
+
+let typeToastBridge: ((message: string, type?: 'info' | 'error' | 'success') => void) | null = null;
+export function bindTypeToastBridge(fn: ((message: string, type?: 'info' | 'error' | 'success') => void) | null): void {
+    typeToastBridge = fn;
 }
 
 function normalizeRuns(runs: TypeStyleRun[] | undefined, textLength: number): TypeStyleRun[] {
@@ -487,20 +493,45 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
             maxLineWidth = Math.max(maxLineWidth, x);
         }
     } else {
-        const text = base.allCaps ? data.text.toUpperCase() : data.text;
-        const lines = text.split('\n');
-        lineCount = Math.max(...lines.map(l => l.length || 1));
-        lines.forEach((line, lineIdx) => {
-            line.split('').forEach((ch, i) => {
-                const s = styleAtOffset(data, i);
-                const weight = s.fauxBold ? 700 : s.fontWeight;
-                const fontStyleStr = s.fauxItalic || s.fontStyle === 'italic' ? 'italic' : 'normal';
-                ctx.font = `${fontStyleStr} ${weight} ${s.fontSize}px ${s.fontFamily}`;
-                ctx.fillStyle = s.color;
-                ctx.fillText(ch, lineIdx * s.fontSize * 1.2, i * lineStep);
-            });
-            maxLineWidth = Math.max(maxLineWidth, (lineIdx + 1) * base.fontSize * 1.2);
-        });
+        // Vertical type: stack glyphs top-to-bottom inside each column, walking
+        // characters by their *measured* advance so wide chars (M) occupy more
+        // vertical space than narrow ones (i). Baseline shift / superscript /
+        // subscript become a horizontal offset (across the writing direction)
+        // in vertical mode. Columns wrap on '\n'.
+        const columnStep = base.fontSize * 1.2;
+        let lineIdx = 0;
+        let cumulativeAdvance = 0;
+        let maxColumnAdvance = 0;
+        for (let i = 0; i < data.text.length; i++) {
+            const raw = data.text[i];
+            if (raw === '\n') {
+                maxColumnAdvance = Math.max(maxColumnAdvance, cumulativeAdvance);
+                lineIdx++;
+                cumulativeAdvance = 0;
+                continue;
+            }
+            const s = styleAtOffset(data, i);
+            const ch = s.allCaps ? raw.toUpperCase() : raw;
+            const weight = s.fauxBold ? 700 : s.fontWeight;
+            const fontStyleStr = s.fauxItalic || s.fontStyle === 'italic' ? 'italic' : 'normal';
+            ctx.font = `${fontStyleStr} ${weight} ${s.fontSize}px ${s.fontFamily}`;
+            ctx.fillStyle = s.color;
+            const tracking = (s.letterSpacing / 1000) * s.fontSize;
+            (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${tracking}px`;
+            const advance = ctx.measureText(ch).width + tracking;
+            let charX = lineIdx * columnStep - s.baselineShift;
+            if (s.superscript) charX -= s.fontSize * 0.35;
+            if (s.subscript) charX += s.fontSize * 0.25;
+            const charY = cumulativeAdvance;
+            ctx.fillText(ch, charX, charY);
+            if (s.fauxBold) ctx.fillText(ch, charX + 0.5, charY);
+            if (s.underline) ctx.fillRect(charX, charY + s.fontSize * 0.95, Math.max(1, advance), Math.max(1, s.fontSize / 16));
+            if (s.strikethrough) ctx.fillRect(charX, charY + s.fontSize * 0.55, Math.max(1, advance), Math.max(1, s.fontSize / 16));
+            cumulativeAdvance += advance;
+        }
+        maxColumnAdvance = Math.max(maxColumnAdvance, cumulativeAdvance);
+        lineCount = Math.max(1, Math.ceil(maxColumnAdvance / Math.max(1, lineStep)));
+        maxLineWidth = (lineIdx + 1) * columnStep;
     }
     ctx.restore();
 
@@ -517,6 +548,16 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
 export function rerenderTypeLayer(layer: Layer): void {
     const data = layer.typeData as TypeLayerData | null;
     if (!data) return;
-    commitTypeLayer(layer.canvas, data);
+    const original = data.style.fontFamily;
+    const { resolved, isFallback } = resolveFontFamily(original);
+    if (isFallback) {
+        if (shouldEmitFallbackToast(layer.id) && typeToastBridge) {
+            typeToastBridge(`Missing font '${original}' replaced with sans-serif`, 'info');
+        }
+        const patched: TypeLayerData = { ...data, style: { ...data.style, fontFamily: resolved } };
+        commitTypeLayer(layer.canvas, patched);
+    } else {
+        commitTypeLayer(layer.canvas, data);
+    }
     layer.markDirty(null);
 }

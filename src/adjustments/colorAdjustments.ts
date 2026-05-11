@@ -144,7 +144,7 @@ export const colorBalance: Adjustment<ColorBalanceParams> = {
             let nb = b + yellowBlue * w;
             if (preserveLuminosity) {
                 const newLuma = 0.299 * nr + 0.587 * ng + 0.114 * nb;
-                const correction = luma * 255 - newLuma;
+                const correction = Math.max(-255, Math.min(255, luma * 255 - newLuma));
                 nr += correction;
                 ng += correction;
                 nb += correction;

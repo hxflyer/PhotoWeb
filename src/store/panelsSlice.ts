@@ -1,7 +1,39 @@
 import type { StateCreator } from 'zustand';
-import type { EditorStore, PanelsSlice, PanelVisibility } from './types';
+import type { EditorStore, PanelId, PanelsSlice, PanelVisibility } from './types';
 
 const PANEL_VIS_STORAGE_KEY = 'photoweb-panel-visibility';
+const SELECTION_DIALOG_PREFS_KEY = 'photoweb-selection-dialog-prefs';
+
+interface SelectionDialogPrefs {
+    defringeWidth: number;
+    borderWidth: number;
+    smoothRadius: number;
+}
+
+function defaultSelectionDialogPrefs(): SelectionDialogPrefs {
+    return { defringeWidth: 1, borderWidth: 5, smoothRadius: 3 };
+}
+
+function loadSelectionDialogPrefs(): SelectionDialogPrefs {
+    if (typeof localStorage === 'undefined') return defaultSelectionDialogPrefs();
+    try {
+        const raw = localStorage.getItem(SELECTION_DIALOG_PREFS_KEY);
+        if (!raw) return defaultSelectionDialogPrefs();
+        const parsed = JSON.parse(raw) as Partial<SelectionDialogPrefs>;
+        return { ...defaultSelectionDialogPrefs(), ...parsed };
+    } catch {
+        return defaultSelectionDialogPrefs();
+    }
+}
+
+function persistSelectionDialogPrefs(prefs: SelectionDialogPrefs): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        localStorage.setItem(SELECTION_DIALOG_PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+        // Quota or storage disabled — non-fatal.
+    }
+}
 
 function defaultPanelVisibility(): PanelVisibility {
     return {
@@ -18,6 +50,8 @@ function defaultPanelVisibility(): PanelVisibility {
         navigator: true,
         info: true,
         tools: true,
+        'brush-presets': true,
+        'pattern-presets': true,
     };
 }
 
@@ -58,8 +92,29 @@ export const createPanelsSlice: StateCreator<EditorStore, [], [], PanelsSlice> =
         isSaveSelectionDialogOpen: false,
         isLoadSelectionDialogOpen: false,
         isColorRangeDialogOpen: false,
+        isDefringeDialogOpen: false,
     },
     panelVisibility: loadPanelVisibility(),
+    copiedLayerStyle: null,
+    isScaleEffectsDialogOpen: false,
+    isBorderSelectionDialogOpen: false,
+    isSmoothSelectionDialogOpen: false,
+    isTransformSelectionOpen: false,
+    selectionDialogPrefs: loadSelectionDialogPrefs(),
+    setSelectionDialogPref: (key, value) => set(state => {
+        const next = { ...state.selectionDialogPrefs, [key]: value };
+        persistSelectionDialogPrefs(next);
+        return { selectionDialogPrefs: next };
+    }),
+    openBorderSelectionDialog: () => set({ isBorderSelectionDialogOpen: true }),
+    closeBorderSelectionDialog: () => set({ isBorderSelectionDialogOpen: false }),
+    openSmoothSelectionDialog: () => set({ isSmoothSelectionDialogOpen: true }),
+    closeSmoothSelectionDialog: () => set({ isSmoothSelectionDialogOpen: false }),
+    openTransformSelection: () => set({ isTransformSelectionOpen: true }),
+    closeTransformSelection: () => set({ isTransformSelectionOpen: false }),
+    setCopiedLayerStyle: (effects) => set({ copiedLayerStyle: effects }),
+    openScaleEffectsDialog: () => set({ isScaleEffectsDialogOpen: true }),
+    closeScaleEffectsDialog: () => set({ isScaleEffectsDialogOpen: false }),
     togglePanelVisibility: (panel) => set(state => {
         const next = { ...state.panelVisibility, [panel]: !state.panelVisibility[panel] };
         persistPanelVisibility(next);
@@ -67,6 +122,26 @@ export const createPanelsSlice: StateCreator<EditorStore, [], [], PanelsSlice> =
     }),
     setPanelVisibility: (panel, visible) => set(state => {
         const next = { ...state.panelVisibility, [panel]: visible };
+        persistPanelVisibility(next);
+        return { panelVisibility: next };
+    }),
+    toggleAllPanels: () => set(state => {
+        const ids = Object.keys(state.panelVisibility) as PanelId[];
+        const anyVisible = ids.some(id => state.panelVisibility[id]);
+        const target = !anyVisible;
+        const next: PanelVisibility = { ...state.panelVisibility };
+        ids.forEach(id => { next[id] = target; });
+        persistPanelVisibility(next);
+        return { panelVisibility: next };
+    }),
+    toggleAllPanelsExceptCanvas: () => set(state => {
+        // Shift+Tab hides every panel — including the toolbox — leaving only the
+        // canvas, menu bar, and status bar visible. A second press restores all.
+        const ids = Object.keys(state.panelVisibility) as PanelId[];
+        const anyVisible = ids.some(id => state.panelVisibility[id]);
+        const target = !anyVisible;
+        const next: PanelVisibility = { ...state.panelVisibility };
+        ids.forEach(id => { next[id] = target; });
         persistPanelVisibility(next);
         return { panelVisibility: next };
     }),
@@ -103,4 +178,6 @@ export const createPanelsSlice: StateCreator<EditorStore, [], [], PanelsSlice> =
     closeLoadSelectionDialog: () => set(state => ({ dialogs: { ...state.dialogs, isLoadSelectionDialogOpen: false } })),
     openColorRangeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isColorRangeDialogOpen: true } })),
     closeColorRangeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isColorRangeDialogOpen: false } })),
+    openDefringeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isDefringeDialogOpen: true } })),
+    closeDefringeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isDefringeDialogOpen: false } })),
 });

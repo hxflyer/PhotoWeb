@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface InputNumberDialogProps {
     isOpen: boolean;
@@ -14,6 +15,7 @@ interface InputNumberDialogProps {
 
 export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, initialValue, min = 0, max = 100 }: InputNumberDialogProps) {
     const [value, setValue] = useState(initialValue);
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     useEffect(() => {
         if (isOpen) setValue(initialValue); // eslint-disable-line react-hooks/set-state-in-effect
@@ -40,7 +42,13 @@ export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, in
             zIndex: 1000,
             backdropFilter: 'blur(2px)'
         }} onClick={onClose}>
-            <div style={{
+            <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="input-number-title"
+                tabIndex={-1}
+                style={{
                 width: '300px',
                 backgroundColor: 'hsl(var(--bg-panel))',
                 border: '1px solid hsl(var(--border-light))',
@@ -59,8 +67,8 @@ export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, in
                     justifyContent: 'space-between',
                     backgroundColor: 'hsl(var(--bg-header))'
                 }}>
-                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>{title}</h3>
-                    <button onClick={onClose} style={{
+                    <h3 id="input-number-title" style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>{title}</h3>
+                    <button aria-label="Close" onClick={onClose} style={{
                         background: 'none',
                         border: 'none',
                         color: 'hsl(var(--text-muted))',

@@ -10,6 +10,12 @@ import { Check, X as XIcon } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { applyFreeTransform } from '../../core/imageTransforms';
 import { commitTypeLayer, type TypeLayerData } from '../../tools/type';
+import { buildSnapCandidates, snapPoint, type SnapTarget } from '../../tools/snap';
+import { moveShapeTarget } from '../../tools/shapeCommands';
+import { rerenderShapeLayer } from '../../tools/shapeRender';
+import type { ShapeData } from '../../store/types';
+
+const FREE_TRANSFORM_SNAP_HYSTERESIS = 6;
 
 export interface FreeTransformState {
     layerId: string;
@@ -20,6 +26,7 @@ export interface FreeTransformState {
     sourceX?: number;
     sourceY?: number;
     typeDataSnapshot?: TypeLayerData;
+    shapeDataSnapshot?: ShapeData;
     x: number;
     y: number;
     width: number;
@@ -46,7 +53,7 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
     const [tw, setTw] = useState(state.width);
     const [th, setTh] = useState(state.height);
     const [rot, setRot] = useState(state.rotation);
-    const dragRef = useRef<{ handle: Handle; startX: number; startY: number; origTx: number; origTy: number; origTw: number; origTh: number; origRot: number } | null>(null);
+    const dragRef = useRef<{ handle: Handle; startX: number; startY: number; origTx: number; origTy: number; origTw: number; origTh: number; origRot: number; snapCandidates: SnapTarget[] } | null>(null);
     const overlayRef = useRef<SVGSVGElement>(null);
     const { layers } = useEditorStore();
     const [documentRect, setDocumentRect] = useState<DOMRect | null>(null);
@@ -85,15 +92,46 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
 
     const handleMouseDown = useCallback((e: React.MouseEvent, handle: Handle) => {
         e.stopPropagation();
-        dragRef.current = { handle, startX: e.clientX, startY: e.clientY, origTx: tx, origTy: ty, origTw: tw, origTh: th, origRot: rot };
+        const store = useEditorStore.getState();
+        const snapCandidates = store.snapEnabled ? buildSnapCandidates(store) : [];
+        dragRef.current = { handle, startX: e.clientX, startY: e.clientY, origTx: tx, origTy: ty, origTw: tw, origTh: th, origRot: rot, snapCandidates };
     }, [tx, ty, tw, th, rot]);
 
     useEffect(() => {
+        const publishTargets = (xSnap: SnapTarget | undefined, ySnap: SnapTarget | undefined) => {
+            const next: SnapTarget[] = [];
+            if (xSnap) next.push(xSnap);
+            if (ySnap) next.push(ySnap);
+            useEditorStore.getState().setActiveSnapTargets(next.length > 0 ? next : null);
+        };
         const onMove = (e: MouseEvent) => {
             if (!dragRef.current) return;
-            const { handle, startX, startY, origTx, origTy, origTw, origTh, origRot } = dragRef.current;
-            const dx = (e.clientX - startX) / zoom;
-            const dy = (e.clientY - startY) / zoom;
+            const { handle, startX, startY, origTx, origTy, origTw, origTh, origRot, snapCandidates } = dragRef.current;
+            let dx = (e.clientX - startX) / zoom;
+            let dy = (e.clientY - startY) / zoom;
+
+            // Snap the dragged edge / corner / center to nearby candidates.
+            if (snapCandidates.length > 0 && handle !== 'rotate') {
+                let probeX: number | null = null;
+                let probeY: number | null = null;
+                if (handle === 'move') {
+                    probeX = origTx + dx;
+                    probeY = origTy + dy;
+                } else if (handle === 'nw') { probeX = origTx + dx; probeY = origTy + dy; }
+                else if (handle === 'ne') { probeX = origTx + origTw + dx; probeY = origTy + dy; }
+                else if (handle === 'sw') { probeX = origTx + dx; probeY = origTy + origTh + dy; }
+                else if (handle === 'se') { probeX = origTx + origTw + dx; probeY = origTy + origTh + dy; }
+                else if (handle === 'n') { probeY = origTy + dy; }
+                else if (handle === 's') { probeY = origTy + origTh + dy; }
+                else if (handle === 'w') { probeX = origTx + dx; }
+                else if (handle === 'e') { probeX = origTx + origTw + dx; }
+                const result = snapPoint({ x: probeX ?? 0, y: probeY ?? 0 }, snapCandidates, FREE_TRANSFORM_SNAP_HYSTERESIS);
+                if (probeX !== null && result.xSnap) dx += result.x - probeX;
+                if (probeY !== null && result.ySnap) dy += result.y - probeY;
+                publishTargets(probeX !== null ? result.xSnap : undefined, probeY !== null ? result.ySnap : undefined);
+            } else if (handle !== 'rotate') {
+                publishTargets(undefined, undefined);
+            }
 
             if (handle === 'move') { setTx(origTx + dx); setTy(origTy + dy); }
             else if (handle === 'se') { setTw(Math.max(1, origTw + dx)); setTh(Math.max(1, origTh + dy)); }
@@ -110,7 +148,10 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
                 setRot(origRot + (angle - (Math.atan2(startY - center.sy, startX - center.sx) * (180 / Math.PI) + 90)));
             }
         };
-        const onUp = () => { dragRef.current = null; };
+        const onUp = () => {
+            dragRef.current = null;
+            useEditorStore.getState().setActiveSnapTargets(null);
+        };
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
         return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
@@ -120,6 +161,29 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
     useEffect(() => {
         const layer = layers.find(l => l.id === state.layerId);
         if (!layer) return;
+
+        if (layer.kind === 'shape' && state.shapeDataSnapshot) {
+            // Decompose the new bounding box (tx, ty, tw, th, rot) relative to
+            // the pre-transform box (state.x/y/width/height) into translate +
+            // scale + rotate, then call moveShapeTarget so geometry stays
+            // editable (no rasterizing).
+            const ox = state.x;
+            const oy = state.y;
+            const ow = state.width || 1;
+            const oh = state.height || 1;
+            const scaleX = tw / ow;
+            const scaleY = th / oh;
+            // Translation moves the original bounding-box origin (ox, oy) to the
+            // new origin (tx, ty), accounting for the scale applied around 0,0.
+            const dx = tx - ox * scaleX;
+            const dy = ty - oy * scaleY;
+            const rotationDelta = (rot * Math.PI) / 180;
+            const next = moveShapeTarget(state.shapeDataSnapshot, dx, dy, scaleX, scaleY, rotationDelta);
+            layer.shapeData = next;
+            rerenderShapeLayer(layer);
+            useEditorStore.setState(s => ({ layers: [...s.layers] }));
+            return;
+        }
 
         if (layer.kind === 'type' && state.typeDataSnapshot) {
             const original = state.typeDataSnapshot;

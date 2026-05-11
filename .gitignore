@@ -27,5 +27,5 @@ dist-ssr
 
 
 
-# Per-user Claude Code settings
-.claude/settings.local.json
+# Per-user Claude Code settings, agent worktrees, task transcripts
+.claude/

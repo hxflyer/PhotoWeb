@@ -190,6 +190,70 @@ export function ToolbarSpongeIcon(props: PhotowebIconProps) {
     );
 }
 
+export function ToolbarMagicEraserIcon(props: PhotowebIconProps) {
+    return (
+        <IconBase {...props}>
+            <path d="M14.5 4.5l5 5L9 20H4v-5z" />
+            <path d="M11 8l5 5" />
+            <path d="M19 3v3" />
+            <path d="M17.5 4.5h3" />
+        </IconBase>
+    );
+}
+
+export function ToolbarBackgroundEraserIcon(props: PhotowebIconProps) {
+    return (
+        <IconBase {...props}>
+            <path d="M14.5 4.5l5 5L9 20H4v-5z" />
+            <path d="M11 8l5 5" />
+            <path d="M3 3h3v3H3z" />
+            <path d="M6 6h3v3H6z" />
+            <path d="M3 9h3v3H3z" />
+        </IconBase>
+    );
+}
+
+export function ToolbarSpotHealingIcon(props: PhotowebIconProps) {
+    return (
+        <IconBase {...props}>
+            <rect x="3" y="9" width="18" height="6" rx="2" transform="rotate(-30 12 12)" />
+            <circle cx="12" cy="12" r="2.2" />
+            <path d="M10 12h4" />
+            <path d="M12 10v4" />
+        </IconBase>
+    );
+}
+
+export function ToolbarHealingBrushIcon(props: PhotowebIconProps) {
+    return (
+        <IconBase {...props}>
+            <rect x="3" y="9" width="18" height="6" rx="2" transform="rotate(-30 12 12)" />
+            <path d="M8.5 9.5l7 7" />
+            <circle cx="18" cy="6" r="1.4" />
+        </IconBase>
+    );
+}
+
+export function ToolbarPatchIcon(props: PhotowebIconProps) {
+    return (
+        <IconBase {...props}>
+            <rect x="4" y="4" width="16" height="16" rx="1" strokeDasharray="3 2" />
+            <path d="M9 9l6 6" />
+            <path d="M15 9l-6 6" />
+        </IconBase>
+    );
+}
+
+export function ToolbarRedEyeIcon(props: PhotowebIconProps) {
+    return (
+        <IconBase {...props}>
+            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+        </IconBase>
+    );
+}
+
 export function GradientLinearIcon(props: PhotowebIconProps) {
     return (
         <IconBase {...props}>

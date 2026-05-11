@@ -12,9 +12,11 @@
 //      state) commit a generic {apply, revert} action.
 import type { Tool } from './Tool';
 import type { Layer } from '../core/Layer';
-import type { EditorStore, SelectionState } from '../store/types';
+import type { EditorStore, SelectionState, ShapeData } from '../store/types';
 import { registerTool } from './registry';
 import { commitTypeLayer, type TypeLayerData } from './type';
+import { rerenderShapeLayer } from './shapeRender';
+import { moveShapeTarget, cloneShapeData } from './shapeCommands';
 import { rasterizeSelectionOperations } from '../utils/selectionUtils';
 import {
     cloneSelectionOperation,
@@ -26,6 +28,79 @@ import {
     type SelectionSnapshot,
     type SelectionMoveAnchor,
 } from './selectionMove';
+import { buildSnapCandidates, snapPoint, type SnapTarget } from './snap';
+import { useEditorStore } from '../store/editorStore';
+import { getLayerContentBounds } from '../utils/canvasUtils';
+
+const SNAP_HYSTERESIS = 6;
+
+function publishActiveSnapTargets(xSnap: SnapTarget | undefined, ySnap: SnapTarget | undefined): void {
+    const targets: SnapTarget[] = [];
+    if (xSnap) targets.push(xSnap);
+    if (ySnap) targets.push(ySnap);
+    useEditorStore.getState().setActiveSnapTargets(targets.length > 0 ? targets : null);
+}
+
+function computeMoveAnchors(layer: Layer | undefined, fallback: { x: number; y: number }): { x: number; y: number }[] {
+    if (!layer || !layer.canvas) return [fallback];
+    const bounds = getLayerContentBounds(layer.canvas);
+    if (!bounds) return [fallback];
+    const left = bounds.x;
+    const right = bounds.x + bounds.w;
+    const top = bounds.y;
+    const bottom = bounds.y + bounds.h;
+    return [
+        { x: left, y: top },
+        { x: right, y: top },
+        { x: left, y: bottom },
+        { x: right, y: bottom },
+        { x: (left + right) / 2, y: (top + bottom) / 2 },
+    ];
+}
+
+/**
+ * Run a drag delta through the snap candidates and return the snapped delta.
+ * Anchors are layer bounding-box reference points (corners + center); we try
+ * each, pick the smallest residual movement that lands on a candidate, and
+ * publish the active targets so the Viewport can paint smart-guide cues.
+ */
+function snapMoveDelta(
+    dx: number,
+    dy: number,
+    anchors: { x: number; y: number }[],
+    candidates: SnapTarget[],
+): { dx: number; dy: number } {
+    let bestX: SnapTarget | undefined;
+    let bestXAdjust = 0;
+    let bestXDist = SNAP_HYSTERESIS + 1;
+    let bestY: SnapTarget | undefined;
+    let bestYAdjust = 0;
+    let bestYDist = SNAP_HYSTERESIS + 1;
+    for (const anchor of anchors) {
+        const point = { x: anchor.x + dx, y: anchor.y + dy };
+        const result = snapPoint(point, candidates, SNAP_HYSTERESIS);
+        if (result.xSnap) {
+            const adjust = result.x - point.x;
+            const dist = Math.abs(adjust);
+            if (dist < bestXDist) {
+                bestX = result.xSnap;
+                bestXAdjust = adjust;
+                bestXDist = dist;
+            }
+        }
+        if (result.ySnap) {
+            const adjust = result.y - point.y;
+            const dist = Math.abs(adjust);
+            if (dist < bestYDist) {
+                bestY = result.ySnap;
+                bestYAdjust = adjust;
+                bestYDist = dist;
+            }
+        }
+    }
+    publishActiveSnapTargets(bestX, bestY);
+    return { dx: dx + bestXAdjust, dy: dy + bestYAdjust };
+}
 
 interface DragState {
     startCanvasX: number;
@@ -36,6 +111,8 @@ interface DragState {
     targets: MoveTarget[];
     selectionMove: SelectionMoveAnchor | null;
     selectionBefore: SelectionSnapshot | null;
+    snapCandidates: SnapTarget[];
+    snapAnchors: { x: number; y: number }[];
 }
 
 interface MoveTarget {
@@ -47,6 +124,7 @@ interface MoveTarget {
     before: ImageData;
     snapshotCanvas: HTMLCanvasElement;
     typeDataBefore: TypeLayerData | null;
+    shapeDataBefore: ShapeData | null;
     selectedPixels?: SelectedPixelsDrag;
 }
 
@@ -61,6 +139,13 @@ function cloneTypeData(data: TypeLayerData | null | undefined): TypeLayerData | 
     if (!data) return null;
     if (typeof structuredClone === 'function') return structuredClone(data) as TypeLayerData;
     return JSON.parse(JSON.stringify(data)) as TypeLayerData;
+}
+
+function moveShapeTargetLive(target: MoveTarget, dx: number, dy: number): void {
+    if (!target.shapeDataBefore || target.layer.kind !== 'shape') return;
+    const next = moveShapeTarget(target.shapeDataBefore, dx, dy, 1, 1, 0);
+    target.layer.shapeData = next;
+    rerenderShapeLayer(target.layer);
 }
 
 function moveTypeTarget(target: MoveTarget, dx: number, dy: number): void {
@@ -200,6 +285,9 @@ export const moveTool: Tool = {
         const typeDataBefore = activeLayer.kind === 'type'
             ? cloneTypeData(activeLayer.typeData as TypeLayerData | null)
             : null;
+        const shapeDataBefore = activeLayer.kind === 'shape' && activeLayer.shapeData
+            ? cloneShapeData(activeLayer.shapeData as ShapeData)
+            : null;
         const snapshotCanvas = document.createElement('canvas');
         snapshotCanvas.width = activeLayer.canvas.width;
         snapshotCanvas.height = activeLayer.canvas.height;
@@ -207,6 +295,7 @@ export const moveTool: Tool = {
         if (!snapshotCtx) return;
         snapshotCtx.putImageData(before, 0, 0);
         const shouldMoveSelectedPixels = activeLayer.kind !== 'type'
+            && activeLayer.kind !== 'shape'
             && selection.hasSelection
             && selectionContainsPoint(selection, e.canvasX, e.canvasY);
         const selectedPixels = shouldMoveSelectedPixels
@@ -215,6 +304,10 @@ export const moveTool: Tool = {
                 buildSelectionMask(selection, activeLayer.canvas.width, activeLayer.canvas.height),
             )
             : null;
+
+        const storeSnapshot = ctx.getStore();
+        const snapCandidates = storeSnapshot.snapEnabled ? buildSnapCandidates(storeSnapshot) : [];
+        const snapAnchors = computeMoveAnchors(activeLayer, { x: e.canvasX, y: e.canvasY });
 
         drag = {
             startCanvasX: e.canvasX,
@@ -237,15 +330,27 @@ export const moveTool: Tool = {
                 before,
                 snapshotCanvas,
                 typeDataBefore,
+                shapeDataBefore,
                 selectedPixels: selectedPixels ?? undefined,
             }],
+            snapCandidates,
+            snapAnchors,
         };
         e.rawEvent.preventDefault();
     },
     onPointerMove: (e, ctx) => {
         if (!drag) return;
-        const dx = Math.round(e.canvasX - drag.startCanvasX);
-        const dy = Math.round(e.canvasY - drag.startCanvasY);
+        let rawDx = e.canvasX - drag.startCanvasX;
+        let rawDy = e.canvasY - drag.startCanvasY;
+        if (drag.snapCandidates.length > 0) {
+            const snapped = snapMoveDelta(rawDx, rawDy, drag.snapAnchors, drag.snapCandidates);
+            rawDx = snapped.dx;
+            rawDy = snapped.dy;
+        } else {
+            publishActiveSnapTargets(undefined, undefined);
+        }
+        const dx = Math.round(rawDx);
+        const dy = Math.round(rawDy);
         if (dx === drag.lastDx && dy === drag.lastDy) return;
         drag.lastDx = dx;
         drag.lastDy = dy;
@@ -256,6 +361,8 @@ export const moveTool: Tool = {
                 renderSelectedPixelsTarget(target, dx, dy);
             } else if (target.typeDataBefore && target.layer.kind === 'type') {
                 moveTypeTarget(target, dx, dy);
+            } else if (target.shapeDataBefore && target.layer.kind === 'shape') {
+                moveShapeTargetLive(target, dx, dy);
             } else {
                 target.ctx.clearRect(0, 0, target.canvas.width, target.canvas.height);
                 target.ctx.drawImage(target.snapshotCanvas, dx, dy);
@@ -284,32 +391,49 @@ export const moveTool: Tool = {
                 typeDataAfter: target.layer.kind === 'type'
                     ? cloneTypeData(target.layer.typeData as TypeLayerData | null)
                     : null,
+                shapeDataBefore: target.shapeDataBefore,
+                shapeDataAfter: target.layer.kind === 'shape' && target.layer.shapeData
+                    ? cloneShapeData(target.layer.shapeData as ShapeData)
+                    : null,
             }));
             ctx.getStore().commitHistory({
                 kind: 'transform',
                 label: targets.some(target => target.movedSelectedPixels)
                     ? 'Move Selected Pixels'
-                    : targets.length === 1 ? `Move ${targets[0].name}` : `Move ${targets.length} Layers`,
+                    : targets.some(target => target.shapeDataBefore)
+                        ? (targets.length === 1 ? `Move Shape Layer` : `Move ${targets.length} Layers`)
+                        : targets.length === 1 ? `Move ${targets[0].name}` : `Move ${targets.length} Layers`,
                 timestamp: Date.now(),
                 apply: () => {
                     if (selectionAfter) restoreSelectionSnapshot(selectionAfter);
                     for (const target of targets) {
                         if (target.typeDataAfter) target.layer.typeData = cloneTypeData(target.typeDataAfter);
-                        target.ctx.putImageData(target.after, 0, 0);
-                        target.layer.markDirty(null);
+                        if (target.shapeDataAfter) {
+                            target.layer.shapeData = cloneShapeData(target.shapeDataAfter);
+                            rerenderShapeLayer(target.layer);
+                        } else {
+                            target.ctx.putImageData(target.after, 0, 0);
+                            target.layer.markDirty(null);
+                        }
                     }
                 },
                 revert: () => {
                     if (selectionBefore) restoreSelectionSnapshot(selectionBefore);
                     for (const target of targets) {
                         if (target.typeDataBefore) target.layer.typeData = cloneTypeData(target.typeDataBefore);
-                        target.ctx.putImageData(target.before, 0, 0);
-                        target.layer.markDirty(null);
+                        if (target.shapeDataBefore) {
+                            target.layer.shapeData = cloneShapeData(target.shapeDataBefore);
+                            rerenderShapeLayer(target.layer);
+                        } else {
+                            target.ctx.putImageData(target.before, 0, 0);
+                            target.layer.markDirty(null);
+                        }
                     }
                 },
             });
         }
         drag = null;
+        publishActiveSnapTargets(undefined, undefined);
         ctx.requestRender();
     },
 };

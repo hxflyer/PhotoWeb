@@ -1,5 +1,8 @@
 import type { Layer } from '../core/Layer';
-import type { EditorStore, SelectionMaskData } from '../store/types';
+import type { EditorStore, SelectionMaskData, SelectionOperation } from '../store/types';
+import { rasterizeSelectionOperations } from '../utils/selectionUtils';
+
+export type ColorRangeMode = 'replace' | 'add' | 'sub' | 'intersect';
 
 export type ColorRangeSampleMode = 'add' | 'sub';
 
@@ -74,12 +77,82 @@ export function buildColorRangeMask(
 }
 
 export function applyColorRangeSelection(store: EditorStore, options: ColorRangeOptions): boolean {
+    return applyColorRangeSelectionWithMode(store, options, 'replace');
+}
+
+/**
+ * Build the color-range mask from the visible layer composite, then combine it
+ * with the current selection using the requested mode:
+ *   - replace   : drop any existing selection, install the color-range mask.
+ *   - add       : union of existing selection and color-range mask.
+ *   - sub       : subtract color-range mask from existing selection.
+ *   - intersect : AND of existing selection and color-range mask.
+ */
+export function applyColorRangeSelectionWithMode(
+    store: EditorStore,
+    options: ColorRangeOptions,
+    mode: ColorRangeMode,
+): boolean {
     const image = compositeVisibleLayers(store.layers, store.width, store.height);
     const mask = buildColorRangeMask(image, options);
     const hasPixels = mask.data.some(alpha => alpha > 0);
-    store.setSelectionOperations(hasPixels
-        ? [{ mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: store.width, y: store.height }], mask }]
-        : []);
-    store.setHasSelection(hasPixels);
-    return hasPixels;
+    const { width, height } = store;
+
+    if (mode === 'replace' || !store.selection.hasSelection) {
+        store.setSelectionOperations(hasPixels
+            ? [{ mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: width, y: height }], mask }]
+            : []);
+        store.setHasSelection(hasPixels);
+        return hasPixels;
+    }
+
+    if (!hasPixels) {
+        // Add/intersect with empty mask: leave selection unchanged for add, become empty
+        // for intersect, and unchanged for sub.
+        if (mode === 'intersect') {
+            store.setSelectionOperations([]);
+            store.setHasSelection(false);
+            return false;
+        }
+        return store.selection.hasSelection;
+    }
+
+    const existing = rasterizeSelectionOperations(store.selection.operations, width, height);
+    const out = new Uint8ClampedArray(width * height);
+    let any = false;
+    if (mode === 'add') {
+        for (let i = 0; i < out.length; i++) {
+            const v = Math.max(existing[i], mask.data[i]);
+            out[i] = v;
+            if (v > 0) any = true;
+        }
+    } else if (mode === 'sub') {
+        for (let i = 0; i < out.length; i++) {
+            const v = Math.max(0, existing[i] - mask.data[i]);
+            out[i] = v;
+            if (v > 0) any = true;
+        }
+    } else {
+        // intersect
+        for (let i = 0; i < out.length; i++) {
+            const v = Math.min(existing[i], mask.data[i]);
+            out[i] = v;
+            if (v > 0) any = true;
+        }
+    }
+
+    if (!any) {
+        store.setSelectionOperations([]);
+        store.setHasSelection(false);
+        return false;
+    }
+    const combined: SelectionOperation = {
+        mode: 'add',
+        type: 'lasso',
+        path: [],
+        mask: { data: out, width, height },
+    };
+    store.setSelectionOperations([combined]);
+    store.setHasSelection(true);
+    return true;
 }

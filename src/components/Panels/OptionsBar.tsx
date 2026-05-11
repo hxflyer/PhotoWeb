@@ -9,11 +9,23 @@ import { getMagicWandOptions, setMagicWandOptions } from '../../tools/magicWand'
 import { getQuickSelectionOptions, setQuickSelectionOptions } from '../../tools/quickSelection';
 import {
     getGradientOptions, setGradientOptions, getGradientPresets,
-    type GradientType, type GradientMethod,
+    type GradientType, type GradientMethod, type GradientStop,
 } from '../../tools/gradient';
+import { GradientEditorDialog, type GradientEditorResult } from '../Dialogs/GradientEditorDialog';
 import { getPaintBucketOptions, setPaintBucketOptions, type FillSource } from '../../tools/paintBucket';
 import { getCloneStampOptions, setCloneStampOptions, resetCloneSource, type CloneStampSampleMode } from '../../tools/cloneStamp';
 import { getEraserOptions, setEraserOptions, type EraserMode } from '../../tools/eraser';
+import { getMagicEraserOptions, setMagicEraserOptions } from '../../tools/magicEraser';
+import {
+    getBackgroundEraserOptions, setBackgroundEraserOptions,
+    type BackgroundEraserSampling, type BackgroundEraserLimits,
+} from '../../tools/backgroundEraser';
+import {
+    getSpotHealingOptions, setSpotHealingOptions, type SpotHealingType,
+} from '../../tools/spotHealing';
+import { getHealingBrushOptions, setHealingBrushOptions, resetHealingBrushSource } from '../../tools/healingBrush';
+import { getPatchOptions, setPatchOptions, type PatchMode } from '../../tools/patch';
+import { getRedEyeOptions, setRedEyeOptions } from '../../tools/redEye';
 import {
     getDodgeOptions, setDodgeOptions,
     getBurnOptions, setBurnOptions,
@@ -23,6 +35,8 @@ import {
 import { getBrushOptions, setBrushOptions } from '../../tools/brush';
 import { getPencilOptions, setPencilOptions } from '../../tools/pencil';
 import { getMarqueeOptions, setMarqueeOptions } from '../../tools/marquee';
+import { getShapeOptions, setShapeOptions } from '../../tools/shapes';
+import { getCustomShapeLibrary, CUSTOM_SHAPE_VIEWBOX } from '../../tools/customShapes';
 import { getCropOptions, setCropOptions, type CropOverlayId } from '../../tools/crop';
 import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
 import type { BlendModeId } from '../../core/blendModes';
@@ -59,20 +73,28 @@ function SelectionOperationButtons({ compact = false }: { compact?: boolean }) {
 }
 
 const SHAPE_OP_BUTTONS = [
-    { title: 'Combine Shapes', Icon: ShapeCombineIcon },
-    { title: 'Subtract Front Shape', Icon: ShapeSubtractIcon },
-    { title: 'Intersect Shape Areas', Icon: ShapeIntersectIcon },
-    { title: 'Exclude Overlapping Shapes', Icon: ShapeExcludeIcon },
+    { title: 'Combine Shapes', Icon: ShapeCombineIcon, mode: 'combine' as const },
+    { title: 'Subtract Front Shape', Icon: ShapeSubtractIcon, mode: 'subtract' as const },
+    { title: 'Intersect Shape Areas', Icon: ShapeIntersectIcon, mode: 'intersect' as const },
+    { title: 'Exclude Overlapping Shapes', Icon: ShapeExcludeIcon, mode: 'exclude' as const },
 ];
 
 function ShapeOperationButtons({ shortTitles = false }: { shortTitles?: boolean }) {
+    const [, force] = useState(0);
+    const opts = getShapeOptions();
     return (
         <div style={{ display: 'flex', gap: 1 }}>
-            {SHAPE_OP_BUTTONS.map(({ title, Icon }) => (
+            {SHAPE_OP_BUTTONS.map(({ title, Icon, mode }) => (
                 <button
                     key={title}
-                    className="opts-btn"
-                    title={shortTitles ? title.replace(' Shapes', '').replace(' Shape Areas', '').replace(' Overlapping Shapes', '') : title}
+                    data-testid={`shape-op-${mode}`}
+                    className={`opts-btn${opts.combineMode === mode ? ' active' : ''}`}
+                    title={`${shortTitles ? title.replace(' Shapes', '').replace(' Shape Areas', '').replace(' Overlapping Shapes', '') : title} — applies to the next shape created in this session. Combining existing layers is not yet supported.`}
+                    onClick={() => {
+                        const current = getShapeOptions().combineMode;
+                        setShapeOptions({ combineMode: current === mode ? 'new' : mode });
+                        force(t => t + 1);
+                    }}
                 >
                     <Icon size={13} />
                 </button>
@@ -461,6 +483,19 @@ function PencilOptions() {
                     style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
                 <span className="opts-label" style={{ minWidth: 36 }}>{Math.round(opts.spacing * 100)}%</span>
             </div>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.pressureSize}
+                    onChange={e => update({ pressureSize: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Pressure for Size
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.pressureOpacity}
+                    onChange={e => update({ pressureOpacity: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Pressure for Opacity
+            </label>
         </>
     );
 }
@@ -481,6 +516,229 @@ function EraserOptions() {
                 </select>
             </div>
             <BrushControls showFlow={false} />
+        </>
+    );
+}
+
+function MagicEraserOptions() {
+    const [, force] = useState(0);
+    const opts = getMagicEraserOptions();
+    const update = (next: Parameters<typeof setMagicEraserOptions>[0]) => { setMagicEraserOptions(next); force(t => t + 1); };
+    return (
+        <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Tolerance:')}
+                <input type="number" min={0} max={255}
+                    value={opts.tolerance}
+                    onChange={e => update({ tolerance: Math.max(0, Math.min(255, +e.target.value)) })}
+                    className="opts-input" style={{ width: 40 }} />
+            </div>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.antiAlias}
+                    onChange={e => update({ antiAlias: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Anti-alias
+            </label>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.contiguous}
+                    onChange={e => update({ contiguous: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Contiguous
+            </label>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.sampleAllLayers}
+                    onChange={e => update({ sampleAllLayers: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Sample All Layers
+            </label>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Opacity:')}
+                <input type="number" min={0} max={100}
+                    value={Math.round(opts.opacity * 100)}
+                    onChange={e => update({ opacity: Math.max(0, Math.min(100, +e.target.value)) / 100 })}
+                    className="opts-input" style={{ width: 40 }} />
+                <span className="opts-label">%</span>
+            </div>
+        </>
+    );
+}
+
+function BackgroundEraserOptions() {
+    const [, force] = useState(0);
+    const opts = getBackgroundEraserOptions();
+    const update = (next: Parameters<typeof setBackgroundEraserOptions>[0]) => { setBackgroundEraserOptions(next); force(t => t + 1); };
+    return (
+        <>
+            <BrushControls showFlow={false} />
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Sampling:')}
+                <select className="opts-input" style={{ width: 130 }} value={opts.sampling}
+                    onChange={e => update({ sampling: e.target.value as BackgroundEraserSampling })}>
+                    <option value="continuous">Continuous</option>
+                    <option value="once">Once</option>
+                    <option value="background-swatch">Background Swatch</option>
+                </select>
+            </div>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Limits:')}
+                <select className="opts-input" style={{ width: 130 }} value={opts.limits}
+                    onChange={e => update({ limits: e.target.value as BackgroundEraserLimits })}>
+                    <option value="contiguous">Contiguous</option>
+                    <option value="discontiguous">Discontiguous</option>
+                    <option value="find-edges">Find Edges</option>
+                </select>
+            </div>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Tolerance:')}
+                <input type="number" min={0} max={100}
+                    value={Math.round((opts.tolerance / 255) * 100)}
+                    onChange={e => update({ tolerance: Math.max(0, Math.min(100, +e.target.value)) * 255 / 100 })}
+                    className="opts-input" style={{ width: 42 }} />
+                <span className="opts-label">%</span>
+            </div>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Opacity:')}
+                <input type="number" min={0} max={100}
+                    value={Math.round(opts.opacity * 100)}
+                    onChange={e => update({ opacity: Math.max(0, Math.min(100, +e.target.value)) / 100 })}
+                    className="opts-input" style={{ width: 42 }} />
+                <span className="opts-label">%</span>
+            </div>
+        </>
+    );
+}
+
+function SpotHealingOptionsPanel() {
+    const [, force] = useState(0);
+    const opts = getSpotHealingOptions();
+    const update = (next: Parameters<typeof setSpotHealingOptions>[0]) => { setSpotHealingOptions(next); force(t => t + 1); };
+    const TYPES: { id: SpotHealingType; label: string; disabled?: boolean; title?: string }[] = [
+        { id: 'content-aware', label: 'Content-Aware', disabled: true, title: 'Content-Aware healing is not available in photoweb' },
+        { id: 'create-texture', label: 'Create Texture', disabled: true, title: 'Create Texture healing is not available in photoweb' },
+        { id: 'proximity-match', label: 'Proximity Match' },
+    ];
+    return (
+        <>
+            <ModeDropdown value={opts.mode} onChange={v => update({ mode: v })} />
+            <BrushControls showFlow={false} />
+            {S.sep()}
+            {S.label('Type:')}
+            <div style={{ display: 'flex', gap: 1 }}>
+                {TYPES.map(t => (
+                    <button
+                        key={t.id}
+                        className={`opts-btn${opts.type === t.id ? ' active' : ''}`}
+                        onClick={() => { if (!t.disabled) update({ type: t.id }); }}
+                        disabled={t.disabled}
+                        title={t.title ?? t.label}
+                        style={t.disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                    >
+                        {t.label}
+                    </button>
+                ))}
+            </div>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.sampleAllLayers}
+                    onChange={e => update({ sampleAllLayers: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Sample All Layers
+            </label>
+        </>
+    );
+}
+
+function HealingBrushOptionsPanel() {
+    const [, force] = useState(0);
+    const opts = getHealingBrushOptions();
+    const update = (next: Parameters<typeof setHealingBrushOptions>[0]) => { setHealingBrushOptions(next); force(t => t + 1); };
+    return (
+        <>
+            <ModeDropdown value={opts.mode} onChange={v => update({ mode: v })} />
+            <BrushControls showFlow={false} />
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.aligned}
+                    onChange={e => update({ aligned: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Aligned
+            </label>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.sampleAllLayers}
+                    onChange={e => update({ sampleAllLayers: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Sample All Layers
+            </label>
+            {S.sep()}
+            <button className="opts-btn" title="Clear sampled healing source"
+                onClick={() => { resetHealingBrushSource(); force(t => t + 1); }}>
+                Reset Source
+            </button>
+            {S.sep()}
+            <span className="opts-label">Alt/Option-click to sample</span>
+        </>
+    );
+}
+
+function PatchOptionsPanel() {
+    const [, force] = useState(0);
+    const opts = getPatchOptions();
+    const update = (next: Parameters<typeof setPatchOptions>[0]) => { setPatchOptions(next); force(t => t + 1); };
+    const MODES: { id: PatchMode; label: string }[] = [
+        { id: 'source', label: 'Source' },
+        { id: 'destination', label: 'Destination' },
+    ];
+    return (
+        <>
+            {S.label('Patch:')}
+            <div style={{ display: 'flex', gap: 1 }}>
+                {MODES.map(m => (
+                    <button
+                        key={m.id}
+                        className={`opts-btn${opts.mode === m.id ? ' active' : ''}`}
+                        onClick={() => update({ mode: m.id })}
+                        title={m.label}
+                    >
+                        {m.label}
+                    </button>
+                ))}
+            </div>
+            {S.sep()}
+            <span className="opts-label">Make a selection, then drag</span>
+        </>
+    );
+}
+
+function RedEyeOptionsPanel() {
+    const [, force] = useState(0);
+    const opts = getRedEyeOptions();
+    const update = (next: Parameters<typeof setRedEyeOptions>[0]) => { setRedEyeOptions(next); force(t => t + 1); };
+    return (
+        <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Pupil Size:')}
+                <input type="range" min={0} max={100} value={opts.pupilSize}
+                    onChange={e => update({ pupilSize: +e.target.value })}
+                    style={{ width: 80, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 30 }}>{opts.pupilSize}%</span>
+            </div>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Darken Amount:')}
+                <input type="range" min={0} max={100} value={opts.darkenAmount}
+                    onChange={e => update({ darkenAmount: +e.target.value })}
+                    style={{ width: 80, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 30 }}>{opts.darkenAmount}%</span>
+            </div>
         </>
     );
 }
@@ -531,6 +789,22 @@ function CloneStampOptions() {
                 <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(opts.overlayOpacity * 100)}%</span>
             </div>
             {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Scale:')}
+                <input type="range" min={10} max={400} value={Math.round(opts.sourceScale * 100)}
+                    onChange={e => update({ sourceScale: +e.target.value / 100 })}
+                    style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 36 }}>{Math.round(opts.sourceScale * 100)}%</span>
+            </div>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Angle:')}
+                <input type="range" min={-180} max={180} value={Math.round((opts.sourceRotation * 180) / Math.PI)}
+                    onChange={e => update({ sourceRotation: (+e.target.value * Math.PI) / 180 })}
+                    style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 36 }}>{Math.round((opts.sourceRotation * 180) / Math.PI)}°</span>
+            </div>
+            {S.sep()}
             <button className="opts-btn" title="Clear sampled clone source"
                 onClick={() => resetCloneSource({ setCloneSource })}>
                 Reset Source
@@ -541,16 +815,61 @@ function CloneStampOptions() {
     );
 }
 
+function interpolateOpacityAt(stops: { position: number; opacity: number }[], t: number): number {
+    if (stops.length === 0) return 1;
+    const sorted = [...stops].sort((a, b) => a.position - b.position);
+    if (t <= sorted[0].position) return sorted[0].opacity;
+    if (t >= sorted[sorted.length - 1].position) return sorted[sorted.length - 1].opacity;
+    let lo = sorted[0]; let hi = sorted[sorted.length - 1];
+    for (let i = 0; i < sorted.length - 1; i++) {
+        if (t >= sorted[i].position && t <= sorted[i + 1].position) {
+            lo = sorted[i]; hi = sorted[i + 1]; break;
+        }
+    }
+    const span = hi.position - lo.position || 1;
+    const k = (t - lo.position) / span;
+    return lo.opacity + (hi.opacity - lo.opacity) * k;
+}
+
 function GradientOptions() {
     // Subscribe to a tick so external setGradientOptions calls propagate; we still
     // read latest options imperatively to avoid extra store wiring for tool-local state.
     const [, force] = useState(0);
+    const [editorOpen, setEditorOpen] = useState(false);
     const opts = getGradientOptions();
     const presets = getGradientPresets();
     const update = (next: Partial<ReturnType<typeof getGradientOptions>>) => { setGradientOptions(next); force(t => t + 1); };
     const primaryColor = useEditorStore(s => s.primaryColor);
     const secondaryColor = useEditorStore(s => s.secondaryColor);
     const preset = presets.find(p => p.id === opts.presetId) ?? presets[0];
+
+    const initialEditorStops = (() => {
+        if (opts.stops && opts.stops.length > 0) {
+            return {
+                colors: opts.stops.map(s => ({ position: s.position, color: s.color })),
+                opacities: opts.stops.map(s => ({ position: s.position, opacity: s.opacity })),
+            };
+        }
+        return {
+            colors: preset.stops.map((s, i, arr) => ({
+                position: s.position,
+                color: i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : s.color,
+            })),
+            opacities: preset.stops.map(s => ({ position: s.position, opacity: s.opacity })),
+        };
+    })();
+
+    const onEditorConfirm = (result: GradientEditorResult) => {
+        const merged: GradientStop[] = result.colorStops.map(cs => ({
+            position: cs.position,
+            color: cs.color,
+            opacity: result.opacityStops.length > 0
+                ? interpolateOpacityAt(result.opacityStops, cs.position)
+                : 1,
+        }));
+        setGradientOptions({ stops: merged, smoothness: result.smoothness });
+        force(t => t + 1);
+    };
     // Build a CSS preview of the current gradient using FG/BG-substituted stops.
     const previewStops = preset.stops.map((s, i, arr) => {
         const c = i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : s.color;
@@ -580,6 +899,13 @@ function GradientOptions() {
                 {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <div style={{ width: 120, height: 20, background: previewCss, border: '1px solid hsl(var(--border-light))', borderRadius: 2 }} title="Gradient preview" />
+            <button
+                className="opts-btn"
+                title="Click to Edit Gradient"
+                data-testid="gradient-edit-open"
+                onClick={() => setEditorOpen(true)}
+                style={{ fontSize: 11, padding: '2px 6px' }}
+            >Edit</button>
             {S.sep()}
             {TYPE_BTNS.map(({ type, Icon, title }) => (
                 <button
@@ -636,6 +962,14 @@ function GradientOptions() {
                     <option value="classic">Classic</option>
                 </select>
             </div>
+            <GradientEditorDialog
+                isOpen={editorOpen}
+                initialColorStops={initialEditorStops.colors}
+                initialOpacityStops={initialEditorStops.opacities}
+                initialSmoothness={opts.smoothness ?? 100}
+                onClose={() => setEditorOpen(false)}
+                onConfirm={onEditorConfirm}
+            />
         </>
     );
 }
@@ -881,7 +1215,46 @@ function TypeOptions() {
     );
 }
 
-function ShapeOptions() {
+function CustomShapePresetPicker() {
+    const [, force] = useState(0);
+    const opts = getShapeOptions();
+    const library = getCustomShapeLibrary();
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {S.label('Shape:')}
+            <div
+                data-testid="custom-shape-picker"
+                style={{
+                    display: 'flex',
+                    gap: 2,
+                    padding: 2,
+                    background: 'hsl(var(--bg-input))',
+                    border: '1px solid hsl(var(--border-light))',
+                    borderRadius: 2,
+                    maxWidth: 280,
+                    overflowX: 'auto',
+                }}
+            >
+                {library.map(s => (
+                    <button
+                        key={s.id}
+                        data-testid={`custom-shape-preset-${s.id}`}
+                        className={`opts-btn${opts.customShapeId === s.id ? ' active' : ''}`}
+                        title={s.name}
+                        onClick={() => { setShapeOptions({ customShapeId: s.id }); force(t => t + 1); }}
+                        style={{ padding: 2, width: 26, height: 26 }}
+                    >
+                        <svg viewBox={`0 0 ${CUSTOM_SHAPE_VIEWBOX} ${CUSTOM_SHAPE_VIEWBOX}`} width={20} height={20}>
+                            <path d={s.pathD} fill="currentColor" fillRule="evenodd" />
+                        </svg>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ShapeOptions({ showPresets = false }: { showPresets?: boolean } = {}) {
     const { primaryColor, openColorPicker } = useEditorStore();
     return (
         <>
@@ -912,6 +1285,12 @@ function ShapeOptions() {
                 {S.label('H:')}
                 <input type="text" defaultValue="" className="opts-input" style={{ width: 50 }} placeholder="—" />
             </div>
+            {showPresets && (
+                <>
+                    {S.sep()}
+                    <CustomShapePresetPicker />
+                </>
+            )}
         </>
     );
 }
@@ -976,7 +1355,9 @@ export function OptionsBar() {
     // Tool name badge
     const toolLabel: Record<string, string> = {
         'move': 'Move', 'brush': 'Brush', 'pencil': 'Pencil',
-        'eraser': 'Eraser', 'clone-stamp': 'Clone Stamp',
+        'eraser': 'Eraser', 'magic-eraser': 'Magic Eraser', 'background-eraser': 'Background Eraser',
+        'spot-healing': 'Spot Healing Brush', 'healing-brush': 'Healing Brush',
+        'patch': 'Patch', 'red-eye': 'Red Eye', 'clone-stamp': 'Clone Stamp',
         'gradient': 'Gradient', 'fill': 'Paint Bucket',
         'dodge': 'Dodge', 'burn': 'Burn', 'sponge': 'Sponge',
         'marquee-rect': 'Rectangular Marquee', 'marquee-ellipse': 'Elliptical Marquee',
@@ -1007,6 +1388,12 @@ export function OptionsBar() {
             case 'brush': return <BrushOptions />;
             case 'pencil': return <PencilOptions />;
             case 'eraser': return <EraserOptions />;
+            case 'magic-eraser': return <MagicEraserOptions />;
+            case 'background-eraser': return <BackgroundEraserOptions />;
+            case 'spot-healing': return <SpotHealingOptionsPanel />;
+            case 'healing-brush': return <HealingBrushOptionsPanel />;
+            case 'patch': return <PatchOptionsPanel />;
+            case 'red-eye': return <RedEyeOptionsPanel />;
             case 'clone-stamp': return <CloneStampOptions />;
             case 'gradient': return <GradientOptions />;
             case 'fill': return <PaintBucketOptions />;
@@ -1023,8 +1410,8 @@ export function OptionsBar() {
             case 'shape-rounded-rectangle':
             case 'shape-ellipse':
             case 'shape-polygon':
-            case 'shape-line':
-            case 'shape-custom': return <ShapeOptions />;
+            case 'shape-line': return <ShapeOptions />;
+            case 'shape-custom': return <ShapeOptions showPresets />;
             case 'hand': return <HandOptions />;
             case 'zoom': return <ZoomOptions />;
             default: return null;

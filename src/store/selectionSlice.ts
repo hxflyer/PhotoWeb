@@ -104,6 +104,90 @@ function medianMask(mask: Uint8ClampedArray, width: number, height: number, radi
     return out;
 }
 
+function computeGradientMagnitude(image: ImageData, width: number, height: number): Float32Array {
+    // Sobel 3x3 magnitude on the luminance channel of the underlying layer pixels.
+    const lum = new Float32Array(width * height);
+    const data = image.data;
+    for (let i = 0; i < lum.length; i++) {
+        lum[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+    }
+    const out = new Float32Array(width * height);
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            const i = y * width + x;
+            const tl = lum[i - width - 1], t = lum[i - width], tr = lum[i - width + 1];
+            const l = lum[i - 1], r = lum[i + 1];
+            const bl = lum[i + width - 1], b = lum[i + width], br = lum[i + width + 1];
+            const gx = -tl + tr - 2 * l + 2 * r - bl + br;
+            const gy = -tl - 2 * t - tr + bl + 2 * b + br;
+            out[i] = Math.sqrt(gx * gx + gy * gy);
+        }
+    }
+    return out;
+}
+
+function colorWithin(a: Uint8ClampedArray, ai: number, b: Uint8ClampedArray, bi: number, tol: number): boolean {
+    return (
+        Math.abs(a[ai] - b[bi]) <= tol &&
+        Math.abs(a[ai + 1] - b[bi + 1]) <= tol &&
+        Math.abs(a[ai + 2] - b[bi + 2]) <= tol &&
+        Math.abs(a[ai + 3] - b[bi + 3]) <= tol
+    );
+}
+
+function floodGrow(image: Uint8ClampedArray, mask: Uint8ClampedArray, width: number, height: number, tolerance: number): Uint8ClampedArray {
+    // Contiguous expand: flood-fill outward from every selected pixel, accepting
+    // neighbors whose color is within `tolerance` of the seed pixel's color.
+    const out = new Uint8ClampedArray(mask);
+    const stack: number[] = [];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (mask[y * width + x] >= 128) stack.push(x, y);
+        }
+    }
+    while (stack.length) {
+        const y = stack.pop()!;
+        const x = stack.pop()!;
+        const idx = y * width + x;
+        const di = idx * 4;
+        const neighbors = [
+            [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+        ];
+        for (const [nx, ny] of neighbors) {
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+            const nidx = ny * width + nx;
+            if (out[nidx] >= 255) continue;
+            const ni = nidx * 4;
+            if (colorWithin(image, ni, image, di, tolerance)) {
+                out[nidx] = 255;
+                stack.push(nx, ny);
+            }
+        }
+    }
+    return out;
+}
+
+function similarMatch(image: Uint8ClampedArray, mask: Uint8ClampedArray, tolerance: number): Uint8ClampedArray {
+    // Non-contiguous: every pixel whose color matches any currently-selected
+    // pixel's color (within tolerance) becomes selected.
+    const out = new Uint8ClampedArray(mask);
+    const seeds: number[] = [];
+    for (let i = 0; i < mask.length; i++) {
+        if (mask[i] >= 128) seeds.push(i * 4);
+    }
+    for (let i = 0; i < mask.length; i++) {
+        if (out[i] >= 255) continue;
+        const pi = i * 4;
+        for (let s = 0; s < seeds.length; s++) {
+            if (colorWithin(image, pi, image, seeds[s], tolerance)) {
+                out[i] = 255;
+                break;
+            }
+        }
+    }
+    return out;
+}
+
 function smoothMask(mask: Uint8ClampedArray, width: number, height: number, smooth: number): Uint8ClampedArray {
     if (smooth <= 0) return mask;
     // Median filter at the requested radius (mapped from smooth percentage to 1..6 px).
@@ -265,15 +349,16 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
         }),
     }),
 
-    smoothSelection: () => get().executeDocumentCommand({
+    smoothSelection: (radius?: number) => get().executeDocumentCommand({
         kind: 'selection',
         label: 'Smooth Selection',
         affectedIds: ['selection'],
         run: () => set(state => {
         if (!state.selection.hasSelection) return state;
         const { width, height } = state;
+        const r = Math.max(1, Math.min(100, Math.round(radius ?? 2)));
         const mask = rasterizeSelection(state.selection.operations, width, height);
-        const smoothed = medianMask(mask, width, height, 2);
+        const smoothed = medianMask(mask, width, height, r);
         return {
             selection: {
                 ...state.selection,
@@ -285,29 +370,49 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
         }),
     }),
 
-    borderSelection: (width) => get().executeDocumentCommand({
+    borderSelection: (borderWidth) => get().executeDocumentCommand({
         kind: 'selection',
         label: 'Border Selection',
         affectedIds: ['selection'],
         run: () => set(state => {
         if (!state.selection.hasSelection) return state;
-        // Border = outer expand + inner subtract
-        const outerOp = {
-            mode: 'add' as const,
-            type: 'rect' as SelectionMode,
-            path: [] as { x: number; y: number }[],
-            expandBy: width,
-        } as { mode: 'add' | 'sub'; path: { x: number; y: number }[]; type: SelectionMode };
-        const innerOp = {
-            mode: 'sub' as const,
-            type: 'rect' as SelectionMode,
-            path: [] as { x: number; y: number }[],
-            contractBy: width,
-        } as { mode: 'add' | 'sub'; path: { x: number; y: number }[]; type: SelectionMode };
+        const { width, height } = state;
+        const half = Math.max(1, Math.round(Math.abs(borderWidth) / 2));
+        const mask = rasterizeSelection(state.selection.operations, width, height);
+        const dilated = dilateMask(mask, width, height, half);
+        const eroded = erodeMask(mask, width, height, half);
+        const ring = new Uint8ClampedArray(mask.length);
+        let any = false;
+        for (let i = 0; i < ring.length; i++) {
+            const v = Math.max(0, dilated[i] - eroded[i]);
+            ring[i] = v;
+            if (v > 0) any = true;
+        }
+        if (!any) {
+            // Fall through to keeping the legacy outer+inner ops if mask is empty.
+            const outerOp = {
+                mode: 'add' as const,
+                type: 'rect' as SelectionMode,
+                path: [] as { x: number; y: number }[],
+            };
+            const innerOp = {
+                mode: 'sub' as const,
+                type: 'rect' as SelectionMode,
+                path: [] as { x: number; y: number }[],
+            };
+            return {
+                selection: {
+                    ...state.selection,
+                    operations: [...state.selection.operations, outerOp, innerOp],
+                },
+            };
+        }
         return {
             selection: {
                 ...state.selection,
-                operations: [...state.selection.operations, outerOp, innerOp],
+                path: [],
+                operations: [{ mode: 'add', type: 'lasso', path: [], mask: { data: ring, width, height } }],
+                hasSelection: true,
             },
         };
         }),
@@ -324,11 +429,34 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
             if (opts.shiftEdge !== 0) {
                 const px = Math.round(Math.abs(opts.shiftEdge) * 0.5);
                 if (px > 0) mask = blurMask(mask, width, height, px);
-                // Threshold for shift: positive expands, negative contracts.
                 const threshold = opts.shiftEdge > 0 ? 64 : 192;
                 for (let i = 0; i < mask.length; i++) mask[i] = mask[i] >= threshold ? 255 : 0;
             }
-            if (opts.radius > 0) mask = blurMask(mask, width, height, opts.radius);
+            if (opts.radius > 0) {
+                if (opts.smartRadius) {
+                    const layer = state.layers.find(l => l.id === state.activeLayerId);
+                    const gradient = layer
+                        ? computeGradientMagnitude(layer.ctx.getImageData(0, 0, width, height), width, height)
+                        : null;
+                    const fullBlur = blurMask(mask, width, height, opts.radius);
+                    const lightBlur = blurMask(mask, width, height, 1);
+                    if (gradient) {
+                        const out = new Uint8ClampedArray(mask.length);
+                        const threshold = 60;
+                        for (let i = 0; i < mask.length; i++) {
+                            const g = Math.min(1, gradient[i] / threshold);
+                            // Suppress radius near sharp edges. High gradient -> use lightBlur (sharp).
+                            const t = Math.min(0.8, g);
+                            out[i] = Math.round(fullBlur[i] * (1 - t) + lightBlur[i] * t);
+                        }
+                        mask = out;
+                    } else {
+                        mask = fullBlur;
+                    }
+                } else {
+                    mask = blurMask(mask, width, height, opts.radius);
+                }
+            }
             if (opts.smooth > 0) mask = smoothMask(mask, width, height, opts.smooth);
             if (opts.contrast > 0) mask = applyContrast(mask, opts.contrast);
             const refined: SelectionOperation = {
@@ -343,6 +471,52 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
                     feather: opts.feather,
                     path: [],
                     operations: [refined],
+                    hasSelection: true,
+                },
+            };
+        }),
+    }),
+
+    growSelection: (tolerance = 32) => get().executeDocumentCommand({
+        kind: 'selection',
+        label: 'Grow',
+        affectedIds: ['selection'],
+        run: () => set(state => {
+            if (!state.selection.hasSelection) return state;
+            const { width, height } = state;
+            const layer = state.layers.find(l => l.id === state.activeLayerId);
+            if (!layer) return state;
+            const image = layer.ctx.getImageData(0, 0, width, height).data;
+            const mask = rasterizeSelection(state.selection.operations, width, height);
+            const out = floodGrow(image, mask, width, height, tolerance);
+            return {
+                selection: {
+                    ...state.selection,
+                    path: [],
+                    operations: [{ mode: 'add', type: 'lasso', path: [], mask: { data: out, width, height } }],
+                    hasSelection: true,
+                },
+            };
+        }),
+    }),
+
+    similarSelection: (tolerance = 32) => get().executeDocumentCommand({
+        kind: 'selection',
+        label: 'Similar',
+        affectedIds: ['selection'],
+        run: () => set(state => {
+            if (!state.selection.hasSelection) return state;
+            const { width, height } = state;
+            const layer = state.layers.find(l => l.id === state.activeLayerId);
+            if (!layer) return state;
+            const image = layer.ctx.getImageData(0, 0, width, height).data;
+            const mask = rasterizeSelection(state.selection.operations, width, height);
+            const out = similarMatch(image, mask, tolerance);
+            return {
+                selection: {
+                    ...state.selection,
+                    path: [],
+                    operations: [{ mode: 'add', type: 'lasso', path: [], mask: { data: out, width, height } }],
                     hasSelection: true,
                 },
             };

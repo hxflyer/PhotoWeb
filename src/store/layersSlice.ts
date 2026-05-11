@@ -3,6 +3,7 @@ import { Layer } from '../core/Layer';
 import type { LayerColorTag } from '../core/Layer';
 import { createFillLayer, paintFillLayer, type FillLayerData } from '../core/fillLayer';
 import { getAdjustment } from '../adjustments';
+import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
 import type { EditorStore, LayersSlice } from './types';
 
 interface LayerWithMeta extends Layer {
@@ -101,6 +102,62 @@ function hasSelectedAncestor(layer: Layer, selectedIds: Set<string>, layers: Lay
         parentId = layers.find(item => item.id === parentId)?.parentId ?? null;
     }
     return false;
+}
+
+function applyDefringe(data: Uint8ClampedArray, w: number, h: number, width: number): void {
+    // For every semi-transparent pixel within `width` of a fully opaque pixel,
+    // blend its RGB toward the nearest opaque neighbor's RGB. The pixel's own
+    // alpha is preserved so the silhouette doesn't change.
+    const src = new Uint8ClampedArray(data);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const a = src[idx + 3];
+            if (a === 0 || a === 255) continue;
+            // Search outward in a square window for the nearest opaque pixel.
+            let foundR = 0, foundG = 0, foundB = 0, bestDist = Infinity, found = false;
+            for (let dy = -width; dy <= width; dy++) {
+                for (let dx = -width; dx <= width; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    const ni = (ny * w + nx) * 4;
+                    if (src[ni + 3] !== 255) continue;
+                    const d = dx * dx + dy * dy;
+                    if (d < bestDist) {
+                        bestDist = d;
+                        foundR = src[ni];
+                        foundG = src[ni + 1];
+                        foundB = src[ni + 2];
+                        found = true;
+                    }
+                }
+            }
+            if (found) {
+                data[idx] = foundR;
+                data[idx + 1] = foundG;
+                data[idx + 2] = foundB;
+            }
+        }
+    }
+}
+
+function applyMatteRemoval(data: Uint8ClampedArray, matte: number): void {
+    // Pure premultiplied recovery: the observed pixel C = F*a + M*(1-a) where
+    // F is the unknown foreground. Solving for F gives F = (C - M*(1-a)) / a.
+    for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a === 0 || a === 255) continue;
+        const alpha = a / 255;
+        const inv = 1 - alpha;
+        const r = (data[i] - matte * inv) / alpha;
+        const g = (data[i + 1] - matte * inv) / alpha;
+        const b = (data[i + 2] - matte * inv) / alpha;
+        data[i] = Math.max(0, Math.min(255, Math.round(r)));
+        data[i + 1] = Math.max(0, Math.min(255, Math.round(g)));
+        data[i + 2] = Math.max(0, Math.min(255, Math.round(b)));
+    }
 }
 
 export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> = (set, get) => ({
@@ -734,6 +791,50 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
                 }
             }
             ctx.globalCompositeOperation = 'source-over';
+            // Apply selection feather so the mask edge transitions softly rather
+            // than producing a hard cut at the selection border. Implemented as
+            // two-pass box blur on the red channel of the mask, then written
+            // back as a grayscale image. We avoid ctx.filter because it is not
+            // supported by the test backend (node-canvas).
+            const feather = state.selection.feather ?? 0;
+            if (feather > 0) {
+                const radius = Math.max(1, Math.round(feather));
+                const img = ctx.getImageData(0, 0, w, h);
+                const src = new Uint8ClampedArray(w * h);
+                for (let i = 0; i < src.length; i++) src[i] = img.data[i * 4];
+                const tmp = new Float32Array(w * h);
+                const r = radius;
+                for (let y = 0; y < h; y++) {
+                    let sum = 0;
+                    for (let i = -r; i <= r; i++) sum += src[y * w + Math.max(0, Math.min(w - 1, i))];
+                    for (let x = 0; x < w; x++) {
+                        tmp[y * w + x] = sum / (2 * r + 1);
+                        const xL = x - r;
+                        const xR = x + r + 1;
+                        sum -= src[y * w + Math.max(0, Math.min(w - 1, xL))];
+                        sum += src[y * w + Math.max(0, Math.min(w - 1, xR))];
+                    }
+                }
+                const out = new Uint8ClampedArray(w * h);
+                for (let x = 0; x < w; x++) {
+                    let sum = 0;
+                    for (let i = -r; i <= r; i++) sum += tmp[Math.max(0, Math.min(h - 1, i)) * w + x];
+                    for (let y = 0; y < h; y++) {
+                        out[y * w + x] = Math.round(sum / (2 * r + 1));
+                        const yT = y - r;
+                        const yB = y + r + 1;
+                        sum -= tmp[Math.max(0, Math.min(h - 1, yT)) * w + x];
+                        sum += tmp[Math.max(0, Math.min(h - 1, yB)) * w + x];
+                    }
+                }
+                for (let i = 0; i < out.length; i++) {
+                    img.data[i * 4] = out[i];
+                    img.data[i * 4 + 1] = out[i];
+                    img.data[i * 4 + 2] = out[i];
+                    img.data[i * 4 + 3] = 255;
+                }
+                ctx.putImageData(img, 0, 0);
+            }
             layer.mask = { canvas, ctx, enabled: true, linked: true };
             layer.markDirty(null);
             set({ layers: [...state.layers] });
@@ -849,6 +950,60 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         set({ layers: [...layers] });
         },
     }),
+
+    defringeLayer: (width) => {
+        const state = get();
+        const layerId = state.activeLayerId;
+        if (!layerId) return;
+        const layer = state.layers.find(l => l.id === layerId);
+        if (!layer || layer.kind === 'group') return;
+        const w = layer.canvas.width;
+        const h = layer.canvas.height;
+        const rect = { x: 0, y: 0, width: w, height: h };
+        const before = captureLayerRegion(layer, rect);
+        const img = layer.ctx.getImageData(0, 0, w, h);
+        applyDefringe(img.data, w, h, Math.max(1, Math.round(width)));
+        layer.ctx.putImageData(img, 0, 0);
+        layer.markDirty(null);
+        state.commitHistory(createPixelHistoryAction(layer, rect, before, 'Defringe'));
+        set(s => ({ layers: [...s.layers] }));
+    },
+
+    removeWhiteMatte: () => {
+        const state = get();
+        const layerId = state.activeLayerId;
+        if (!layerId) return;
+        const layer = state.layers.find(l => l.id === layerId);
+        if (!layer || layer.kind === 'group') return;
+        const w = layer.canvas.width;
+        const h = layer.canvas.height;
+        const rect = { x: 0, y: 0, width: w, height: h };
+        const before = captureLayerRegion(layer, rect);
+        const img = layer.ctx.getImageData(0, 0, w, h);
+        applyMatteRemoval(img.data, 255);
+        layer.ctx.putImageData(img, 0, 0);
+        layer.markDirty(null);
+        state.commitHistory(createPixelHistoryAction(layer, rect, before, 'Remove White Matte'));
+        set(s => ({ layers: [...s.layers] }));
+    },
+
+    removeBlackMatte: () => {
+        const state = get();
+        const layerId = state.activeLayerId;
+        if (!layerId) return;
+        const layer = state.layers.find(l => l.id === layerId);
+        if (!layer || layer.kind === 'group') return;
+        const w = layer.canvas.width;
+        const h = layer.canvas.height;
+        const rect = { x: 0, y: 0, width: w, height: h };
+        const before = captureLayerRegion(layer, rect);
+        const img = layer.ctx.getImageData(0, 0, w, h);
+        applyMatteRemoval(img.data, 0);
+        layer.ctx.putImageData(img, 0, 0);
+        layer.markDirty(null);
+        state.commitHistory(createPixelHistoryAction(layer, rect, before, 'Remove Black Matte'));
+        set(s => ({ layers: [...s.layers] }));
+    },
 
     setLayerMaskDensity: (id, density) => get().executeDocumentCommand({
         kind: 'layer-property',
@@ -966,6 +1121,78 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
             layer.effects = layer.effects.map((e, i) =>
                 i === index ? { ...e, params: { ...e.params, ...params } } : e,
             );
+            layer.markDirty(null);
+            set({ layers: [...layers] });
+        },
+    }),
+
+    copyLayerStyle: (id) => {
+        const { layers } = get();
+        const layer = layers.find(l => l.id === id);
+        if (!layer) return;
+        const clone = (layer.effects ?? []).map(e => ({
+            kind: e.kind,
+            enabled: e.enabled,
+            params: { ...e.params },
+        }));
+        get().setCopiedLayerStyle(clone);
+    },
+
+    pasteLayerStyle: (id) => {
+        const copied = get().copiedLayerStyle;
+        if (!copied) return;
+        get().executeDocumentCommand({
+            kind: 'layer-property',
+            label: 'Paste Layer Style',
+            affectedIds: [id], layerId: id,
+            run: () => {
+                const { layers } = get();
+                const layer = layers.find(l => l.id === id);
+                if (!layer) return;
+                layer.effects = copied.map(e => ({
+                    kind: e.kind,
+                    enabled: e.enabled,
+                    params: { ...e.params },
+                }));
+                layer.markDirty(null);
+                set({ layers: [...layers] });
+            },
+        });
+    },
+
+    clearLayerStyle: (id) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Clear Layer Style',
+        affectedIds: [id], layerId: id,
+        run: () => {
+            const { layers } = get();
+            const layer = layers.find(l => l.id === id);
+            if (!layer) return;
+            layer.effects = [];
+            layer.markDirty(null);
+            set({ layers: [...layers] });
+        },
+    }),
+
+    scaleLayerEffects: (id, scalePercent) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Scale Effects',
+        affectedIds: [id], layerId: id,
+        run: () => {
+            const { layers } = get();
+            const layer = layers.find(l => l.id === id);
+            if (!layer || !layer.effects) return;
+            const factor = Math.max(0.01, scalePercent / 100);
+            const SCALABLE = new Set(['size', 'distance', 'spread', 'depth', 'soften']);
+            layer.effects = layer.effects.map(e => {
+                const next: Record<string, unknown> = { ...e.params };
+                for (const key of Object.keys(next)) {
+                    if (SCALABLE.has(key) && typeof next[key] === 'number') {
+                        next[key] = (next[key] as number) * factor;
+                    }
+                }
+                return { kind: e.kind, enabled: e.enabled, params: next };
+            });
             layer.markDirty(null);
             set({ layers: [...layers] });
         },

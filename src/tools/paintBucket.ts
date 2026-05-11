@@ -154,6 +154,13 @@ function buildFillAlphaMask(
             const u = Math.max(0, Math.min(1, t));
             return u * u * (3 - 2 * u);
         };
+        // BUG-14 fix: at very low tolerance the AA edge band creates a
+        // visible bright ring (the smoothstep top is high even though dist
+        // is barely past tol). Pre-feather the AA contribution by scaling
+        // it down when tolerance is small. At tol < 8 px AA contributes at
+        // a fraction of full; at tol >= 8 AA is full strength. This blends
+        // into the selection-edge pre-feather (selW already weights AA).
+        const aaStrength = Math.min(1, tol / 8);
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
                 const idx = y * w + x;
@@ -174,8 +181,21 @@ function buildFillAlphaMask(
                 // Slightly weight by neighbor count (1-4) to bias the corner
                 // pixels toward higher alpha — kills the perceived ring.
                 const cornerBoost = Math.min(1, neighbors / 2);
+                // Selection-edge pre-feather: if this candidate pixel sits on
+                // the selection boundary (selData has a partial neighbor),
+                // attenuate by 0.5 to avoid a bright stripe along the cut.
+                let edgeFeather = 1;
+                if (selData) {
+                    const own = selData[di + 3];
+                    let near = own;
+                    if (x > 0) near = Math.min(near, selData[di - 4 + 3]);
+                    if (x < w - 1) near = Math.min(near, selData[di + 4 + 3]);
+                    if (y > 0) near = Math.min(near, selData[di - w * 4 + 3]);
+                    if (y < h - 1) near = Math.min(near, selData[di + w * 4 + 3]);
+                    if (near < own) edgeFeather = 0.5;
+                }
                 const selW = selData ? selData[di + 3] : 255;
-                softened[idx] = Math.round(t * cornerBoost * selW);
+                softened[idx] = Math.round(t * cornerBoost * aaStrength * edgeFeather * selW);
             }
         }
         return softened;
@@ -313,7 +333,7 @@ function compositeFill(
 export const paintBucketTool: Tool = {
     id: 'fill',
     label: 'Paint Bucket',
-    cursor: 'cell',
+    cursor: 'crosshair',
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
         const store = ctx.getStore();

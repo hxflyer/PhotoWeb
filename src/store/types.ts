@@ -4,6 +4,102 @@ import type { CompoundHistoryAction, DocumentHistoryCommandOptions, GenericHisto
 
 export type SelectionMode = 'rect' | 'circle' | 'lasso' | 'lasso-poly';
 
+export interface ShapeBounds { x: number; y: number; w: number; h: number }
+
+export type ShapeStrokeAlignment = 'outside' | 'center' | 'inside';
+
+export interface ShapeSolidFill { type: 'solid'; color: string }
+export type ShapeFill = ShapeSolidFill;
+
+export type ShapeStrokeLineCap = 'butt' | 'round' | 'square';
+export type ShapeStrokeLineJoin = 'bevel' | 'round' | 'miter';
+
+export interface ShapeStroke {
+    color: string;
+    width: number;
+    opacity: number;
+    alignment: ShapeStrokeAlignment;
+    enabled: boolean;
+    dash?: number[];
+    lineCap?: ShapeStrokeLineCap;
+    lineJoin?: ShapeStrokeLineJoin;
+}
+
+/**
+ * Path operations mode recorded on a shape when it is created via the
+ * "Combine / Subtract / Intersect / Exclude" buttons in the shape Options Bar.
+ * MVP: stored on the next shape; combining geometry across layers is deferred.
+ */
+export type ShapeCombineMode = 'new' | 'combine' | 'subtract' | 'intersect' | 'exclude';
+
+export interface ShapeRectData {
+    kind: 'rect';
+    bounds: ShapeBounds;
+    fill: ShapeFill | null;
+    stroke: ShapeStroke | null;
+    combineMode?: ShapeCombineMode;
+}
+
+export interface ShapeRoundedRectData {
+    kind: 'rounded-rect';
+    bounds: ShapeBounds;
+    cornerRadius: number;
+    fill: ShapeFill | null;
+    stroke: ShapeStroke | null;
+    combineMode?: ShapeCombineMode;
+}
+
+export interface ShapeEllipseData {
+    kind: 'ellipse';
+    bounds: ShapeBounds;
+    fill: ShapeFill | null;
+    stroke: ShapeStroke | null;
+    combineMode?: ShapeCombineMode;
+}
+
+export interface ShapePolygonData {
+    kind: 'polygon';
+    center: { x: number; y: number };
+    radius: number;
+    sides: number;
+    star: boolean;
+    starRatio: number;
+    rotation: number;
+    fill: ShapeFill | null;
+    stroke: ShapeStroke | null;
+    combineMode?: ShapeCombineMode;
+}
+
+export interface ShapeLineData {
+    kind: 'line';
+    p0: { x: number; y: number };
+    p1: { x: number; y: number };
+    weight: number;
+    arrowStart: boolean;
+    arrowEnd: boolean;
+    arrowSize: number;
+    stroke: ShapeStroke;
+    combineMode?: ShapeCombineMode;
+}
+
+export interface ShapeCustomData {
+    kind: 'custom';
+    presetId: string;
+    pathD: string;
+    bounds: ShapeBounds;
+    fill: ShapeFill | null;
+    stroke: ShapeStroke | null;
+    combineMode?: ShapeCombineMode;
+}
+
+export type ShapeData =
+    | ShapeRectData
+    | ShapeRoundedRectData
+    | ShapeEllipseData
+    | ShapePolygonData
+    | ShapeLineData
+    | ShapeCustomData;
+
 export interface SelectionMaskData {
     data: Uint8ClampedArray;
     width: number;
@@ -43,6 +139,7 @@ export interface DialogState {
     isSaveSelectionDialogOpen: boolean;
     isLoadSelectionDialogOpen: boolean;
     isColorRangeDialogOpen: boolean;
+    isDefringeDialogOpen: boolean;
 }
 
 export interface BrushSettings {
@@ -88,24 +185,34 @@ export type ToolId =
     | 'shape-ellipse'
     | 'shape-polygon'
     | 'shape-line'
-    | 'shape-custom';
+    | 'shape-custom'
+    | 'magic-eraser'
+    | 'background-eraser'
+    | 'spot-healing'
+    | 'healing-brush'
+    | 'patch'
+    | 'red-eye';
 
 export interface DocumentSlice {
     width: number;
     height: number;
     hasAutosave: boolean;
     documentName: string;
+    isDirty: boolean;
+    lastSavedHistoryTick: number;
     setCanvasSize: (width: number, height: number) => void;
     rotateCanvas: (degrees: number) => void;
     flipCanvas: (axis: 'horizontal' | 'vertical') => void;
     resizeImage: (newW: number, newH: number, method: import('../core/imageTransforms').ResampleMethod) => void;
     resizeCanvas: (newW: number, newH: number, anchorX: number, anchorY: number, extensionColor: string) => void;
     trimCanvas: (basis: import('../core/imageTransforms').TrimBasis, sides: { top: boolean; right: boolean; bottom: boolean; left: boolean }) => void;
-    newDocument: (w: number, h: number, bg: string) => void;
-    openImageAsDocument: (img: HTMLImageElement, name: string) => void;
+    newDocument: (w: number, h: number, bg: string) => boolean;
+    openImageAsDocument: (img: HTMLImageElement, name: string) => boolean;
     setDocumentName: (name: string) => void;
     setHasAutosave: (has: boolean) => void;
     dismissAutosave: () => void;
+    markDocumentDirty: () => void;
+    markDocumentClean: () => void;
     saveFile: (name: string) => Promise<void>;
     loadFile: (name: string) => Promise<void>;
 }
@@ -163,6 +270,13 @@ export interface LayersSlice {
     removeLayerEffect: (id: string, index: number) => void;
     setLayerEffectEnabled: (id: string, index: number, enabled: boolean) => void;
     setLayerEffectParams: (id: string, index: number, params: Record<string, unknown>) => void;
+    copyLayerStyle: (id: string) => void;
+    pasteLayerStyle: (id: string) => void;
+    clearLayerStyle: (id: string) => void;
+    scaleLayerEffects: (id: string, scalePercent: number) => void;
+    defringeLayer: (width: number) => void;
+    removeWhiteMatte: () => void;
+    removeBlackMatte: () => void;
     selectLayer: (id: string, mode?: 'replace' | 'toggle' | 'range') => void;
     selectAllLayers: () => void;
     deselectLayers: () => void;
@@ -186,6 +300,7 @@ export interface RefineEdgeOptions {
     feather: number;    // 0..250  global feather applied via setSelectionFeather
     contrast: number;   // 0..100  steepens the alpha falloff
     shiftEdge: number;  // -100..100  positive expands, negative contracts
+    smartRadius?: boolean; // per-pixel radius modulated by local edge gradient when true
 }
 
 export interface SelectionSlice {
@@ -206,8 +321,10 @@ export interface SelectionSlice {
     setPolyPoints: (points: { x: number; y: number }[]) => void;
     expandSelection: (px: number) => void;
     contractSelection: (px: number) => void;
-    smoothSelection: () => void;
+    smoothSelection: (radius?: number) => void;
     borderSelection: (width: number) => void;
+    growSelection: (tolerance?: number) => void;
+    similarSelection: (tolerance?: number) => void;
     refineEdge: (opts: RefineEdgeOptions) => void;
     saveSelection: (name: string) => void;
     loadSelection: (name: string, mode?: 'replace' | 'add' | 'sub' | 'intersect') => void;
@@ -242,6 +359,24 @@ export interface PatternPreset {
     dataUrl: string;
 }
 
+export interface GradientColorStop {
+    position: number;
+    color: string;
+}
+
+export interface GradientOpacityStop {
+    position: number;
+    opacity: number;
+}
+
+export interface GradientPresetEntry {
+    id: string;
+    name: string;
+    colorStops: GradientColorStop[];
+    opacityStops: GradientOpacityStop[];
+    smoothness: number;
+}
+
 export interface ToolsSlice {
     activeTool: ToolId;
     brushSettings: BrushSettings;
@@ -260,12 +395,25 @@ export interface ToolsSlice {
     saveBrushPreset: (name: string, extras?: { smoothing?: number; spacing?: number }) => void;
     applyBrushPreset: (id: string) => void;
     removeBrushPreset: (id: string) => void;
+    renameBrushPreset: (id: string, name: string) => void;
+    reorderBrushPreset: (fromIdx: number, toIdx: number) => void;
+    duplicateBrushPreset: (id: string) => void;
     saveToolPreset: (name: string, optionsBlob: Record<string, unknown>) => void;
     applyToolPreset: (id: string, apply: (blob: Record<string, unknown>) => void) => void;
     removeToolPreset: (id: string) => void;
     definePattern: (name: string, source: HTMLCanvasElement | ImageData) => string;
     removePatternPreset: (id: string) => void;
+    renamePatternPreset: (id: string, name: string) => void;
     setActivePatternId: (id: string | null) => void;
+    gradientPresets: GradientPresetEntry[];
+    saveGradientPreset: (
+        name: string,
+        colorStops: GradientColorStop[],
+        opacityStops: GradientOpacityStop[],
+        smoothness: number,
+    ) => string;
+    applyGradientPreset: (id: string) => GradientPresetEntry | null;
+    removeGradientPreset: (id: string) => void;
 }
 
 export type ActiveChannel = 'rgb' | 'r' | 'g' | 'b';
@@ -282,10 +430,15 @@ export interface ViewSlice {
     showRulers: boolean;
     showGrid: boolean;
     showSelectionEdges: boolean;
+    showGuides: boolean;
+    guidesLocked: boolean;
+    isNewGuideDialogOpen: boolean;
     gridSize: number;
     snapEnabled: boolean;
     guides: { orientation: 'horizontal' | 'vertical'; position: number }[];
+    activeSnapTargets: import('../tools/snap').SnapTarget[] | null;
     quickMaskMode: boolean;
+    quickMaskBuffer: ImageData | null;
     enablePerfLogging: boolean;
     activeChannel: ActiveChannel;
     channelVisibility: ChannelVisibility;
@@ -294,13 +447,27 @@ export interface ViewSlice {
     setShowRulers: (show: boolean) => void;
     setShowGrid: (show: boolean) => void;
     setShowSelectionEdges: (show: boolean) => void;
+    setShowGuides: (show: boolean) => void;
+    setGuidesLocked: (locked: boolean) => void;
+    setNewGuideDialogOpen: (open: boolean) => void;
     setGridSize: (size: number) => void;
     setSnapEnabled: (snap: boolean) => void;
     addGuide: (orientation: 'horizontal' | 'vertical', position: number) => void;
     removeGuide: (index: number) => void;
     moveGuide: (index: number, position: number) => void;
     clearGuides: () => void;
+    addGuideWithHistory: (orientation: 'horizontal' | 'vertical', position: number) => void;
+    removeGuideWithHistory: (index: number) => void;
+    moveGuideWithHistory: (index: number, position: number) => void;
+    beginGuideDrag: (index: number) => void;
+    updateGuideDrag: (position: number) => void;
+    commitGuideDrag: () => void;
+    cancelGuideDrag: () => void;
+    clearGuidesWithHistory: () => void;
+    setActiveSnapTargets: (targets: import('../tools/snap').SnapTarget[] | null) => void;
     setQuickMaskMode: (on: boolean) => void;
+    setQuickMaskBuffer: (buffer: ImageData | null) => void;
+    convertQuickMaskBufferToSelection: () => void;
     setEnablePerfLogging: (on: boolean) => void;
     setActiveChannel: (channel: ActiveChannel) => void;
     setChannelVisibility: (channel: 'r' | 'g' | 'b', visible: boolean) => void;
@@ -323,15 +490,40 @@ export type PanelId =
     | 'history' | 'layers' | 'channels' | 'paths'
     | 'color' | 'swatches' | 'adjustments'
     | 'properties' | 'character' | 'paragraph'
-    | 'navigator' | 'info' | 'tools';
+    | 'navigator' | 'info' | 'tools'
+    | 'brush-presets' | 'pattern-presets';
 
 export type PanelVisibility = Record<PanelId, boolean>;
+
+export interface SelectionDialogPrefs {
+    defringeWidth: number;
+    borderWidth: number;
+    smoothRadius: number;
+}
 
 export interface PanelsSlice {
     dialogs: DialogState;
     panelVisibility: PanelVisibility;
+    copiedLayerStyle: import('../core/Layer').LayerEffect[] | null;
+    isScaleEffectsDialogOpen: boolean;
+    isBorderSelectionDialogOpen: boolean;
+    isSmoothSelectionDialogOpen: boolean;
+    isTransformSelectionOpen: boolean;
+    selectionDialogPrefs: SelectionDialogPrefs;
+    setSelectionDialogPref: (key: keyof SelectionDialogPrefs, value: number) => void;
+    openBorderSelectionDialog: () => void;
+    closeBorderSelectionDialog: () => void;
+    openSmoothSelectionDialog: () => void;
+    closeSmoothSelectionDialog: () => void;
+    openTransformSelection: () => void;
+    closeTransformSelection: () => void;
+    setCopiedLayerStyle: (effects: import('../core/Layer').LayerEffect[] | null) => void;
+    openScaleEffectsDialog: () => void;
+    closeScaleEffectsDialog: () => void;
     togglePanelVisibility: (panel: PanelId) => void;
     setPanelVisibility: (panel: PanelId, visible: boolean) => void;
+    toggleAllPanels: () => void;
+    toggleAllPanelsExceptCanvas: () => void;
     setFeatherDialogOpen: (open: boolean) => void;
     openFilterDialog: (filterId: string, params?: Record<string, unknown>) => void;
     closeFilterDialog: () => void;
@@ -357,6 +549,8 @@ export interface PanelsSlice {
     closeLoadSelectionDialog: () => void;
     openColorRangeDialog: () => void;
     closeColorRangeDialog: () => void;
+    openDefringeDialog: () => void;
+    closeDefringeDialog: () => void;
 }
 
 export interface HistorySlice {
@@ -384,10 +578,15 @@ export interface Toast {
     type: 'info' | 'error' | 'success';
 }
 
+export type ToastErrorChannel = 'save' | 'load' | 'autosave' | 'export' | 'quota';
+
 export interface ToastsSlice {
     toasts: Toast[];
+    lastErrorChannel: ToastErrorChannel | null;
     addToast: (message: string, type?: Toast['type']) => void;
+    reportError: (channel: ToastErrorChannel, message: string, type?: Toast['type']) => void;
     removeToast: (id: string) => void;
+    clearLastErrorChannel: () => void;
 }
 
 export type RequirementStatus =

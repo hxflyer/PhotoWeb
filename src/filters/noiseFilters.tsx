@@ -112,6 +112,117 @@ registerFilter<ReduceNoiseParams>({
     },
 });
 
+// ── Dust & Scratches ─────────────────────────────────────────────────────
+// Selective median: replace a pixel with the local median ONLY when the
+// original differs from the median by more than `threshold`. Removes small
+// specks (dust, scratches) while preserving real edges.
+
+export interface DustScratchesParams { radius: number; threshold: number }
+
+registerFilter<DustScratchesParams>({
+    id: 'noise-dust-scratches',
+    label: 'Dust & Scratches',
+    defaultParams: { radius: 4, threshold: 30 },
+    apply({ radius, threshold }: DustScratchesParams, { image, width, height }: FilterApplyContext): ImageData {
+        const r = Math.max(1, Math.min(16, Math.round(radius)));
+        const t = Math.max(0, Math.min(255, Math.round(threshold)));
+        const src = image.data;
+        const out = new Uint8ClampedArray(src);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const ci = (y * width + x) * 4;
+                const rs: number[] = [], gs: number[] = [], bs: number[] = [];
+                for (let sy = Math.max(0, y - r); sy <= Math.min(height - 1, y + r); sy++) {
+                    for (let sx = Math.max(0, x - r); sx <= Math.min(width - 1, x + r); sx++) {
+                        const si = (sy * width + sx) * 4;
+                        rs.push(src[si]); gs.push(src[si + 1]); bs.push(src[si + 2]);
+                    }
+                }
+                rs.sort((a, b) => a - b); gs.sort((a, b) => a - b); bs.sort((a, b) => a - b);
+                const mid = Math.floor(rs.length / 2);
+                const medR = rs[mid], medG = gs[mid], medB = bs[mid];
+                const dr = Math.abs(src[ci]     - medR);
+                const dg = Math.abs(src[ci + 1] - medG);
+                const db = Math.abs(src[ci + 2] - medB);
+                if (Math.max(dr, dg, db) > t) {
+                    out[ci]     = medR;
+                    out[ci + 1] = medG;
+                    out[ci + 2] = medB;
+                }
+            }
+        }
+        return new ImageData(out, width, height);
+    },
+    renderUI(params, onChange) {
+        const p = params as DustScratchesParams;
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                    <label style={{ fontSize: '12px' }}>Radius: {p.radius}px</label>
+                    <input type="range" min={1} max={16} value={p.radius}
+                        onChange={e => onChange({ ...p, radius: Number(e.target.value) })} style={{ width: '100%' }} />
+                </div>
+                <div>
+                    <label style={{ fontSize: '12px' }}>Threshold: {p.threshold}</label>
+                    <input type="range" min={0} max={255} value={p.threshold}
+                        onChange={e => onChange({ ...p, threshold: Number(e.target.value) })} style={{ width: '100%' }} />
+                </div>
+            </div>
+        );
+    },
+});
+
+// ── Despeckle ────────────────────────────────────────────────────────────
+// One-click noise smoother: 3×3 median ONLY where the neighborhood standard
+// deviation is low. Flat regions get smoothed; edges (high variance) are
+// preserved unchanged.
+
+export type DespeckleParams = Record<string, never>;
+
+registerFilter<DespeckleParams>({
+    id: 'noise-despeckle',
+    label: 'Despeckle',
+    defaultParams: {},
+    apply(_p: DespeckleParams, { image, width, height }: FilterApplyContext): ImageData {
+        const src = image.data;
+        const out = new Uint8ClampedArray(src);
+        // Edge detection uses the std-dev of the 3×3 neighborhood EXCLUDING
+        // the center pixel — so an isolated noise spike does not look like
+        // a real edge to itself. A high cutoff (≈ 24 luma units) means a
+        // hard black/white boundary is preserved while a mostly-flat patch
+        // containing a single speck is smoothed.
+        const edgeStdCutoff = 24;
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const ci = (y * width + x) * 4;
+                const rs: number[] = [], gs: number[] = [], bs: number[] = [];
+                let sumL = 0, sumL2 = 0, n = 0;
+                for (let sy = Math.max(0, y - 1); sy <= Math.min(height - 1, y + 1); sy++) {
+                    for (let sx = Math.max(0, x - 1); sx <= Math.min(width - 1, x + 1); sx++) {
+                        const si = (sy * width + sx) * 4;
+                        rs.push(src[si]); gs.push(src[si + 1]); bs.push(src[si + 2]);
+                        if (sx === x && sy === y) continue;
+                        const lum = 0.299 * src[si] + 0.587 * src[si + 1] + 0.114 * src[si + 2];
+                        sumL += lum; sumL2 += lum * lum; n++;
+                    }
+                }
+                const mean = n > 0 ? sumL / n : 0;
+                const variance = n > 0 ? Math.max(0, sumL2 / n - mean * mean) : 0;
+                const std = Math.sqrt(variance);
+                if (std > edgeStdCutoff) continue;
+                rs.sort((a, b) => a - b); gs.sort((a, b) => a - b); bs.sort((a, b) => a - b);
+                const mid = Math.floor(rs.length / 2);
+                out[ci]     = rs[mid];
+                out[ci + 1] = gs[mid];
+                out[ci + 2] = bs[mid];
+            }
+        }
+        return new ImageData(out, width, height);
+    },
+});
+
 // ── Median ────────────────────────────────────────────────────────────────
 
 export interface MedianParams { radius: number }
@@ -120,13 +231,19 @@ registerFilter<MedianParams>({
     id: 'noise-median',
     label: 'Median',
     defaultParams: { radius: 1 },
-    apply({ radius }: MedianParams, { image, width, height }: FilterApplyContext): ImageData {
+    apply({ radius }: MedianParams, { image, width, height, dirtyRect }: FilterApplyContext): ImageData {
         const r = Math.max(1, Math.round(radius));
         const src = image.data;
-        const out = new Uint8ClampedArray(width * height * 4);
+        // Start from src so pixels outside the dirty rect pass through unchanged.
+        const out = new Uint8ClampedArray(src);
 
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
+        const x0 = dirtyRect ? Math.max(0, Math.floor(dirtyRect.x)) : 0;
+        const y0 = dirtyRect ? Math.max(0, Math.floor(dirtyRect.y)) : 0;
+        const x1 = dirtyRect ? Math.min(width, Math.ceil(dirtyRect.x + dirtyRect.width)) : width;
+        const y1 = dirtyRect ? Math.min(height, Math.ceil(dirtyRect.y + dirtyRect.height)) : height;
+
+        for (let y = y0; y < y1; y++) {
+            for (let x = x0; x < x1; x++) {
                 const rs: number[] = [], gs: number[] = [], bs: number[] = [], as_: number[] = [];
                 for (let sy = Math.max(0, y - r); sy <= Math.min(height - 1, y + r); sy++) {
                     for (let sx = Math.max(0, x - r); sx <= Math.min(width - 1, x + r); sx++) {

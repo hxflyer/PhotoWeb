@@ -3,7 +3,9 @@
  * Alignment, justification, indents, paragraph spacing, hyphenation toggle.
  */
 import { useSyncExternalStore } from 'react';
-import { subscribeTypeTool, getTypeVersion, getEditingStyle, updateEditingStyle } from '../../tools/type';
+import { subscribeTypeTool, getTypeVersion, getEditingStyle, updateEditingStyle, typeToolState } from '../../tools/type';
+import { applyCharacterPanelEdit, commitCoalescedTypeEdit } from '../../tools/typeCommands';
+import { useEditorStore } from '../../store/editorStore';
 import type { TextStyle } from '../Canvas/TextEditOverlay';
 
 const inputStyle: React.CSSProperties = {
@@ -40,12 +42,14 @@ const JUSTIFY_BTNS: { id: 'last-left' | 'last-center' | 'last-right' | 'all'; gl
     { id: 'all',         glyph: '☰', title: 'Justify all' },
 ];
 
-function NumField({ value, onChange, width = 60 }: { value: number; onChange: (v: number) => void; width?: number }) {
+function NumField({ value, onChange, onCommit, width = 60 }: { value: number; onChange: (v: number) => void; onCommit?: () => void; width?: number }) {
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <input
                 type="number" value={value}
                 onChange={e => onChange(Number(e.target.value) || 0)}
+                onMouseUp={() => onCommit?.()}
+                onBlur={() => onCommit?.()}
                 style={{ ...inputStyle, width }}
             />
             <span style={{ fontSize: 10, color: 'hsl(var(--text-muted))' }}>点</span>
@@ -56,7 +60,20 @@ function NumField({ value, onChange, width = 60 }: { value: number; onChange: (v
 export function ParagraphPanel() {
     useSyncExternalStore(subscribeTypeTool, getTypeVersion);
     const s: TextStyle = getEditingStyle();
-    const update = (patch: Partial<TextStyle>) => updateEditingStyle(patch);
+    function update(patch: Partial<TextStyle>, label = 'Edit Paragraph Style'): void {
+        if (typeToolState.editing) {
+            updateEditingStyle(patch);
+            return;
+        }
+        const state = useEditorStore.getState();
+        const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+        if (activeLayer?.kind === 'type' && activeLayer.typeData) {
+            applyCharacterPanelEdit(label, patch);
+            return;
+        }
+        updateEditingStyle(patch);
+    }
+    const commitEdit = () => commitCoalescedTypeEdit();
 
     return (
         <div style={{ padding: 8, fontSize: 11, color: 'hsl(var(--text-main))', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -67,7 +84,7 @@ export function ParagraphPanel() {
                         key={b.id}
                         title={b.title}
                         style={toggleStyle(s.textAlign === b.id)}
-                        onClick={() => update({ textAlign: b.id })}
+                        onClick={() => { update({ textAlign: b.id }, 'Edit Text Alignment'); commitEdit(); }}
                     >{b.glyph}</button>
                 ))}
                 <div style={{ width: 6 }} />
@@ -76,7 +93,7 @@ export function ParagraphPanel() {
                         key={b.id}
                         title={b.title}
                         style={toggleStyle(s.textAlign === 'justify')}
-                        onClick={() => update({ textAlign: 'justify' })}
+                        onClick={() => { update({ textAlign: 'justify' }, 'Edit Text Alignment'); commitEdit(); }}
                     >{b.glyph}</button>
                 ))}
             </div>
@@ -84,23 +101,23 @@ export function ParagraphPanel() {
             {/* Indent left + right */}
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto 1fr', gap: 6, alignItems: 'center' }}>
                 <span style={labelStyle} title="Indent left margin">→|</span>
-                <NumField value={s.indentLeft}  onChange={v => update({ indentLeft: v })} />
+                <NumField value={s.indentLeft}  onChange={v => update({ indentLeft: v }, 'Edit Left Indent')} onCommit={commitEdit} />
                 <span style={labelStyle} title="Indent right margin">|←</span>
-                <NumField value={s.indentRight} onChange={v => update({ indentRight: v })} />
+                <NumField value={s.indentRight} onChange={v => update({ indentRight: v }, 'Edit Right Indent')} onCommit={commitEdit} />
             </div>
 
             {/* First-line indent */}
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 6, alignItems: 'center' }}>
                 <span style={labelStyle} title="First line indent">↳</span>
-                <NumField value={s.indentFirst} onChange={v => update({ indentFirst: v })} />
+                <NumField value={s.indentFirst} onChange={v => update({ indentFirst: v }, 'Edit First Line Indent')} onCommit={commitEdit} />
             </div>
 
             {/* Space before / after */}
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto 1fr', gap: 6, alignItems: 'center' }}>
                 <span style={labelStyle} title="Space before paragraph">↑¶</span>
-                <NumField value={s.spaceBefore} onChange={v => update({ spaceBefore: v })} />
+                <NumField value={s.spaceBefore} onChange={v => update({ spaceBefore: v }, 'Edit Space Before Paragraph')} onCommit={commitEdit} />
                 <span style={labelStyle} title="Space after paragraph">↓¶</span>
-                <NumField value={s.spaceAfter}  onChange={v => update({ spaceAfter: v })} />
+                <NumField value={s.spaceAfter}  onChange={v => update({ spaceAfter: v }, 'Edit Space After Paragraph')} onCommit={commitEdit} />
             </div>
 
             {/* Hyphenate */}
@@ -108,7 +125,7 @@ export function ParagraphPanel() {
                 <input
                     type="checkbox"
                     checked={s.hyphenate}
-                    onChange={e => update({ hyphenate: e.target.checked })}
+                    onChange={e => { update({ hyphenate: e.target.checked }, 'Toggle Hyphenate'); commitEdit(); }}
                     style={{ accentColor: 'hsl(var(--accent-primary))' }}
                 />
                 Hyphenate

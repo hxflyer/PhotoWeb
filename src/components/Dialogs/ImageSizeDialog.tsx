@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { ResampleMethod } from '../../core/imageTransforms';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface ImageSizeDialogProps {
     isOpen: boolean;
@@ -15,6 +16,7 @@ export function ImageSizeDialog({ isOpen, currentWidth, currentHeight, onConfirm
     const [h, setH] = useState(currentHeight);
     const [constrain, setConstrain] = useState(true);
     const [method, setMethod] = useState<ResampleMethod>('bicubic');
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     useEffect(() => {
         if (isOpen) { setW(currentWidth); setH(currentHeight); } // eslint-disable-line react-hooks/set-state-in-effect
@@ -47,10 +49,10 @@ export function ImageSizeDialog({ isOpen, currentWidth, currentHeight, onConfirm
 
     return (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }} onClick={onClose}>
-            <div style={{ width: '320px', background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: '8px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="image-size-title" tabIndex={-1} style={{ width: '320px', background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: '8px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid hsl(var(--border-light))', background: 'hsl(var(--bg-header))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Image Size</h3>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                    <h3 id="image-size-title" style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'hsl(var(--text-main))' }}>Image Size</h3>
+                    <button aria-label="Close" onClick={onClose} style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
                 </div>
                 <div style={{ padding: '20px' }}>
                     <div style={rowStyle}>

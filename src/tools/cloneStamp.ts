@@ -10,6 +10,8 @@ interface CloneStampOptions {
     mode: GlobalCompositeOperation;
     showOverlay: boolean;
     overlayOpacity: number; // 0..1
+    sourceScale: number;    // 0.1..4, default 1
+    sourceRotation: number; // radians, default 0
 }
 
 const options: CloneStampOptions = {
@@ -18,6 +20,8 @@ const options: CloneStampOptions = {
     mode: 'source-over',
     showOverlay: true,
     overlayOpacity: 0.5,
+    sourceScale: 1,
+    sourceRotation: 0,
 };
 
 export function setCloneStampOptions(next: Partial<CloneStampOptions> & { sampleAllLayers?: boolean }): void {
@@ -103,17 +107,34 @@ function stampAt(
     stampCanvas.height = Math.max(1, Math.ceil(size));
     const sctx = stampCanvas.getContext('2d');
     if (!sctx) return;
-    sctx.drawImage(
-        sourceCanvas,
-        source.x - size / 2,
-        source.y - size / 2,
-        size,
-        size,
-        0,
-        0,
-        stampCanvas.width,
-        stampCanvas.height,
-    );
+    const scale = options.sourceScale || 1;
+    const rotation = options.sourceRotation || 0;
+    if (Math.abs(scale - 1) < 1e-4 && Math.abs(rotation) < 1e-4) {
+        sctx.drawImage(
+            sourceCanvas,
+            source.x - size / 2,
+            source.y - size / 2,
+            size,
+            size,
+            0,
+            0,
+            stampCanvas.width,
+            stampCanvas.height,
+        );
+    } else {
+        // Affine source read: translate to stamp center, rotate, scale, then
+        // draw the source canvas with source point pulled to origin. With
+        // sourceScale > 1 the destination shows MORE source per stamp pixel,
+        // so the read patch shrinks (read half-distance offsets), which is
+        // what the spec calls for.
+        sctx.save();
+        sctx.translate(stampCanvas.width / 2, stampCanvas.height / 2);
+        sctx.rotate(rotation);
+        sctx.scale(scale, scale);
+        sctx.translate(-source.x, -source.y);
+        sctx.drawImage(sourceCanvas, 0, 0);
+        sctx.restore();
+    }
     sctx.globalCompositeOperation = 'destination-in';
     sctx.drawImage(getBrushTip({ size, hardness, color: '#000' }), 0, 0, stampCanvas.width, stampCanvas.height);
 

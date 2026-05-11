@@ -6,6 +6,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useEditorStore } from '../../store/editorStore';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface Props {
     isOpen: boolean;
@@ -128,6 +129,7 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
     const hueRef = useRef<HTMLDivElement>(null);
     const sbDragging = useRef(false);
     const hueDragging = useRef(false);
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     // Sync from initialColor when dialog opens.
     useEffect(() => {
@@ -214,6 +216,11 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }}>
             <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="color-picker-title"
+                tabIndex={-1}
                 data-testid="color-picker-dialog"
                 style={{
                     background: 'hsl(var(--bg-panel))',
@@ -227,7 +234,7 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
                 }}
             >
                 {/* Title */}
-                <div style={{
+                <div id="color-picker-title" style={{
                     fontWeight: 600, fontSize: 13, marginBottom: 8,
                     paddingBottom: 6, borderBottom: '1px solid hsl(var(--border-light))',
                     textAlign: 'right',
