@@ -12,6 +12,7 @@ function reset() {
     useEditorStore.setState((s) => ({ ...s, layers: [], activeLayerId: null, primaryColor: '#ff0000', secondaryColor: '#0000ff' }));
     useEditorStore.getState().clearSelection();
     useEditorStore.getState().addLayer();
+    useEditorStore.getState().clearHistory();
 }
 
 function ctx() {
@@ -74,6 +75,23 @@ describe('Paint Bucket — selection-aware', () => {
         const b = layerPixelAt(layer, 200, 200);
         expect(a.g).toBe(255);
         expect(b.g).toBe(255);
+    });
+
+    it('undo and redo restore a paint bucket fill', () => {
+        const layer = useEditorStore.getState().layers[0];
+        layer.ctx.fillStyle = '#aaaaaa';
+        layer.ctx.fillRect(0, 0, layer.canvas.width, layer.canvas.height);
+        useEditorStore.getState().setPrimaryColor('#00ff00');
+        setPaintBucketOptions({ contiguous: true, antiAlias: false });
+        const tool = getTool('fill')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 10 }), ctx());
+        expect(layerPixelAt(layer, 5, 5).g).toBe(255);
+
+        useEditorStore.getState().undo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 5, 5).r).toBe(0xaa);
+
+        useEditorStore.getState().redo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 5, 5).g).toBe(255);
     });
 
     it('opacity 50% blends fill toward primary color', () => {
@@ -189,6 +207,23 @@ describe('Gradient — selection-aware', () => {
         const right = layerPixelAt(layer, layer.canvas.width - 5, 5);
         expect(left.r).toBeGreaterThan(left.b);
         expect(right.b).toBeGreaterThan(right.r);
+    });
+
+    it('undo and redo restore a gradient fill', () => {
+        const layer = useEditorStore.getState().layers[0];
+        useEditorStore.getState().setPrimaryColor('#ff0000');
+        useEditorStore.getState().setSecondaryColor('#0000ff');
+        const tool = getTool('gradient')!;
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
+        tool.onPointerMove!(makeToolPointerEvent({ canvasX: layer.canvas.width, canvasY: 0 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: layer.canvas.width, canvasY: 0 }), ctx());
+        expect(layerPixelAt(layer, 5, 5).r).toBeGreaterThan(200);
+
+        useEditorStore.getState().undo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 5, 5).a).toBe(0);
+
+        useEditorStore.getState().redo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 5, 5).r).toBeGreaterThan(200);
     });
 
     it('reverse swaps the gradient direction', () => {

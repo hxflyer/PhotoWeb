@@ -11,11 +11,18 @@ export interface EyedropperOptions {
 
 const options: EyedropperOptions = {
     sampleSize: 1,
-    sample: 'all-layers',
+    // Photoshop's default is the current layer; "All Layers" is a deliberate
+    // user toggle. Keep that convention to avoid surprising eyedropper picks
+    // from invisible layers above the active one.
+    sample: 'current-layer',
 };
 
 export function setEyedropperOptions(next: Partial<EyedropperOptions>): void {
     Object.assign(options, next);
+}
+
+export function getEyedropperOptions(): EyedropperOptions {
+    return { ...options };
 }
 
 function p(e: ToolPointerEvent) { return { x: Math.floor(e.canvasX), y: Math.floor(e.canvasY) }; }

@@ -1,4 +1,5 @@
 import type { EditorStore } from '../store/types';
+import { useEditorStore } from '../store/editorStore';
 import type { Tool, ToolContext, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 
@@ -36,12 +37,19 @@ const options: CropOptions = {
     straighten: false,
 };
 
+interface StraightenState {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+}
+
 const state: {
     rect: CropRect | null;
     drag: CropDragState | null;
+    straighten: StraightenState | null;
 } = {
     rect: null,
     drag: null,
+    straighten: null,
 };
 
 const overlayOrder: CropOverlayId[] = ['rule-of-thirds', 'grid', 'diagonal', 'triangle', 'golden-ratio', 'none'];
@@ -169,6 +177,12 @@ export const cropTool: Tool = {
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
         const store = ctx.getStore();
+        if (options.straighten) {
+            const point = p(e);
+            state.straighten = { start: point, end: point };
+            ctx.requestRender();
+            return;
+        }
         if (!state.rect) initCrop(store);
         const rect = state.rect;
         if (!rect) return;
@@ -177,6 +191,11 @@ export const cropTool: Tool = {
         state.drag = { handle, start: point, rect: { ...rect } };
     },
     onPointerMove: (e, ctx) => {
+        if (state.straighten) {
+            state.straighten.end = p(e);
+            ctx.requestRender();
+            return;
+        }
         if (!state.drag || !state.rect) return;
         const point = p(e);
         const dx = point.x - state.drag.start.x;
@@ -184,7 +203,22 @@ export const cropTool: Tool = {
         state.rect = resizeFromHandle(state.drag.rect, state.drag.handle, dx, dy);
         ctx.requestRender();
     },
-    onPointerUp: () => {
+    onPointerUp: (_e, ctx) => {
+        if (state.straighten) {
+            const { start, end } = state.straighten;
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const len = Math.hypot(dx, dy);
+            state.straighten = null;
+            options.straighten = false;
+            if (len > 4) {
+                const angleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+                ctx.getStore().rotateCanvas(-angleDeg);
+                state.rect = null; // canvas size changed; recompute next interaction
+            }
+            ctx.requestRender();
+            return;
+        }
         state.drag = null;
     },
     onKeyDown: (e, ctx) => {
@@ -237,19 +271,87 @@ function drawCropOverlay(ctx: CanvasRenderingContext2D, rect: CropRect, width: n
     ctx.setLineDash([]);
     ctx.strokeRect(x, y, w, h);
 
-    if (options.overlay === 'rule-of-thirds') {
+    if (options.overlay !== 'none') {
         ctx.strokeStyle = 'rgba(255,255,255,0.86)';
         ctx.lineWidth = 1 / zoom;
-        for (let i = 1; i <= 2; i++) {
-            const vx = x + (w * i) / 3;
-            const hy = y + (h * i) / 3;
+        if (options.overlay === 'rule-of-thirds') {
+            for (let i = 1; i <= 2; i++) {
+                const vx = x + (w * i) / 3;
+                const hy = y + (h * i) / 3;
+                ctx.beginPath();
+                ctx.moveTo(vx, y);
+                ctx.lineTo(vx, y + h);
+                ctx.moveTo(x, hy);
+                ctx.lineTo(x + w, hy);
+                ctx.stroke();
+            }
+        } else if (options.overlay === 'grid') {
+            const step = 32 / zoom;
+            for (let gx = x + step; gx < x + w; gx += step) {
+                ctx.beginPath();
+                ctx.moveTo(gx, y);
+                ctx.lineTo(gx, y + h);
+                ctx.stroke();
+            }
+            for (let gy = y + step; gy < y + h; gy += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, gy);
+                ctx.lineTo(x + w, gy);
+                ctx.stroke();
+            }
+        } else if (options.overlay === 'diagonal') {
             ctx.beginPath();
-            ctx.moveTo(vx, y);
-            ctx.lineTo(vx, y + h);
-            ctx.moveTo(x, hy);
-            ctx.lineTo(x + w, hy);
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.moveTo(x + w, y);
+            ctx.lineTo(x, y + h);
             ctx.stroke();
+        } else if (options.overlay === 'triangle') {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.stroke();
+            const len = Math.hypot(w, h);
+            const ux = w / len;
+            const uy = h / len;
+            const ortho = (px: number, py: number) => {
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px + uy * len, py - ux * len);
+                ctx.stroke();
+            };
+            ortho(x + w, y);
+            ortho(x, y + h);
+        } else if (options.overlay === 'golden-ratio') {
+            const phi = 1 / 1.618;
+            const vx1 = x + w * phi;
+            const vx2 = x + w * (1 - phi);
+            const hy1 = y + h * phi;
+            const hy2 = y + h * (1 - phi);
+            for (const vx of [vx1, vx2]) {
+                ctx.beginPath();
+                ctx.moveTo(vx, y);
+                ctx.lineTo(vx, y + h);
+                ctx.stroke();
+            }
+            for (const hy of [hy1, hy2]) {
+                ctx.beginPath();
+                ctx.moveTo(x, hy);
+                ctx.lineTo(x + w, hy);
+                ctx.stroke();
+            }
         }
+    }
+
+    if (state.straighten) {
+        ctx.save();
+        ctx.strokeStyle = '#22a3ff';
+        ctx.lineWidth = 2 / zoom;
+        ctx.beginPath();
+        ctx.moveTo(state.straighten.start.x, state.straighten.start.y);
+        ctx.lineTo(state.straighten.end.x, state.straighten.end.y);
+        ctx.stroke();
+        ctx.restore();
     }
 
     ctx.fillStyle = '#ffffff';
@@ -283,26 +385,32 @@ function drawCropOverlay(ctx: CanvasRenderingContext2D, rect: CropRect, width: n
 }
 
 function applyCrop(
-    store: { layers: Array<{ canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; markDirty: (r: null) => void }>; setCanvasSize: (w: number, h: number) => void },
+    store: EditorStore,
     x: number, y: number, w: number, h: number,
 ): void {
     const cropW = Math.round(w);
     const cropH = Math.round(h);
     const offsetX = Math.round(x);
     const offsetY = Math.round(y);
-    store.layers.forEach(layer => {
-        const tmp = document.createElement('canvas');
-        tmp.width = cropW;
-        tmp.height = cropH;
-        const tctx = tmp.getContext('2d');
-        if (!tctx) return;
-        tctx.drawImage(layer.canvas, -offsetX, -offsetY);
-        layer.canvas.width = cropW;
-        layer.canvas.height = cropH;
-        layer.ctx.drawImage(tmp, 0, 0);
-        layer.markDirty(null);
+    store.executeDocumentCommand({
+        kind: 'transform',
+        label: 'Crop',
+        run: () => {
+            store.layers.forEach(layer => {
+                const tmp = document.createElement('canvas');
+                tmp.width = cropW;
+                tmp.height = cropH;
+                const tctx = tmp.getContext('2d');
+                if (!tctx) return;
+                tctx.drawImage(layer.canvas, -offsetX, -offsetY);
+                layer.canvas.width = cropW;
+                layer.canvas.height = cropH;
+                layer.ctx.drawImage(tmp, 0, 0);
+                layer.markDirty(null);
+            });
+            useEditorStore.setState({ width: cropW, height: cropH });
+        },
     });
-    store.setCanvasSize(cropW, cropH);
 }
 
 registerTool(cropTool);

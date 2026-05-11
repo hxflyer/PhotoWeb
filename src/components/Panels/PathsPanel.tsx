@@ -4,7 +4,7 @@
  * Bottom toolbar: Duplicate + Delete only (per request).
  */
 import { Trash2, Copy } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
     getPaths, getActivePathId, setActivePath,
     duplicatePath, removePath, getPathName, renamePath,
@@ -83,7 +83,7 @@ function PathThumbnail({ path, size = 36 }: { path: PathShape; size?: number }) 
 export function PathsPanel() {
     // pathStore is a module-level singleton — poll it to mirror updates from
     // pen/freeform-pen tool clicks (no Zustand subscription on the path store).
-    const [tick, setTick] = useState(0);
+    const [, setTick] = useState(0);
     useEffect(() => {
         const id = window.setInterval(() => setTick(t => t + 1), 250);
         return () => window.clearInterval(id);
@@ -94,8 +94,6 @@ export function PathsPanel() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [, forceLocal] = useState(0);
     const refresh = () => forceLocal(n => n + 1);
-    const tickRef = useRef(tick);
-    tickRef.current = tick; // keep closures fresh — no warning suppression
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'hsl(var(--bg-panel))' }}>

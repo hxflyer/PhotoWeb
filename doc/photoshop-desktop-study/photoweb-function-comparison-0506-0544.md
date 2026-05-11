@@ -41,12 +41,12 @@ Function group: supported Photoshop file formats.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Native editable document format`: `Present with differences`. Photoweb saves its own browser document format.
+- `Native editable document format`: `Present`. The `.pwbdoc` manifest now round-trips layer masks (with density/feather), type data, adjustment params, fill data, layer effects, locks, and color tags, preserving non-destructive workflows across save/load. Backwards compatible with v1 manifests.
 - `Raster image import/export`: `Partial`. Browser-supported images can open/import; PNG/JPEG/WebP/GIF export exists.
 - `PSD/PSB/TIFF/PDF/EPS/RAW/video formats`: `Missing`.
 
 Implementation notes:
-- Format support is web-app/browser oriented, not Photoshop-compatible.
+- Format support is web-app/browser oriented, not Photoshop-compatible. The native `.pwbdoc` format preserves the full non-destructive document state.
 
 ## 0508 - File Compression In Photoshop
 
@@ -635,16 +635,18 @@ Overall Photoweb status: `Partial`
 Sub-function comparison:
 - `Implemented shortcuts`: `Present with differences`.
 - `Avoid shortcuts while typing`: `Present with differences`.
+- `Shortcut reference UI`: `Present with differences`. Cmd+/ opens an in-app keyboard-shortcut reference dialog listing the registered shortcuts.
 - `Shortcut troubleshooting/reset/customization`: `Missing`.
 
 Implementation notes:
-- App-level shortcut handling exists, but no shortcut diagnostic/help UI exists.
+- App-level shortcut handling exists, and a Cmd+/ reference dialog surfaces the active shortcut list, but no diagnostic/reset/customization UI exists.
 
 ## Summary
 
 High-overlap areas:
 - Quick Export PNG, Export As-style PNG/JPEG/WebP/GIF export, local app document save/load, autosave recovery, and basic save/open/import/export error toasts are implemented.
-- Keyboard shortcuts and toolbar shortcut labels exist for many common tools and commands.
+- The native `.pwbdoc` format round-trips full non-destructive state (layer masks with density/feather, type data, adjustment params, fill data, layer effects, locks, color tags) with v1 backwards compatibility.
+- Keyboard shortcuts and toolbar shortcut labels exist for many common tools and commands, and a Cmd+/ reference dialog lists the registered shortcuts.
 
 Major missing areas:
 - Video export, image sequences, PSD/PSB/PDF/TIFF/RAW/professional format support, layer/artboard export, multi-size export, and cloud export are missing.

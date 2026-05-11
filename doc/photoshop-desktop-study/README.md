@@ -5,10 +5,11 @@ This folder was generated from Adobe's Photoshop Desktop Help left navigation at
 - Total tracked items: 544
 - Topic landing pages: 85
 - Leaf pages: 459
-- Main todo list: [todo.md](./todo.md)
-- Enrichment todo list: [enrichment-todo.md](./enrichment-todo.md)
 - Machine-readable manifest: [manifest.json](./manifest.json)
 - Per-item notes: [pages/](./pages/)
+- Active backlog: [photoweb-implementation-backlog.md](./photoweb-implementation-backlog.md)
+- Scoped development plan: [photoweb-development-plan.md](./photoweb-development-plan.md)
+- Per-task SOP: [photoweb-automatic-development-workflow.md](./photoweb-automatic-development-workflow.md)
 
 Notes:
 

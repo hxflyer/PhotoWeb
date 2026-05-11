@@ -108,6 +108,7 @@ describe('4.1 History panel', () => {
 
     it('commitSnapshot adds a snapshot entry', () => {
         useEditorStore.getState().addLayer();
+        useEditorStore.getState().clearHistory();
         useEditorStore.getState().commitSnapshot('Test Snap');
         const entries = useEditorStore.getState().historyEntries;
         const snap = entries.find(e => e.action.kind === 'snapshot' && e.action.label === 'Test Snap');
@@ -116,6 +117,7 @@ describe('4.1 History panel', () => {
 
     it('revertToHistoryIndex navigates history', () => {
         useEditorStore.getState().addLayer();
+        useEditorStore.getState().clearHistory();
         // Commit two paint-like generic history actions
         useEditorStore.getState().commitHistory({
             kind: 'layer-property', label: 'Action 1', timestamp: Date.now(),
@@ -132,6 +134,7 @@ describe('4.1 History panel', () => {
 
     it('currentHistoryIndex tracks latest entry', () => {
         useEditorStore.getState().addLayer();
+        useEditorStore.getState().clearHistory();
         useEditorStore.getState().commitHistory({
             kind: 'layer-property', label: 'Action', timestamp: Date.now(),
             apply: () => {}, revert: () => {},
@@ -448,16 +451,28 @@ describe('5.3 Modify Selection', () => {
         }]);
     });
 
-    it('expandSelection adds an operation', () => {
-        const before = useEditorStore.getState().selection.operations.length;
+    it('expandSelection produces a rasterized mask that grows the selected area', () => {
         useEditorStore.getState().expandSelection(5);
-        expect(useEditorStore.getState().selection.operations.length).toBeGreaterThan(before);
+        const ops = useEditorStore.getState().selection.operations;
+        expect(ops).toHaveLength(1);
+        expect(ops[0].mask).toBeTruthy();
+        let count = 0;
+        for (const v of ops[0].mask!.data) if (v > 0) count++;
+        // 80x80 rect = 6400 selected px before expand; iterative 4-neighbor
+        // dilation by 5 grows it past 6400 with diamond-rounded corners.
+        expect(count).toBeGreaterThan(6500);
     });
 
-    it('contractSelection adds an operation', () => {
-        const before = useEditorStore.getState().selection.operations.length;
+    it('contractSelection produces a rasterized mask that shrinks the selected area', () => {
         useEditorStore.getState().contractSelection(5);
-        expect(useEditorStore.getState().selection.operations.length).toBeGreaterThan(before);
+        const ops = useEditorStore.getState().selection.operations;
+        expect(ops).toHaveLength(1);
+        expect(ops[0].mask).toBeTruthy();
+        let count = 0;
+        for (const v of ops[0].mask!.data) if (v > 0) count++;
+        // 80x80 = 6400; -5 px on each side ≈ 4900.
+        expect(count).toBeLessThan(6000);
+        expect(count).toBeGreaterThan(3000);
     });
 
     it('borderSelection adds two operations (outer expand + inner contract)', () => {

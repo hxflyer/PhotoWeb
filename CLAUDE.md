@@ -58,7 +58,7 @@ When in doubt, the scoped development plan and implementation backlog are author
 │    Filter registry; each filter is a pure ImageData fn         │
 ├────────────────────────────────────────────────────────────────┤
 │  History (command-pattern)                                     │
-│    {kind, params, dirtyRect, beforeBuffer} per state           │
+│    timeline + active cursor; command actions and snapshots     │
 ├────────────────────────────────────────────────────────────────┤
 │  Text editing                                                  │
 │    During edit: DOM <contenteditable> overlay positioned via   │
@@ -182,6 +182,8 @@ Follow this loop without skipping steps. The point is reproducible quality.
 ## 6. Active Backlog
 
 Use [photoweb-implementation-backlog.md](doc/photoshop-desktop-study/photoweb-implementation-backlog.md) as the only active todo list. Do not add feature tasks to this file.
+
+Current synced focus: history and core layer foundation are implemented; continue with the first unchecked Properties item in the backlog unless the user redirects.
 
 When a requirement is completed, update its status in the backlog after tests pass. If new follow-up work is discovered, add it to the backlog as a separate requirement instead of reopening a stale checklist here.
 

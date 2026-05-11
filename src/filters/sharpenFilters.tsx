@@ -3,6 +3,28 @@ import type { FilterApplyContext } from './Filter';
 
 function clamp(v: number): number { return v < 0 ? 0 : v > 255 ? 255 : v; }
 
+function horizontalBoxBlur(src: Uint8ClampedArray, width: number, height: number, radius: number): Uint8ClampedArray {
+    const out = new Uint8ClampedArray(src.length);
+    const w = (2 * radius + 1);
+    for (let y = 0; y < height; y++) {
+        for (let c = 0; c < 4; c++) {
+            let sum = 0;
+            for (let i = -radius; i <= radius; i++) {
+                const sx = Math.max(0, Math.min(width - 1, i));
+                sum += src[(y * width + sx) * 4 + c];
+            }
+            for (let x = 0; x < width; x++) {
+                out[(y * width + x) * 4 + c] = Math.round(sum / w);
+                const xLeft = Math.max(0, Math.min(width - 1, x - radius));
+                const xRight = Math.max(0, Math.min(width - 1, x + radius + 1));
+                sum -= src[(y * width + xLeft) * 4 + c];
+                sum += src[(y * width + xRight) * 4 + c];
+            }
+        }
+    }
+    return out;
+}
+
 // Gaussian kernel for USM blurred pass
 function gaussianBlur(src: Uint8ClampedArray, width: number, height: number, sigma: number): Uint8ClampedArray {
     const radius = Math.ceil(sigma * 3);
@@ -104,18 +126,35 @@ registerFilter<SmartSharpenParams>({
     id: 'sharpen-smart',
     label: 'Smart Sharpen',
     defaultParams: { amount: 100, radius: 1, removeBlur: 'gaussian' },
-    apply({ amount, radius }: SmartSharpenParams, { image, width, height }: FilterApplyContext): ImageData {
-        // All modes use USM under the hood at v1; mode influences effective sigma
+    apply({ amount, radius, removeBlur }: SmartSharpenParams, { image, width, height }: FilterApplyContext): ImageData {
+        // Each "Remove Blur" mode uses a different deconvolution-flavored shape:
+        // - gaussian: standard unsharp mask (USM), separable Gaussian.
+        // - motion: blur the source along a horizontal axis at the requested
+        //   radius, then USM with that direction-biased blur. Approximates
+        //   linear-motion deconvolution well enough for typical photo edits.
+        // - lens: use a smaller-radius Gaussian + edge enhancement so out-of-focus
+        //   regions are sharpened more aggressively than uniform regions.
         const sigma = Math.max(0.1, radius);
-        const blurred = gaussianBlur(image.data, width, height, sigma);
+        let blurred: Uint8ClampedArray;
+        if (removeBlur === 'motion') {
+            blurred = horizontalBoxBlur(image.data, width, height, Math.max(1, Math.round(radius * 2)));
+        } else if (removeBlur === 'lens') {
+            // Smaller-sigma Gaussian — preserves fine detail outside blur regions.
+            blurred = gaussianBlur(image.data, width, height, Math.max(0.1, sigma * 0.6));
+        } else {
+            blurred = gaussianBlur(image.data, width, height, sigma);
+        }
         const src = image.data;
         const out = new Uint8ClampedArray(width * height * 4);
         const scale = amount / 100;
+        // Lens mode emphasizes high-gradient pixels (edges) more than flat regions.
+        const lensEdgeBoost = removeBlur === 'lens' ? 1.5 : 1;
 
         for (let i = 0; i < src.length; i += 4) {
             for (let c = 0; c < 3; c++) {
                 const diff = src[i + c] - blurred[i + c];
-                out[i + c] = clamp(src[i + c] + diff * scale);
+                const boost = removeBlur === 'lens' ? Math.min(2, 1 + Math.abs(diff) / 64) : 1;
+                out[i + c] = clamp(src[i + c] + diff * scale * boost * lensEdgeBoost);
             }
             out[i + 3] = src[i + 3];
         }

@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Plus, Trash2, Brush, Move, Lock } from 'lucide-react';
+import { Eye, EyeOff, Plus, Trash2, Brush, Move, Lock, Folder, FolderPlus, ChevronDown, ChevronRight, Link2, Unlink2 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { useState, useEffect, useRef } from 'react';
 import type { LayerColorTag } from '../../core/Layer';
@@ -32,6 +32,18 @@ function LayerThumbnail({ layer, size = 36, tick }: { layer: Layer; size?: numbe
         const cx = c.getContext('2d');
         if (!cx) return;
         cx.clearRect(0, 0, size, size);
+        if (layer.kind === 'group') {
+            cx.fillStyle = 'rgba(245, 158, 11, 0.18)';
+            cx.fillRect(0, 0, size, size);
+            cx.strokeStyle = '#d97706';
+            cx.lineWidth = 1.5;
+            cx.beginPath();
+            cx.roundRect(5, 11, size - 10, size - 14, 3);
+            cx.stroke();
+            cx.fillStyle = '#f59e0b';
+            cx.fillRect(8, 8, 11, 5);
+            return;
+        }
         // Checker pattern background (transparent areas show through)
         const tile = 6;
         for (let y = 0; y < size; y += tile) {
@@ -65,6 +77,50 @@ function LayerThumbnail({ layer, size = 36, tick }: { layer: Layer; size?: numbe
             width={size}
             height={size}
             style={{ width: size, height: size, border: '1px solid hsl(var(--border-light))', flexShrink: 0 }}
+        />
+    );
+}
+
+function MaskThumbnail({ layer, size = 28, tick }: { layer: Layer; size?: number; tick: number }) {
+    const ref = useRef<HTMLCanvasElement>(null);
+    useEffect(() => {
+        const c = ref.current;
+        if (!c) return;
+        const cx = c.getContext('2d');
+        if (!cx) return;
+        cx.clearRect(0, 0, size, size);
+        cx.fillStyle = '#111827';
+        cx.fillRect(0, 0, size, size);
+        if (layer.mask) {
+            const mw = layer.mask.canvas.width;
+            const mh = layer.mask.canvas.height;
+            const scale = Math.min(size / mw, size / mh);
+            const dw = mw * scale;
+            const dh = mh * scale;
+            cx.drawImage(layer.mask.canvas, (size - dw) / 2, (size - dh) / 2, dw, dh);
+            if (!layer.mask.enabled) {
+                cx.strokeStyle = '#ef4444';
+                cx.lineWidth = 3;
+                cx.beginPath();
+                cx.moveTo(3, size - 3);
+                cx.lineTo(size - 3, 3);
+                cx.stroke();
+            }
+        }
+    }, [layer, size, tick]);
+    return (
+        <canvas
+            ref={ref}
+            width={size}
+            height={size}
+            data-testid={`mask-thumbnail-${layer.id}`}
+            data-mask-enabled={layer.mask?.enabled ? 'true' : 'false'}
+            style={{
+                width: size,
+                height: size,
+                border: layer.mask?.enabled ? '1px solid hsl(var(--border-light))' : '1px solid #ef4444',
+                flexShrink: 0,
+            }}
         />
     );
 }
@@ -103,12 +159,16 @@ const headBtnStyle = (active: boolean): React.CSSProperties => ({
 
 export function LayersPanel() {
     const {
-        layers, activeLayerId,
-        addLayer, removeLayer, setActiveLayer, toggleLayerVisibility, soloLayer,
+        layers, activeLayerId, selectedLayerIds,
+        addLayer, createLayerGroup, groupLayers, removeLayer, setActiveLayer, toggleLayerVisibility, soloLayer,
         renameLayer, setLayerLock, setLayerColorTag, setLayerFill,
         reorderLayers, setLayerOpacity, setLayerBlendMode,
         mergeLayerDown, mergeVisible, stampVisible, flattenImage, layerViaCopy, layerViaCut,
+        ungroupLayerGroup, toggleLayerGroupExpanded, selectLayer,
+        addLayerMask, removeLayerMask, applyLayerMask, setLayerMaskEnabled, setLayerMaskLinked,
+        activeLayerEditTarget, setActiveLayerEditTarget,
     } = useEditorStore();
+    const editTarget = activeLayerEditTarget;
 
     const [editingNameId, setEditingNameId] = useState<string | null>(null);
     const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
@@ -128,6 +188,21 @@ export function LayersPanel() {
     }, []);
 
     const active = layers.find(l => l.id === activeLayerId);
+    const visibleLayerRows = layers
+        .map(layer => {
+            let depth = 0;
+            let parentId = layer.parentId;
+            let hiddenByCollapsedParent = false;
+            while (parentId) {
+                const parent = layers.find(item => item.id === parentId);
+                if (!parent) break;
+                depth += 1;
+                if (parent.kind === 'group' && !parent.expanded) hiddenByCollapsedParent = true;
+                parentId = parent.parentId;
+            }
+            return { layer, depth, hiddenByCollapsedParent };
+        })
+        .filter(row => !row.hiddenByCollapsedParent);
 
     const handleContextMenu = (e: React.MouseEvent, layerId: string) => {
         e.preventDefault();
@@ -257,29 +332,59 @@ export function LayersPanel() {
                         No layers
                     </div>
                 )}
-                {[...layers].reverse().map((layer) => {
+                {[...visibleLayerRows].reverse().map(({ layer, depth }) => {
                     const isActive = activeLayerId === layer.id;
+                    const isSelected = selectedLayerIds.includes(layer.id);
                     const isLocked = layer.locks.all || layer.locks.transparency || layer.locks.image || layer.locks.position;
                     return (
                         <div
                             key={layer.id}
+                            data-testid={`layer-row-${layer.id}`}
+                            data-layer-selected={isSelected ? 'true' : 'false'}
+                            data-layer-active={isActive ? 'true' : 'false'}
                             draggable
                             onDragStart={(e) => handleDragStart(e, layer.id)}
                             onDragOver={(e) => handleDragOver(e, layer.id)}
                             onDrop={(e) => handleDrop(e, layer.id)}
-                            onClick={() => setActiveLayer(layer.id)}
+                            onClick={(e) => {
+                                if (e.shiftKey) selectLayer(layer.id, 'range');
+                                else if (e.metaKey || e.ctrlKey) selectLayer(layer.id, 'toggle');
+                                else setActiveLayer(layer.id);
+                            }}
                             onContextMenu={(e) => handleContextMenu(e, layer.id)}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '4px 8px',
-                                backgroundColor: isActive ? 'hsl(var(--accent-primary))' : 'transparent',
+                                padding: `4px 8px 4px ${8 + depth * 18}px`,
+                                backgroundColor: isActive
+                                    ? 'hsl(var(--accent-primary))'
+                                    : isSelected
+                                        ? 'hsl(var(--bg-input))'
+                                        : 'transparent',
                                 cursor: 'pointer',
                                 userSelect: 'none',
                                 opacity: draggedLayerId === layer.id ? 0.5 : 1,
                                 minHeight: 44,
                                 borderBottom: '1px solid hsl(var(--border-mid))',
+                                boxShadow: isSelected && !isActive ? 'inset 3px 0 0 hsl(var(--accent-primary))' : 'none',
                             }}
-                        >
+                            >
+                            {layer.kind === 'group' && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleLayerGroupExpanded(layer.id);
+                                    }}
+                                    title={layer.expanded ? 'Collapse group' : 'Expand group'}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                        color: isActive ? '#fff' : 'hsl(var(--text-muted))',
+                                        display: 'flex', flexShrink: 0,
+                                    }}
+                                >
+                                    {layer.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </button>
+                            )}
+
                             {/* Eye / visibility */}
                             <button
                                 onClick={(e) => {
@@ -300,6 +405,51 @@ export function LayersPanel() {
                             {/* Thumbnail */}
                             <LayerThumbnail layer={layer} tick={thumbTick} />
 
+                            {layer.mask && (
+                                <>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setLayerMaskLinked(layer.id, !layer.mask?.linked);
+                                        }}
+                                        title={layer.mask.linked ? 'Unlink layer and mask' : 'Link layer and mask'}
+                                        data-testid={`mask-link-${layer.id}`}
+                                        data-mask-linked={layer.mask.linked ? 'true' : 'false'}
+                                        style={{
+                                            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                            color: isActive ? '#fff' : 'hsl(var(--text-muted))',
+                                            display: 'flex', alignItems: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        {layer.mask.linked ? <Link2 size={12} /> : <Unlink2 size={12} />}
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (e.altKey || e.metaKey) {
+                                                setLayerMaskEnabled(layer.id, !layer.mask?.enabled);
+                                                return;
+                                            }
+                                            setActiveLayer(layer.id);
+                                            setActiveLayerEditTarget('mask');
+                                        }}
+                                        title={editTarget === 'mask' && activeLayerId === layer.id
+                                            ? 'Mask is the active edit target — Alt-click to disable'
+                                            : 'Click to paint into the mask. Alt-click to enable/disable.'}
+                                        style={{
+                                            background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0,
+                                            outline: editTarget === 'mask' && activeLayerId === layer.id
+                                                ? '2px solid hsl(var(--accent-primary))'
+                                                : 'none',
+                                            outlineOffset: -1,
+                                        }}
+                                    >
+                                        <MaskThumbnail layer={layer} tick={thumbTick} />
+                                    </button>
+                                </>
+                            )}
+
                             {/* Color-tag dot + name */}
                             {layer.colorTag !== 'none' && (
                                 <span
@@ -310,6 +460,25 @@ export function LayersPanel() {
                                         flexShrink: 0,
                                         borderRadius: 1,
                                     }} />
+                            )}
+
+                            {/* fx indicator: any enabled effect on this layer */}
+                            {layer.effects && layer.effects.some(e => e.enabled) && (
+                                <span
+                                    data-testid={`layer-fx-${layer.id}`}
+                                    title="Layer has effects"
+                                    style={{
+                                        fontSize: 9,
+                                        fontWeight: 700,
+                                        fontStyle: 'italic',
+                                        padding: '1px 4px',
+                                        borderRadius: 2,
+                                        backgroundColor: isActive ? 'rgba(255,255,255,0.18)' : 'hsl(var(--bg-input))',
+                                        color: isActive ? '#fff' : 'hsl(var(--text-muted))',
+                                        flexShrink: 0,
+                                        letterSpacing: '0.05em',
+                                    }}
+                                >fx</span>
                             )}
 
                             {editingNameId === layer.id ? (
@@ -338,6 +507,7 @@ export function LayersPanel() {
                                         color: isActive ? '#fff' : 'hsl(var(--text-main))',
                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                     }}>
+                                    {layer.kind === 'group' && <Folder size={12} style={{ marginRight: 4, verticalAlign: -2 }} />}
                                     {layer.name}
                                 </span>
                             )}
@@ -362,6 +532,20 @@ export function LayersPanel() {
                 backgroundColor: 'hsl(var(--bg-header))',
                 flexShrink: 0,
             }}>
+                <button
+                    title="Add Layer Mask"
+                    onClick={() => activeLayerId && addLayerMask(activeLayerId, 'reveal-all')}
+                    disabled={!activeLayerId}
+                    style={{ ...HEAD_BTN, opacity: activeLayerId ? 1 : 0.4, fontSize: 11, fontWeight: 700 }}
+                >M</button>
+                <button
+                    title={selectedLayerIds.length > 1 ? 'Group Selected Layers' : 'New Group'}
+                    onClick={() => {
+                        if (selectedLayerIds.length > 1) groupLayers(selectedLayerIds);
+                        else createLayerGroup();
+                    }}
+                    style={HEAD_BTN}
+                ><FolderPlus size={14} /></button>
                 <button
                     title="New Layer"
                     onClick={() => addLayer()}
@@ -392,20 +576,34 @@ export function LayersPanel() {
                 >
                     {[
                         { label: 'Rename', run: () => setEditingNameId(contextMenu.layerId) },
+                        { label: 'Ungroup Layers', run: () => ungroupLayerGroup(contextMenu.layerId), disabled: layers.find(layer => layer.id === contextMenu.layerId)?.kind !== 'group' },
                         { label: 'Layer via Copy', run: () => layerViaCopy() },
                         { label: 'Layer via Cut', run: () => layerViaCut() },
                         { label: 'Merge Down', run: () => mergeLayerDown(contextMenu.layerId) },
                         { label: 'Merge Visible', run: () => mergeVisible() },
                         { label: 'Stamp Visible', run: () => stampVisible() },
                         { label: 'Flatten Image', run: () => flattenImage() },
+                        { label: 'Apply Layer Mask', run: () => applyLayerMask(contextMenu.layerId), disabled: !layers.find(layer => layer.id === contextMenu.layerId)?.mask },
+                        { label: 'Delete Layer Mask', run: () => removeLayerMask(contextMenu.layerId), disabled: !layers.find(layer => layer.id === contextMenu.layerId)?.mask },
+                        {
+                            label: layers.find(layer => layer.id === contextMenu.layerId)?.mask?.enabled === false ? 'Enable Layer Mask' : 'Disable Layer Mask',
+                            run: () => {
+                                const layer = layers.find(item => item.id === contextMenu.layerId);
+                                if (layer?.mask) setLayerMaskEnabled(layer.id, !layer.mask.enabled);
+                            },
+                            disabled: !layers.find(layer => layer.id === contextMenu.layerId)?.mask,
+                        },
                     ].map(item => (
                         <button
                             key={item.label}
-                            onClick={() => { item.run(); setContextMenu(null); }}
+                            disabled={item.disabled}
+                            onClick={() => { if (!item.disabled) item.run(); setContextMenu(null); }}
                             style={{
                                 display: 'block', width: '100%', textAlign: 'left',
                                 padding: '4px 12px', background: 'none', border: 'none',
-                                color: 'hsl(var(--text-main))', cursor: 'pointer', fontSize: 12,
+                                color: item.disabled ? 'hsl(var(--text-muted))' : 'hsl(var(--text-main))',
+                                cursor: item.disabled ? 'default' : 'pointer',
+                                fontSize: 12,
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--accent-primary))'}
                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}

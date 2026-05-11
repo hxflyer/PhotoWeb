@@ -2,6 +2,10 @@ import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { buildMagicWandMask, sampleSourceImageData } from './magicWand';
 import { commitSelectionOperation, resolveSelectionOp, type SelectionOp } from './selectionModifiers';
+import { beginSelectionInteraction, previewSelectionMove, type SelectionMoveAnchor } from './selectionMove';
+
+const DRAG_THRESHOLD = 3;
+const moveState: { move: SelectionMoveAnchor | null } = { move: null };
 
 export interface QuickSelectionOptions {
     size: number;
@@ -108,6 +112,12 @@ export const quickSelectionTool: Tool = {
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
         const store = ctx.getStore();
+        moveState.move = null;
+        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+        if (decision.kind === 'move') {
+            moveState.move = decision.move;
+            return;
+        }
         const active = store.layers.find(l => l.id === store.activeLayerId);
         if (!active) return;
         state.image = sampleSourceImageData(store.layers, store.width, store.height, options.sampleAllLayers, active.canvas);
@@ -120,13 +130,26 @@ export const quickSelectionTool: Tool = {
         addBrushSelection(p(e));
     },
     onPointerMove: (e) => {
+        if (moveState.move) {
+            const dx = e.canvasX - moveState.move.anchor.x;
+            const dy = e.canvasY - moveState.move.anchor.y;
+            if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) previewSelectionMove(moveState.move, dx, dy);
+            return;
+        }
         if (!state.mask || !state.image) return;
         if (e.buttons === 0) return;
         const seed = p(e);
         if (seed.x < 0 || seed.x >= state.width || seed.y < 0 || seed.y >= state.height) return;
         addBrushSelection(seed);
     },
-    onPointerUp: (_e, ctx) => {
+    onPointerUp: (e, ctx) => {
+        if (moveState.move) {
+            const dx = e.canvasX - moveState.move.anchor.x;
+            const dy = e.canvasY - moveState.move.anchor.y;
+            if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) previewSelectionMove(moveState.move, dx, dy);
+            moveState.move = null;
+            return;
+        }
         if (!state.mask) return;
         flushMaskToSelection(ctx);
         state.mask = null;

@@ -1,6 +1,10 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
+import { beginSelectionInteraction, previewSelectionMove, type SelectionMoveAnchor } from './selectionMove';
+
+const DRAG_THRESHOLD = 3;
+const wandState: { move: SelectionMoveAnchor | null } = { move: null };
 
 export interface MagicWandOptions {
     tolerance: number;
@@ -123,6 +127,12 @@ export const magicWandTool: Tool = {
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
         const store = ctx.getStore();
+        wandState.move = null;
+        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+        if (decision.kind === 'move') {
+            wandState.move = decision.move;
+            return;
+        }
         const { layers, activeLayerId, width, height } = store;
         const active = layers.find(l => l.id === activeLayerId);
         if (!active) return;
@@ -138,6 +148,20 @@ export const magicWandTool: Tool = {
             type: 'lasso',
             mask: { data: mask, width, height },
         }, op);
+    },
+    onPointerMove: (e) => {
+        if (!wandState.move) return;
+        const dx = e.canvasX - wandState.move.anchor.x;
+        const dy = e.canvasY - wandState.move.anchor.y;
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        previewSelectionMove(wandState.move, dx, dy);
+    },
+    onPointerUp: (e) => {
+        if (!wandState.move) return;
+        const dx = e.canvasX - wandState.move.anchor.x;
+        const dy = e.canvasY - wandState.move.anchor.y;
+        if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) previewSelectionMove(wandState.move, dx, dy);
+        wandState.move = null;
     },
 };
 

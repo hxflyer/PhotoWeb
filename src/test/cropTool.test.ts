@@ -26,6 +26,7 @@ function resetDocument(): Layer {
         layers: [layer],
         activeLayerId: layer.id,
     }));
+    useEditorStore.getState().clearHistory();
     return layer;
 }
 
@@ -127,5 +128,30 @@ describe('crop tool', () => {
         expect(store.height).toBe(90);
         expect(layerPixelAt(layer, 95, 70)).toMatchObject({ r: 0, g: 0, b: 255, a: 255 });
         expect(layerPixelAt(layer, 110, 85)).toMatchObject({ a: 0 });
+    });
+
+    it('undo and redo restore a committed crop', () => {
+        const crop = getTool('crop')!;
+        const toolCtx = ctx();
+
+        crop.onActivate?.(toolCtx);
+        crop.onPointerDown?.(makeToolPointerEvent({ canvasX: 100, canvasY: 80 }), toolCtx);
+        crop.onPointerMove?.(makeToolPointerEvent({ canvasX: 80, canvasY: 60 }), toolCtx);
+        crop.onPointerUp?.(makeToolPointerEvent({ canvasX: 80, canvasY: 60 }), toolCtx);
+        crop.onKeyDown?.(keyEvent('Enter'), toolCtx);
+
+        expect(useEditorStore.getState().width).toBe(80);
+        expect(useEditorStore.getState().layers[0].canvas.width).toBe(80);
+
+        useEditorStore.getState().undo();
+        expect(useEditorStore.getState().width).toBe(100);
+        expect(useEditorStore.getState().height).toBe(80);
+        expect(useEditorStore.getState().layers[0].canvas.width).toBe(100);
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 95, 70)).toMatchObject({ r: 0, g: 0, b: 255, a: 255 });
+
+        useEditorStore.getState().redo();
+        expect(useEditorStore.getState().width).toBe(80);
+        expect(useEditorStore.getState().height).toBe(60);
+        expect(useEditorStore.getState().layers[0].canvas.width).toBe(80);
     });
 });

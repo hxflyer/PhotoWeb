@@ -71,11 +71,11 @@ Sub-function comparison:
 
 - `Dynamic Text`: `Partial`. Photoweb has horizontal/vertical type tools, Character and Paragraph panels, and editable text overlay behavior. It does not implement Photoshop beta-style dynamic text layouts such as circle, arch, or bow controls.
 
-- `Gradient editing improvements`: `Partial`. Photoweb includes a Gradient tool and gradient options/presets in the options bar, but not the full Photoshop gradient editor experience.
+- `Gradient editing improvements`: `Partial`. Photoweb includes a Gradient tool with gradient options/presets in the options bar, a working Transparency toggle, and a Method control where `Smooth` interpolates in linear-light and `Classic` interpolates in sRGB. The full Photoshop gradient editor experience is still absent.
 
 - `Reflection removal`: `Missing`. No reflection-removal tool or AI cleanup workflow exists.
 
-- `Updated Contextual Task Bar`: `Partial`. Photoweb has a top `OptionsBar` that changes by active tool. Photoshop's Contextual Task Bar is a floating context-aware command surface; Photoweb's implementation is fixed in the layout and more like a classic options bar.
+- `Updated Contextual Task Bar`: `Partial`. Photoweb has a top `OptionsBar` that changes by active tool, with the per-tool controls (eraser mode/size/hardness/opacity/flow, dodge/burn range and exposure, sponge mode and vibrance, brush smoothing, pencil spacing, marquee feather and anti-alias, gradient method/transparency, crop overlay variants and straighten, pen path/shape/pixels mode, clone-stamp overlay and sample mode) wired to live state. Photoshop's Contextual Task Bar is a floating context-aware command surface; Photoweb's implementation is fixed in the layout and more like a classic options bar.
 
 - `Image generation from text prompts`: `Missing`. No prompt-to-image generation UI or service integration exists.
 

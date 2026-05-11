@@ -1,15 +1,20 @@
 import {
     MousePointer2, Brush, Eraser, Image as ImageIcon,
-    PaintBucket, Pentagon, Stamp, Blend, Crop, Square, Circle,
-    Wand2, MousePointerClick, Pencil, Sun, Flame, Droplets,
+    PaintBucket, Pentagon, Stamp, Crop, Square, Circle,
+    Wand2, Pencil, Move,
     PenTool, PenLine, MousePointer, Pipette, Type, Hand, ZoomIn,
-    Hexagon, Minus, Star, RectangleHorizontal, Lasso,
+    Hexagon, Minus, Star, Lasso, ChevronRight, Repeat2,
 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { loadImage } from '../../utils/imageLoader';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ToolId, SelectionMode } from '../../store/types';
+import {
+    DefaultColorsIcon, QuickMaskIcon, ToolbarBurnIcon, ToolbarDodgeIcon,
+    ToolbarGradientIcon, ToolbarMarqueeIcon, ToolbarQuickSelectionIcon,
+    ToolbarSpongeIcon,
+} from '../icons/PhotowebIcons';
 
 interface ToolDef {
     id: ToolId;
@@ -22,10 +27,10 @@ interface ToolDef {
 // Tool groups exactly matching Photoshop's toolbar order
 const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
     {
-        primary: { id: 'move', icon: MousePointer2, label: 'Move Tool', shortcut: 'V' },
+        primary: { id: 'move', icon: Move, label: 'Move Tool', shortcut: 'V' },
     },
     {
-        primary: { id: 'marquee-rect', icon: RectangleHorizontal, label: 'Rectangular Marquee Tool', shortcut: 'M' },
+        primary: { id: 'marquee-rect', icon: ToolbarMarqueeIcon, label: 'Rectangular Marquee Tool', shortcut: 'M' },
         subs: [
             { id: 'marquee-ellipse', icon: Circle, label: 'Elliptical Marquee Tool', shortcut: 'M' },
         ],
@@ -37,7 +42,7 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
         ],
     },
     {
-        primary: { id: 'quick-selection', icon: MousePointerClick, label: 'Quick Selection Tool', shortcut: 'W' },
+        primary: { id: 'quick-selection', icon: ToolbarQuickSelectionIcon, label: 'Quick Selection Tool', shortcut: 'W' },
         subs: [
             { id: 'magic-wand', icon: Wand2, label: 'Magic Wand Tool', shortcut: 'W' },
         ],
@@ -63,14 +68,14 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
     {
         primary: { id: 'fill', icon: PaintBucket, label: 'Paint Bucket Tool', shortcut: 'G' },
         subs: [
-            { id: 'gradient', icon: Blend, label: 'Gradient Tool', shortcut: 'G' },
+            { id: 'gradient', icon: ToolbarGradientIcon, label: 'Gradient Tool', shortcut: 'G' },
         ],
     },
     {
-        primary: { id: 'dodge', icon: Sun, label: 'Dodge Tool', shortcut: 'O' },
+        primary: { id: 'dodge', icon: ToolbarDodgeIcon, label: 'Dodge Tool', shortcut: 'O' },
         subs: [
-            { id: 'burn', icon: Flame, label: 'Burn Tool', shortcut: 'O' },
-            { id: 'sponge', icon: Droplets, label: 'Sponge Tool', shortcut: 'O' },
+            { id: 'burn', icon: ToolbarBurnIcon, label: 'Burn Tool', shortcut: 'O' },
+            { id: 'sponge', icon: ToolbarSpongeIcon, label: 'Sponge Tool', shortcut: 'O' },
         ],
     },
     {
@@ -267,11 +272,15 @@ export function Toolbar() {
                                     : <Icon size={16} />}
                                 {/* Triangle indicator for groups with sub-tools */}
                                 {hasSubs && (
-                                    <span style={{
+                                    <ChevronRight
+                                        size={7}
+                                        strokeWidth={2.4}
+                                        style={{
                                         position: 'absolute', bottom: 2, right: 3,
-                                        fontSize: 5, lineHeight: 1, opacity: 0.7,
+                                        opacity: 0.7,
                                         color: active ? 'rgba(255,255,255,0.8)' : 'hsl(var(--text-muted))',
-                                    }}>▶</span>
+                                    }}
+                                    />
                                 )}
                             </button>
                         </div>
@@ -289,35 +298,44 @@ export function Toolbar() {
                 onClick={() => setQuickMaskMode(!quickMaskMode)}
                 style={{
                     ...toolBtn(quickMaskMode),
-                    fontSize: 10, fontWeight: 700,
                     border: quickMaskMode ? '1px solid hsl(var(--accent-primary))' : '1px solid hsl(var(--border-mid))',
                 }}
             >
-                Q
+                <QuickMaskIcon size={16} />
             </button>
 
             {/* ── FG/BG color squares ── */}
             <div style={{ position: 'relative', width: 38, height: 38, margin: '6px auto 4px' }}>
                 {/* Reset to black/white (D) */}
-                <span
+                <button
                     title="Default Colors (D)"
                     onClick={resetColors}
                     style={{
                         position: 'absolute', bottom: -2, left: -2,
-                        fontSize: 9, color: 'hsl(var(--text-muted))',
-                        cursor: 'pointer', lineHeight: 1,
+                        width: 14, height: 14, padding: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'transparent', border: 'none',
+                        color: 'hsl(var(--text-muted))',
+                        cursor: 'pointer',
                     }}
-                >D</span>
+                >
+                    <DefaultColorsIcon size={13} strokeWidth={1.8} />
+                </button>
                 {/* Swap arrow (X) */}
-                <span
+                <button
                     title="Swap Colors (X)"
                     onClick={swapColors}
                     style={{
                         position: 'absolute', top: 0, right: 0,
-                        fontSize: 10, color: 'hsl(var(--text-main))',
-                        cursor: 'pointer', lineHeight: 1,
+                        width: 14, height: 14, padding: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'transparent', border: 'none',
+                        color: 'hsl(var(--text-main))',
+                        cursor: 'pointer',
                     }}
-                >⇄</span>
+                >
+                    <Repeat2 size={13} strokeWidth={2.1} />
+                </button>
                 {/* Background color swatch */}
                 <div
                     title="Background Color"

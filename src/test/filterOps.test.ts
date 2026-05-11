@@ -3,6 +3,8 @@ import '../filters/index'; // ensure all filters are registered
 import { getFilter, registerFilter } from '../filters/registry';
 import { applyFilterToLayer } from '../filters/applyFilter';
 import { useEditorStore } from '../store/editorStore';
+import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
+import { layerPixelAt } from './simulator';
 
 beforeAll(() => {
     // Local test-only filter: invert RGB channels
@@ -37,6 +39,7 @@ function noSel() { return useEditorStore.getState().selection; }
 function freshLayer() {
     useEditorStore.setState(s => ({ ...s, layers: [], activeLayerId: null }));
     useEditorStore.getState().addLayer();
+    useEditorStore.getState().clearHistory();
     return useEditorStore.getState().layers[0];
 }
 
@@ -53,6 +56,27 @@ describe('blur filters', () => {
         const result = getFilter('blur-gaussian')!.apply({ radius: 2 }, { image: img, width: 10, height: 10, selectionMask: null, dirtyRect: null });
         expect(result.width).toBe(10);
         expect(result.height).toBe(10);
+    });
+
+    it('undo and redo restore an applied filter result', () => {
+        const layer = freshLayer();
+        layer.ctx.fillStyle = '#102030';
+        layer.ctx.fillRect(0, 0, layer.canvas.width, layer.canvas.height);
+        const before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+        expect(applyFilterToLayer(layer, 'test-invert', {}, noSel())).toBe(true);
+        useEditorStore.getState().commitHistory(createPixelHistoryAction(
+            layer,
+            { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height },
+            before,
+            'Filter: test-invert',
+        ));
+        expect(layerPixelAt(layer, 2, 2)).toMatchObject({ r: 239, g: 223, b: 207, a: 255 });
+
+        useEditorStore.getState().undo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 2, 2)).toMatchObject({ r: 16, g: 32, b: 48, a: 255 });
+
+        useEditorStore.getState().redo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 2, 2)).toMatchObject({ r: 239, g: 223, b: 207, a: 255 });
     });
 
     it('box blur smooths sharp color boundary', () => {

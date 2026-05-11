@@ -3,6 +3,7 @@ import { useEditorStore } from '../../store/editorStore';
 import {
     Circle, Lasso, Pentagon, Square, Layers, ZoomIn, ZoomOut,
     AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
+    Repeat2, X,
 } from 'lucide-react';
 import { getMagicWandOptions, setMagicWandOptions } from '../../tools/magicWand';
 import { getQuickSelectionOptions, setQuickSelectionOptions } from '../../tools/quickSelection';
@@ -11,13 +12,74 @@ import {
     type GradientType, type GradientMethod,
 } from '../../tools/gradient';
 import { getPaintBucketOptions, setPaintBucketOptions, type FillSource } from '../../tools/paintBucket';
-import { getCloneStampOptions, setCloneStampOptions, type CloneStampSampleMode } from '../../tools/cloneStamp';
+import { getCloneStampOptions, setCloneStampOptions, resetCloneSource, type CloneStampSampleMode } from '../../tools/cloneStamp';
+import { getEraserOptions, setEraserOptions, type EraserMode } from '../../tools/eraser';
+import {
+    getDodgeOptions, setDodgeOptions,
+    getBurnOptions, setBurnOptions,
+    getSpongeOptions, setSpongeOptions,
+    type ToneRange, type SpongeMode,
+} from '../../tools/dodgeBurnSponge';
+import { getBrushOptions, setBrushOptions } from '../../tools/brush';
+import { getPencilOptions, setPencilOptions } from '../../tools/pencil';
+import { getMarqueeOptions, setMarqueeOptions } from '../../tools/marquee';
+import { getCropOptions, setCropOptions, type CropOverlayId } from '../../tools/crop';
+import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
 import type { BlendModeId } from '../../core/blendModes';
+import {
+    GradientAngleIcon, GradientDiamondIcon, GradientLinearIcon, GradientRadialIcon, GradientReflectedIcon,
+    SelectionAddIcon, SelectionIntersectIcon, SelectionNewIcon, SelectionSubtractIcon,
+    ShapeCombineIcon, ShapeExcludeIcon, ShapeIntersectIcon, ShapeSubtractIcon,
+    WarpTextIcon,
+} from '../icons/PhotowebIcons';
 
 const S = {
     sep: () => <div className="opts-sep" />,
     label: (t: string) => <span className="opts-label">{t}</span>,
 };
+
+const SELECTION_OP_BUTTONS = [
+    { title: 'New selection', Icon: SelectionNewIcon },
+    { title: 'Add to selection (Shift)', Icon: SelectionAddIcon },
+    { title: 'Subtract from selection (Option/Alt)', Icon: SelectionSubtractIcon },
+    { title: 'Intersect with selection (Shift+Option/Alt)', Icon: SelectionIntersectIcon },
+];
+
+function SelectionOperationButtons({ compact = false }: { compact?: boolean }) {
+    const buttons = compact ? SELECTION_OP_BUTTONS.slice(1, 3) : SELECTION_OP_BUTTONS;
+    return (
+        <div style={{ display: 'flex', gap: 1 }}>
+            {buttons.map(({ title, Icon }) => (
+                <button key={title} className="opts-btn" title={title}>
+                    <Icon size={13} />
+                </button>
+            ))}
+        </div>
+    );
+}
+
+const SHAPE_OP_BUTTONS = [
+    { title: 'Combine Shapes', Icon: ShapeCombineIcon },
+    { title: 'Subtract Front Shape', Icon: ShapeSubtractIcon },
+    { title: 'Intersect Shape Areas', Icon: ShapeIntersectIcon },
+    { title: 'Exclude Overlapping Shapes', Icon: ShapeExcludeIcon },
+];
+
+function ShapeOperationButtons({ shortTitles = false }: { shortTitles?: boolean }) {
+    return (
+        <div style={{ display: 'flex', gap: 1 }}>
+            {SHAPE_OP_BUTTONS.map(({ title, Icon }) => (
+                <button
+                    key={title}
+                    className="opts-btn"
+                    title={shortTitles ? title.replace(' Shapes', '').replace(' Shape Areas', '').replace(' Overlapping Shapes', '') : title}
+                >
+                    <Icon size={13} />
+                </button>
+            ))}
+        </div>
+    );
+}
 
 // ── Brush size/hardness/opacity strip ────────────────────────────────────────
 function BrushControls({ showFlow = true }: { showFlow?: boolean }) {
@@ -115,16 +177,14 @@ function MoveOptions() {
 }
 
 function MarqueeOptions({ mode }: { mode: 'rect' | 'circle' }) {
-    const { setSelectionMode } = useEditorStore();
+    const { setSelectionMode, setSelectionFeather } = useEditorStore();
+    const [, force] = useState(0);
+    const opts = getMarqueeOptions();
+    const update = (next: Parameters<typeof setMarqueeOptions>[0]) => { setMarqueeOptions(next); force(t => t + 1); };
     return (
         <>
             {/* Mode icons */}
-            <div style={{ display: 'flex', gap: 1 }}>
-                <button className="opts-btn" title="New selection"><span style={{ fontSize: 12 }}>▭</span></button>
-                <button className="opts-btn" title="Add to selection (⇧)"><span style={{ fontSize: 12 }}>▭⁺</span></button>
-                <button className="opts-btn" title="Subtract (⌥)"><span style={{ fontSize: 12 }}>▭⁻</span></button>
-                <button className="opts-btn" title="Intersect (⇧⌥)"><span style={{ fontSize: 12 }}>⌂</span></button>
-            </div>
+            <SelectionOperationButtons />
             {S.sep()}
             {/* Shape toggle */}
             <button
@@ -140,7 +200,12 @@ function MarqueeOptions({ mode }: { mode: 'rect' | 'circle' }) {
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Feather:')}
-                <input type="number" min={0} max={200} defaultValue={0}
+                <input type="number" min={0} max={200} value={opts.feather}
+                    onChange={e => {
+                        const next = Math.max(0, Math.min(200, Number(e.target.value) || 0));
+                        update({ feather: next });
+                        setSelectionFeather(next);
+                    }}
                     className="opts-input" style={{ width: 40 }} />
                 <span className="opts-label">px</span>
             </div>
@@ -148,7 +213,9 @@ function MarqueeOptions({ mode }: { mode: 'rect' | 'circle' }) {
                 <>
                     {S.sep()}
                     <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
-                        <input type="checkbox" defaultChecked style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                        <input type="checkbox" checked={opts.antiAlias}
+                            onChange={e => update({ antiAlias: e.target.checked })}
+                            style={{ accentColor: 'hsl(var(--accent-primary))' }} />
                         Anti-alias
                     </label>
                 </>
@@ -170,12 +237,7 @@ function LassoOptions({ poly }: { poly: boolean }) {
     const { setSelectionMode } = useEditorStore();
     return (
         <>
-            <div style={{ display: 'flex', gap: 1 }}>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭</span></button>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭⁺</span></button>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭⁻</span></button>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>⌂</span></button>
-            </div>
+            <SelectionOperationButtons />
             {S.sep()}
             <button className={`opts-btn${!poly ? ' active' : ''}`} onClick={() => setSelectionMode('lasso')} title="Freehand Lasso"><Lasso size={13} /></button>
             <button className={`opts-btn${poly ? ' active' : ''}`} onClick={() => setSelectionMode('lasso-poly')} title="Polygonal Lasso"><Pentagon size={13} /></button>
@@ -204,12 +266,7 @@ function MagicWandOptions() {
 
     return (
         <>
-            <div style={{ display: 'flex', gap: 1 }}>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭</span></button>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭⁺</span></button>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭⁻</span></button>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>⌂</span></button>
-            </div>
+            <SelectionOperationButtons />
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Tolerance:')}
@@ -252,10 +309,7 @@ function QuickSelOptions() {
 
     return (
         <>
-            <div style={{ display: 'flex', gap: 1 }}>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭⁺</span></button>
-                <button className="opts-btn"><span style={{ fontSize: 12 }}>▭⁻</span></button>
-            </div>
+            <SelectionOperationButtons compact />
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Size:')}
@@ -283,6 +337,9 @@ function QuickSelOptions() {
 }
 
 function CropOptions() {
+    const [, force] = useState(0);
+    const opts = getCropOptions();
+    const update = (next: Parameters<typeof setCropOptions>[0]) => { setCropOptions(next); force(t => t + 1); };
     return (
         <>
             <select className="opts-input" style={{ width: 80 }} title="Ratio preset">
@@ -302,17 +359,34 @@ function CropOptions() {
             <span className="opts-label">×</span>
             <input type="text" placeholder="H" className="opts-input" style={{ width: 50 }} />
             {S.sep()}
-            <button className="opts-btn" title="Swap dimensions">⇄</button>
-            <button className="opts-btn" title="Clear dimensions">✕</button>
+            <button className="opts-btn" title="Swap dimensions"><Repeat2 size={13} /></button>
+            <button className="opts-btn" title="Clear dimensions"><X size={13} /></button>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Overlay:')}
+                <select className="opts-input" style={{ width: 100 }} value={opts.overlay}
+                    onChange={e => update({ overlay: e.target.value as CropOverlayId })}>
+                    <option value="rule-of-thirds">Rule of Thirds</option>
+                    <option value="grid">Grid</option>
+                    <option value="diagonal">Diagonal</option>
+                    <option value="triangle">Triangle</option>
+                    <option value="golden-ratio">Golden Ratio</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+            {S.sep()}
+            <button
+                className={`opts-btn${opts.straighten ? ' active' : ''}`}
+                onClick={() => update({ straighten: !opts.straighten })}
+                title="Click to enable; then drag a line in the canvas to straighten">
+                Straighten
+            </button>
             {S.sep()}
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
-                <input type="checkbox" style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                <input type="checkbox" checked={opts.deleteCroppedPixels}
+                    onChange={e => update({ deleteCroppedPixels: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
                 Delete Cropped Pixels
-            </label>
-            {S.sep()}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
-                <input type="checkbox" style={{ accentColor: 'hsl(var(--accent-primary))' }} />
-                Classic Mode
             </label>
         </>
     );
@@ -352,28 +426,58 @@ function EyedropperOptions() {
 }
 
 function BrushOptions() {
+    const [, force] = useState(0);
+    const opts = getBrushOptions();
+    const update = (next: Parameters<typeof setBrushOptions>[0]) => { setBrushOptions(next); force(t => t + 1); };
     return (
         <>
             <ModeDropdown />
             <BrushControls showFlow />
             {S.sep()}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
-                <input type="checkbox" style={{ accentColor: 'hsl(var(--accent-primary))' }} />
-                Smoothing
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Smoothing:')}
+                <input type="range" min={0} max={100} value={Math.round(opts.smoothing * 100)}
+                    onChange={e => update({ smoothing: +e.target.value / 100 })}
+                    style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(opts.smoothing * 100)}%</span>
+            </div>
+        </>
+    );
+}
+
+function PencilOptions() {
+    const [, force] = useState(0);
+    const opts = getPencilOptions();
+    const update = (next: Parameters<typeof setPencilOptions>[0]) => { setPencilOptions(next); force(t => t + 1); };
+    return (
+        <>
+            <ModeDropdown />
+            <BrushControls showFlow={false} />
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Spacing:')}
+                <input type="range" min={1} max={300} value={Math.round(opts.spacing * 100)}
+                    onChange={e => update({ spacing: +e.target.value / 100 })}
+                    style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 36 }}>{Math.round(opts.spacing * 100)}%</span>
+            </div>
         </>
     );
 }
 
 function EraserOptions() {
+    const [, force] = useState(0);
+    const opts = getEraserOptions();
+    const update = (next: Parameters<typeof setEraserOptions>[0]) => { setEraserOptions(next); force(t => t + 1); };
     return (
         <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Mode:')}
-                <select className="opts-input" style={{ width: 70 }}>
-                    <option>Brush</option>
-                    <option>Pencil</option>
-                    <option>Block</option>
+                <select className="opts-input" style={{ width: 70 }} value={opts.mode}
+                    onChange={e => update({ mode: e.target.value as EraserMode })}>
+                    <option value="brush">Brush</option>
+                    <option value="pencil">Pencil</option>
+                    <option value="block">Block</option>
                 </select>
             </div>
             <BrushControls showFlow={false} />
@@ -382,6 +486,7 @@ function EraserOptions() {
 }
 
 function CloneStampOptions() {
+    const setCloneSource = useEditorStore(s => s.setCloneSource);
     const [opts, setOpts] = useState(getCloneStampOptions);
     const update = (next: Parameters<typeof setCloneStampOptions>[0]) => {
         const merged = { ...opts, ...next };
@@ -411,6 +516,26 @@ function CloneStampOptions() {
                 </select>
             </div>
             {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.showOverlay}
+                    onChange={e => update({ showOverlay: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Show Overlay
+            </label>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Overlay:')}
+                <input type="range" min={0} max={100} value={Math.round(opts.overlayOpacity * 100)}
+                    onChange={e => update({ overlayOpacity: +e.target.value / 100 })}
+                    style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(opts.overlayOpacity * 100)}%</span>
+            </div>
+            {S.sep()}
+            <button className="opts-btn" title="Clear sampled clone source"
+                onClick={() => resetCloneSource({ setCloneSource })}>
+                Reset Source
+            </button>
+            {S.sep()}
             <span className="opts-label">Alt/Option-click to sample</span>
         </>
     );
@@ -435,12 +560,12 @@ function GradientOptions() {
     }).sort((a, b) => a.pos - b.pos);
     const previewCss = `linear-gradient(to right, ${previewStops.map(s => `${s.css} ${s.pos}%`).join(', ')})`;
 
-    const TYPE_BTNS: { type: GradientType; icon: string; title: string }[] = [
-        { type: 'linear',    icon: '⟶', title: 'Linear Gradient' },
-        { type: 'radial',    icon: '◎', title: 'Radial Gradient' },
-        { type: 'angle',     icon: '∠', title: 'Angle Gradient' },
-        { type: 'reflected', icon: '⌇', title: 'Reflected Gradient' },
-        { type: 'diamond',   icon: '◇', title: 'Diamond Gradient' },
+    const TYPE_BTNS: { type: GradientType; Icon: typeof GradientLinearIcon; title: string }[] = [
+        { type: 'linear',    Icon: GradientLinearIcon, title: 'Linear Gradient' },
+        { type: 'radial',    Icon: GradientRadialIcon, title: 'Radial Gradient' },
+        { type: 'angle',     Icon: GradientAngleIcon, title: 'Angle Gradient' },
+        { type: 'reflected', Icon: GradientReflectedIcon, title: 'Reflected Gradient' },
+        { type: 'diamond',   Icon: GradientDiamondIcon, title: 'Diamond Gradient' },
     ];
 
     return (
@@ -456,13 +581,15 @@ function GradientOptions() {
             </select>
             <div style={{ width: 120, height: 20, background: previewCss, border: '1px solid hsl(var(--border-light))', borderRadius: 2 }} title="Gradient preview" />
             {S.sep()}
-            {TYPE_BTNS.map(b => (
+            {TYPE_BTNS.map(({ type, Icon, title }) => (
                 <button
-                    key={b.type}
-                    className={`opts-btn${opts.type === b.type ? ' active' : ''}`}
-                    title={b.title}
-                    onClick={() => update({ type: b.type })}
-                >{b.icon}</button>
+                    key={type}
+                    className={`opts-btn${opts.type === type ? ' active' : ''}`}
+                    title={title}
+                    onClick={() => update({ type })}
+                >
+                    <Icon size={13} />
+                </button>
             ))}
             {S.sep()}
             <ModeDropdown value={opts.mode} onChange={v => update({ mode: v })} />
@@ -491,6 +618,13 @@ function GradientOptions() {
                 Dither
             </label>
             {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.transparency}
+                    onChange={e => update({ transparency: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Transparency
+            </label>
+            {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Method:')}
                 <select
@@ -509,6 +643,9 @@ function GradientOptions() {
 function PaintBucketOptions() {
     const [, force] = useState(0);
     const opts = getPaintBucketOptions();
+    const patternPresets = useEditorStore(s => s.patternPresets);
+    const activePatternId = useEditorStore(s => s.activePatternId);
+    const setActivePatternId = useEditorStore(s => s.setActivePatternId);
     const update = (next: Partial<ReturnType<typeof getPaintBucketOptions>>) => { setPaintBucketOptions(next); force(t => t + 1); };
     return (
         <>
@@ -523,6 +660,24 @@ function PaintBucketOptions() {
                     <option value="pattern">Pattern</option>
                 </select>
             </div>
+            {opts.source === 'pattern' && (
+                <>
+                    {S.sep()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Pattern:')}
+                        <select
+                            className="opts-input" style={{ width: 120 }}
+                            value={activePatternId ?? ''}
+                            onChange={e => setActivePatternId(e.target.value || null)}
+                        >
+                            <option value="">None (FG/BG check)</option>
+                            {patternPresets.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </>
+            )}
             {S.sep()}
             <ModeDropdown value={opts.mode} onChange={v => update({ mode: v })} />
             {S.sep()}
@@ -568,37 +723,50 @@ function PaintBucketOptions() {
 }
 
 function DodgeBurnOptions({ tool }: { tool: 'dodge' | 'burn' | 'sponge' }) {
-    const { brushSettings, setBrushSize } = useEditorStore();
-    if (tool === 'sponge') return (
-        <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {S.label('Size:')}
-                <input type="range" min={1} max={500} value={brushSettings.size}
-                    onChange={e => setBrushSize(+e.target.value)}
-                    style={{ width: 70, accentColor: 'hsl(var(--accent-primary))' }} />
-                <span className="opts-label">{brushSettings.size}px</span>
-            </div>
-            {S.sep()}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {S.label('Mode:')}
-                <select className="opts-input" style={{ width: 90 }}>
-                    <option>Desaturate</option>
-                    <option>Saturate</option>
-                </select>
-            </div>
-            {S.sep()}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {S.label('Flow:')}
-                <input type="range" min={1} max={100} defaultValue={50} style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
-                <span className="opts-label">50%</span>
-            </div>
-            {S.sep()}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
-                <input type="checkbox" style={{ accentColor: 'hsl(var(--accent-primary))' }} />
-                Vibrance
-            </label>
-        </>
-    );
+    const { brushSettings, setBrushSize, setBrushFlow } = useEditorStore();
+    const [, force] = useState(0);
+    if (tool === 'sponge') {
+        const opts = getSpongeOptions();
+        const update = (next: Parameters<typeof setSpongeOptions>[0]) => { setSpongeOptions(next); force(t => t + 1); };
+        return (
+            <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {S.label('Size:')}
+                    <input type="range" min={1} max={500} value={brushSettings.size}
+                        onChange={e => setBrushSize(+e.target.value)}
+                        style={{ width: 70, accentColor: 'hsl(var(--accent-primary))' }} />
+                    <span className="opts-label">{brushSettings.size}px</span>
+                </div>
+                {S.sep()}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {S.label('Mode:')}
+                    <select className="opts-input" style={{ width: 90 }} value={opts.mode}
+                        onChange={e => update({ mode: e.target.value as SpongeMode })}>
+                        <option value="desaturate">Desaturate</option>
+                        <option value="saturate">Saturate</option>
+                    </select>
+                </div>
+                {S.sep()}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {S.label('Flow:')}
+                    <input type="range" min={1} max={100} value={Math.round(brushSettings.flow * 100)}
+                        onChange={e => setBrushFlow(+e.target.value / 100)}
+                        style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
+                    <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(brushSettings.flow * 100)}%</span>
+                </div>
+                {S.sep()}
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                    <input type="checkbox" checked={opts.vibrance}
+                        onChange={e => update({ vibrance: e.target.checked })}
+                        style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                    Vibrance
+                </label>
+            </>
+        );
+    }
+    const opts = tool === 'dodge' ? getDodgeOptions() : getBurnOptions();
+    const apply = tool === 'dodge' ? setDodgeOptions : setBurnOptions;
+    const update = (next: Parameters<typeof apply>[0]) => { apply(next); force(t => t + 1); };
     return (
         <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -611,41 +779,62 @@ function DodgeBurnOptions({ tool }: { tool: 'dodge' | 'burn' | 'sponge' }) {
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Range:')}
-                <select className="opts-input" style={{ width: 90 }}>
-                    <option>Midtones</option>
-                    <option>Shadows</option>
-                    <option>Highlights</option>
+                <select className="opts-input" style={{ width: 90 }} value={opts.range}
+                    onChange={e => update({ range: e.target.value as ToneRange })}>
+                    <option value="midtones">Midtones</option>
+                    <option value="shadows">Shadows</option>
+                    <option value="highlights">Highlights</option>
                 </select>
             </div>
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Exposure:')}
-                <input type="range" min={1} max={100} defaultValue={50} style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
-                <span className="opts-label">50%</span>
+                <input type="range" min={0} max={100} value={Math.round(opts.exposure * 100)}
+                    onChange={e => update({ exposure: +e.target.value / 100 })}
+                    style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
+                <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(opts.exposure * 100)}%</span>
             </div>
-            {S.sep()}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
-                <input type="checkbox" style={{ accentColor: 'hsl(var(--accent-primary))' }} />
-                Protect Tones
-            </label>
         </>
     );
 }
 
 function PenOptions() {
+    const [, force] = useState(0);
+    const opts = getPenOptions();
+    const update = (next: Parameters<typeof setPenOptions>[0]) => { setPenOptions(next); force(t => t + 1); };
+    const modes: { id: PenMode; label: string }[] = [
+        { id: 'path', label: 'Path' },
+        { id: 'shape', label: 'Shape' },
+        { id: 'pixels', label: 'Pixels' },
+    ];
     return (
         <>
             <div style={{ display: 'flex', gap: 1 }}>
-                {(['Path', 'Shape', 'Pixels'] as const).map(m => (
-                    <button key={m} className={`opts-btn${m === 'Path' ? ' active' : ''}`}>{m}</button>
+                {modes.map(m => (
+                    <button
+                        key={m.id}
+                        className={`opts-btn${opts.mode === m.id ? ' active' : ''}`}
+                        onClick={() => update({ mode: m.id })}
+                        title={`${m.label} mode`}
+                    >
+                        {m.label}
+                    </button>
                 ))}
             </div>
             {S.sep()}
-            <div style={{ display: 'flex', gap: 1 }}>
-                {['⊕', '⊖', '⊗', '⊘'].map((icon, i) => (
-                    <button key={i} className="opts-btn" title={['Combine Paths', 'Subtract Front Shape', 'Intersect Shape Areas', 'Exclude Overlapping Shapes'][i]}>{icon}</button>
-                ))}
-            </div>
+            <ShapeOperationButtons />
+            {opts.mode === 'pixels' && (
+                <>
+                    {S.sep()}
+                    <span className="opts-label">Pixels: stroke uses brush size + primary color</span>
+                </>
+            )}
+            {opts.mode === 'shape' && (
+                <>
+                    {S.sep()}
+                    <span className="opts-label">Shape: fills with primary color</span>
+                </>
+            )}
         </>
     );
 }
@@ -686,7 +875,7 @@ function TypeOptions() {
                 style={{ width: 20, height: 20, backgroundColor: primaryColor, border: '1px solid hsl(var(--border-light))', cursor: 'pointer', flexShrink: 0 }}
             />
             {S.sep()}
-            <button className="opts-btn" title="Create Warp Text">T̴</button>
+            <button className="opts-btn" title="Create Warp Text"><WarpTextIcon size={13} /></button>
             <button className="opts-btn" title="Toggle Character/Paragraph Panels"><Layers size={13} /></button>
         </>
     );
@@ -730,11 +919,7 @@ function ShapeOptions() {
 function PathSelectionOptions() {
     return (
         <>
-            <div style={{ display: 'flex', gap: 1 }}>
-                {['⊕', '⊖', '⊗', '⊘'].map((icon, i) => (
-                    <button key={i} className="opts-btn" title={['Combine', 'Subtract', 'Intersect', 'Exclude'][i]}>{icon}</button>
-                ))}
-            </div>
+            <ShapeOperationButtons shortTitles />
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Show:')}
@@ -819,8 +1004,8 @@ export function OptionsBar() {
             case 'quick-selection': return <QuickSelOptions />;
             case 'crop': return <CropOptions />;
             case 'eyedropper': return <EyedropperOptions />;
-            case 'brush':
-            case 'pencil': return <BrushOptions />;
+            case 'brush': return <BrushOptions />;
+            case 'pencil': return <PencilOptions />;
             case 'eraser': return <EraserOptions />;
             case 'clone-stamp': return <CloneStampOptions />;
             case 'gradient': return <GradientOptions />;

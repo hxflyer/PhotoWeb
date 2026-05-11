@@ -29,12 +29,12 @@ Function group: shared lighting angle for layer effects.
 Overall Photoweb status: `Missing`
 
 Sub-function comparison:
-- `Global lighting angle`: `Missing`. Photoweb has no global light setting.
-- `Use global light in layer effects`: `Missing`. Layer effects are not implemented as usable UI/rendered effects.
-- `Synchronize shadows and bevels`: `Missing`.
+- `Global lighting angle`: `Missing`. Photoweb has no global light setting; each Drop Shadow stores its own angle.
+- `Use global light in layer effects`: `Missing`. Drop Shadow now renders, but its angle is per-effect rather than synchronized to a document-level light angle.
+- `Synchronize shadows and bevels`: `Missing`. Bevel & Emboss is not implemented, so there is nothing to synchronize with shadow angles.
 
 Implementation notes:
-- The layer model has an `effects` field, but layer-style rendering and global lighting are not wired.
+- Drop Shadow, Stroke, and Color Overlay now render in the compositor, but global lighting/angle synchronization is still not wired.
 
 ## 0112 - Scale Layer Effects
 
@@ -45,12 +45,12 @@ Function group: layer effect scaling.
 Overall Photoweb status: `Missing`
 
 Sub-function comparison:
-- `Scale effect distances/sizes`: `Missing`.
-- `Scale effects during image resize`: `Missing`.
+- `Scale effect distances/sizes`: `Missing`. Drop Shadow distance/size and Stroke size are editable individually but cannot be uniformly scaled by a single command.
+- `Scale effects during image resize`: `Missing`. Image Size does not propagate to effect parameters.
 - `Layer Style > Scale Effects command`: `Missing`.
 
 Implementation notes:
-- Photoweb can resize images/layers, but there are no active layer effects to scale.
+- Photoweb now has rendered Drop Shadow, Stroke, and Color Overlay effects, but no Scale Effects command.
 
 ## 0113 - Remove Layer Effects
 
@@ -58,15 +58,15 @@ Source note: `pages/0113-remove-layer-effects.md`
 
 Function group: removing layer styles/effects.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Clear all layer effects`: `Missing`.
-- `Remove individual effect`: `Missing`.
-- `Layers panel effect controls`: `Missing`.
+- `Clear all layer effects`: `Partial`. Effects can be removed individually from the Properties panel; there is no single "Clear All" command.
+- `Remove individual effect`: `Present with differences`. The Properties panel Effects section provides per-effect remove and toggle controls for Drop Shadow, Stroke, and Color Overlay.
+- `Layers panel effect controls`: `Missing`. Effect controls live in the Properties panel rather than as expandable rows under each layer in the Layers panel.
 
 Implementation notes:
-- Layer visibility and masks exist, but effects are not surfaced.
+- Effect management is centralized in the Properties panel Effects section; only the three implemented effects can be added, removed, or toggled.
 
 ## 0114 - Work With Layer Styles
 
@@ -74,15 +74,15 @@ Source note: `pages/0114-work-with-layer-styles.md`
 
 Function group: layer style editing.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Open Layer Style dialog`: `Missing`.
-- `Preview and edit style parameters`: `Missing`.
-- `Save or reuse styles`: `Missing`.
+- `Open Layer Style dialog`: `Missing`. Photoweb edits effects inline in the Properties panel rather than in a modal Layer Style dialog.
+- `Preview and edit style parameters`: `Partial`. Drop Shadow (distance/angle/size/spread/color/opacity/blend mode), Stroke (position/size/color/opacity/blend mode), and Color Overlay (color/opacity/blend mode) are editable with live re-render; remaining effects are absent.
+- `Save or reuse styles`: `Missing`. Layer style presets, copy/paste layer style, and a Styles panel are not implemented.
 
 Implementation notes:
-- No Photoshop-style layer style workflow exists.
+- Effects edit through the Properties panel Effects section; styling is only available for the three implemented effects.
 
 ## 0115 - Convert Layer Styles To Image Layers
 
@@ -396,15 +396,15 @@ Source note: `pages/0134-align-layers.md`
 
 Function group: layer alignment.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Present`
 
 Sub-function comparison:
-- `Align selected layers to edges/centers`: `Missing`.
-- `Align to canvas or selection`: `Missing`.
-- `Multi-layer alignment controls`: `Missing`.
+- `Align selected layers to edges/centers`: `Present with differences`. Photoweb can align multiple selected layers or groups to left, horizontal center, right, top, vertical center, or bottom.
+- `Align to canvas or selection`: `Present with differences`. Store commands support selection-bounds and canvas-bounds targets; the current menu path uses selection bounds.
+- `Multi-layer alignment controls`: `Present with differences`. Layer menu commands are wired and operate on `selectedLayerIds`.
 
 Implementation notes:
-- Photoweb primarily tracks one active layer and has no alignment command set.
+- Alignment computes non-transparent content bounds and moves layer pixels or group children through undoable document commands.
 
 ## 0135 - Auto-Align Image Layers
 
@@ -428,15 +428,15 @@ Source note: `pages/0136-distribute-layers.md`
 
 Function group: layer distribution.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Distribute selected layers by spacing`: `Missing`.
-- `Distribute centers/edges`: `Missing`.
-- `Multi-layer selection prerequisite`: `Missing`.
+- `Distribute selected layers by spacing`: `Present with differences`. Photoweb can distribute three or more selected layers/groups along even intervals.
+- `Distribute centers/edges`: `Present with differences`. Left/right/top/bottom and horizontal/vertical center distribution commands are implemented.
+- `Multi-layer selection prerequisite`: `Present with differences`. The Layers panel now supports multi-layer selection for these commands.
 
 Implementation notes:
-- This depends on multi-select and layout commands that are not present.
+- Distribution uses the same non-transparent bounds and undoable pixel/group movement infrastructure as alignment.
 
 ## 0137 - Layout And Design Tools
 
@@ -1208,11 +1208,11 @@ Overall Photoweb status: `Partial`
 Sub-function comparison:
 - `Magic Wand color selection`: `Present with differences`.
 - `Quick Selection brush`: `Present with differences`.
-- `Color Range command`: `Missing`. Menu item is disabled.
+- `Color Range command`: `Present with differences`. Menu opens a simplified Color Range dialog with samples and fuzziness.
 - `Select Subject/Object Finder`: `Missing`.
 
 Implementation notes:
-- Color/region sampling exists in tools; command-level Color Range and AI selection do not.
+- Color/region sampling exists in tools, and command-level Color Range now writes a mask selection. AI selection remains out of scope.
 
 ## 0184 - Improve Select Subject And Remove Background Results
 
@@ -1386,15 +1386,15 @@ Source note: `pages/0194-select-a-color-range-in-photoshop.md`
 
 Function group: Color Range command.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Color Range dialog`: `Missing`. Menu item is disabled.
-- `Fuzziness/range controls`: `Missing`.
-- `Sample colors/skin tones/localized color clusters`: `Missing`.
+- `Color Range dialog`: `Present with differences`. Dialog supports a sampled color, add/subtract samples, and Replace.
+- `Fuzziness/range controls`: `Present`. Fuzziness controls RGB distance tolerance.
+- `Sample colors/skin tones/localized color clusters`: `Partial`. Manual color samples exist; skin-tone, face detection, and localized clusters are not implemented.
 
 Implementation notes:
-- Magic Wand provides click-based color selection, not a global Color Range dialog.
+- Implemented in `src/tools/colorRange.ts` and `ColorRangeDialog`. The command composites visible layers, builds a mask from add/subtract samples, and commits an undoable selection operation.
 
 ## 0195 - Draw Freeform Selections With The Lasso Tool
 
@@ -1460,7 +1460,7 @@ Sub-function comparison:
 - `Save Color Range settings as preset`: `Missing`.
 
 Implementation notes:
-- This depends on Color Range and preset infrastructure, both absent.
+- This now depends mainly on preset infrastructure and skin/face detection; the base Color Range command exists.
 
 ## 0199 - Refine And Modify Selections
 
@@ -1488,12 +1488,12 @@ Function group: moving selection borders and selected pixels.
 Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Move selection border`: `Present with differences`. Selection path/operations can be shifted during drag behavior.
-- `Move selected pixels`: `Present with differences`. Free Edit creates floating selected pixels for movement.
+- `Move selection border`: `Present`. Selection path/operations can be shifted during drag, and inside-click-to-drag / outside-click-to-dismiss now applies consistently across all selection tools.
+- `Move selected pixels`: `Present`. Move Tool drags selected pixels from the active raster layer while leaving unselected pixels in place, and the selection outline travels with the moved pixels.
 - `Transform moved selection`: `Partial`.
 
 Implementation notes:
-- Movement behavior is implemented in `Viewport` and `useFreeEdit`.
+- Selection-border movement is implemented across marquee, lasso, polygonal lasso, magic wand, and quick selection tools. Selected-pixel movement is implemented in `src/tools/move.ts` using a floating selected-pixel canvas and a single undoable transform action.
 
 ## 0201 - Refine Your Selection And Mask
 
@@ -1506,11 +1506,11 @@ Overall Photoweb status: `Partial`
 Sub-function comparison:
 - `Open Select and Mask/Refine Edge`: `Present with differences`. Menu opens a Refine Edge dialog.
 - `Edge radius/smoothing/feather-like refinement`: `Partial`.
-- `View modes and output options`: `Missing` or limited.
+- `View modes and output options`: `Partial`. View mode UI exists, and output is now honestly labeled as updating the current selection; layer-mask/new-layer output destinations remain missing.
 - `Refine Hair/AI refinement`: `Missing`.
 
 Implementation notes:
-- Photoweb has a simplified refinement dialog rather than a full workspace.
+- Photoweb has a simplified refinement dialog rather than a full workspace. It no longer promises "New Layer With Mask" until that output destination is implemented.
 
 ## 0202 - Hover Layer Bounds In The Move Tool
 
@@ -1599,16 +1599,16 @@ Source note: `pages/0207-control-the-movement-of-a-selection.md`
 
 Function group: constrained selection movement.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Drag selection border/content`: `Present with differences`.
-- `Nudge with arrow keys`: `Missing` or limited.
-- `Constrain movement with Shift`: `Missing` or limited.
+- `Drag selection border/content`: `Present`.
+- `Nudge with arrow keys`: `Present`. Arrow keys move by 1 px; Shift+arrow moves by 10 px.
+- `Constrain movement with Shift`: `Present with differences`. Shift+arrow supports 10 px precision nudging; constrained drag/snap parity is still limited.
 - `Snap during selection movement`: `Partial`.
 
 Implementation notes:
-- Selection movement exists, but precision movement controls are not Photoshop-complete.
+- Selection-border nudging is implemented via `nudgeSelectionBorderBy`; Move Tool arrow nudging moves selected pixels via `moveSelectedPixelsBy`. Snap behavior remains incomplete.
 
 ## 0208 - Hide Or Show Selection Edges
 
@@ -1616,15 +1616,15 @@ Source note: `pages/0208-hide-or-show-selection-edges.md`
 
 Function group: selection edge visibility.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present`
 
 Sub-function comparison:
 - `Show marching ants`: `Present with differences`.
-- `Hide selection edges without deselecting`: `Missing`. No View > Extras-style selection edge toggle was found.
+- `Hide selection edges without deselecting`: `Present`. `View > Show > Selection Edges` toggles marching-ants rendering while keeping the active selection.
 - `Quick Mask display`: `Present with differences`.
 
 Implementation notes:
-- Selection edges render in `Viewport`; visibility is not separately toggled except through mode/state.
+- `showSelectionEdges` lives in `viewSlice`, persists as a local view preference, and gates only the selection overlay in `Viewport`.
 
 ## 0209 - Inverse Selection
 
@@ -1665,18 +1665,19 @@ High-overlap areas:
 - Image resizing, canvas resizing, trim, rotate, flip, crop, and core transform workflows are meaningfully implemented.
 - Classic selection tools are a strong area: marquee, lasso, polygonal lasso, Magic Wand, Quick Selection, invert, deselect, feather, border, Quick Mask, selected-pixel movement, and delete/cut workflows are present in simplified form.
 - Crop and transform overlays provide real interactive editing, although they are less complete than Photoshop.
+- Layer selection, align, and distribute workflows are now meaningfully implemented for browser-native layered layout work.
 
 Major missing areas:
-- Layer styles and layer effects remain absent across notes `0111` through `0115`.
+- Layer styles are partially implemented in notes `0111` through `0115`: Drop Shadow, Stroke, and Color Overlay render in the compositor and edit live through the Properties panel Effects section; Inner Shadow, Outer/Inner Glow, Bevel & Emboss, Pattern Overlay, Gradient Overlay, Satin, scale effects, copy/paste layer style, layer style presets, and global lighting are still missing.
 - Smart Objects are absent across notes `0116` through `0132`.
-- Layer comps, layer alignment/distribution, artboards, and frames are missing across notes `0133` through `0146`.
+- Layer comps, auto-align, artboards, and frames are missing across notes `0133` through `0146`; manual align/distribute is now implemented with Photoshop-similar scope.
 - Print-resolution/DPI workflows are mostly missing or not applicable because Photoweb is pixel/screen oriented.
 - Content-aware scale, content-aware crop fill, perspective crop, arbitrary image straighten, and advanced transform commands are missing.
 - Modern AI/semantic selection workflows are missing: Object Selection, Select Subject, Select People, Refine Hair, Mask All Objects, and Delete and Fill Selection.
-- Color Range and Magnetic Lasso are absent.
+- Color Range exists in simplified form; Magnetic Lasso is absent.
 
 Recommended implementation priorities if Photoweb wants closer Photoshop parity:
-- Finish the selection command layer first: Color Range, Transform Selection, expand/contract/smooth dialogs, hide selection edges, and clipboard-style copy/paste commands.
+- Finish the selection command layer first: Select and Mask output destinations, Transform Selection, expand/contract/smooth dialogs, and clipboard-style copy/paste commands.
 - Improve crop/resize with arbitrary straighten, better crop option wiring, and more explicit non-destructive/delete-cropped-pixels behavior.
-- Add multi-layer selection before attempting align/distribute/layer comps.
+- Use the new multi-layer selection and align/distribute foundation before attempting layer comps or smart-guide-assisted layout.
 - Treat Smart Objects, artboards, frames, and layer styles as separate large architecture tracks rather than incremental UI additions.

@@ -147,7 +147,7 @@ Sub-function comparison:
 - `Menu bar`: `Present with differences`. Photoweb has a Photoshop-like menu bar with File, Edit, Image, Layer, Type, Select, Filter, View, Window, and Help menus, but many Photoshop commands are disabled or absent.
 - `Tools panel`: `Present with differences`. Photoweb has grouped tools and flyouts similar to Photoshop.
 - `Options bar`: `Present with differences`. Photoweb changes options by active tool, but does not cover all Photoshop controls.
-- `Panels`: `Present with differences`. Photoweb has Color, Swatches, Adjustments, Character, Paragraph, Layers, Channels, Paths, and History panels in a fixed right dock.
+- `Panels`: `Present with differences`. Photoweb has Color, Swatches, Adjustments, Properties, Character, Paragraph, Layers, Channels, Paths, and History panels in the right dock, with Window menu toggles that show/hide each panel and persist visibility in localStorage.
 - `Document window`: `Partial`. Photoweb has one canvas viewport, not multi-document tabs/floating windows.
 
 Implementation notes:
@@ -274,12 +274,12 @@ Function group: global panel visibility.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Hide/show all panels`: `Missing`. Photoweb does not implement Photoshop's Tab behavior to hide all panels/toolbars.
+- `Hide/show all panels`: `Partial`. The Window menu now exposes per-panel toggles (History, Layers, Channels, Paths, Color, Swatches, Adjustments, Properties, Character, Paragraph), so users can hide every panel one by one, but there is no single Tab-key shortcut that hides all panels and toolbars at once.
 - `Collapse panel groups`: `Partial`. The right dock has collapsible top and text groups.
-- `Preserve editing canvas while panels are hidden`: `Missing`. There is no dedicated distraction-free panel toggle.
+- `Preserve editing canvas while panels are hidden`: `Partial`. Hiding all panels through the Window menu does free up the workspace, but there is no dedicated distraction-free toggle.
 
 Implementation notes:
-- Right dock group collapse lives in `RightPanelDock`, but the main layout does not support global panel visibility modes.
+- Per-panel visibility is persisted in localStorage and driven from the Window menu; right dock group collapse remains in `RightPanelDock`.
 
 ## 0027 - Dock Or Undock Panels
 
@@ -319,15 +319,15 @@ Source note: `pages/0029-add-and-remove-panels.md`
 
 Function group: panel visibility management.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Open panels from Window menu`: `Partial`. Photoweb has a Window menu, but panel items are disabled placeholders.
-- `Close panels`: `Missing`. Users cannot remove a panel from the dock.
-- `Restore closed panels`: `Missing`. There is no panel registry or visibility state.
+- `Open panels from Window menu`: `Present with differences`. The Window menu has working toggles for History, Layers, Channels, Paths, Color, Swatches, Adjustments, Properties, Character, and Paragraph; checkmarks reflect the current visibility.
+- `Close panels`: `Present with differences`. Toggling a Window menu item off hides that panel from the right dock.
+- `Restore closed panels`: `Present with differences`. Visibility is persisted in localStorage and re-toggling the Window menu item brings the panel back.
 
 Implementation notes:
-- Panels exist as hard-coded tabs in `RightPanelDock`.
+- Panels are still positioned by `RightPanelDock`, but their show/hide state is now stored in a panels slice and serialized to localStorage.
 
 ## 0030 - Stack Floating Panels
 
@@ -515,12 +515,13 @@ Function group: undo and redo.
 Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Undo`: `Present with differences`. Photoweb supports undo via menu and keyboard shortcuts using its history store.
-- `Redo`: `Present with differences`. Redo is available through menu and shortcuts.
-- `Step backward/forward style history`: `Partial`. History states exist, but the behavior is simpler than Photoshop's full history model.
+- `Undo`: `Present with differences`. Photoweb supports undo via menu and keyboard shortcuts using a command/timeline history store.
+- `Redo`: `Present with differences`. Redo is available through menu and shortcuts, and redoable future states remain visible until a new branch is committed.
+- `Step backward/forward style history`: `Present with differences`. The History panel now tracks a full timeline with an active cursor and supports jumping to earlier states.
+- `Undo coverage`: `Present with differences`. Brush/pencil/eraser, fills, gradients, filters, adjustments, layer operations, selections, transforms, crop, and mask operations are covered by history actions, including mask paint strokes which are now first-class history entries.
 
 Implementation notes:
-- Relevant code lives in `historySlice`, `HistoryPanel`, and App/MenuBar shortcut handling.
+- Relevant code lives in `src/core/history.ts`, `src/store/historySlice.ts`, `src/components/Panels/HistoryPanel.tsx`, and App/MenuBar shortcut handling.
 
 ## 0042 - History Panel Settings
 
@@ -531,12 +532,12 @@ Function group: history panel configuration.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `History panel state list`: `Present with differences`. Photoweb has a History panel with clickable history entries.
-- `History state limit/preferences`: `Missing`. No preference controls for number of history states or memory behavior exist.
-- `Snapshot/display settings`: `Partial`. Photoweb has snapshot creation, but not full Photoshop panel options.
+- `History panel state list`: `Present with differences`. Photoweb has a clickable History panel that distinguishes past, current, and redoable future states.
+- `History state limit/preferences`: `Partial`. Photoweb now exposes a configurable maximum history state count through store-level settings; a full Preferences UI has not been built yet.
+- `Snapshot/display settings`: `Partial`. Photoweb has snapshot creation and restore behavior, but not all Photoshop panel options such as non-linear history toggles or save-triggered snapshots.
 
 Implementation notes:
-- History UI exists, but the settings layer is mostly absent.
+- History limits are implemented in `HistoryStack` and `historySlice`; the missing part is a user-facing Settings/Preferences panel.
 
 ## 0043 - Set History Log Preferences
 
@@ -576,15 +577,15 @@ Source note: `pages/0045-use-snapshots-in-the-history-panel.md`
 
 Function group: history snapshots.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Create snapshot`: `Partial`. Photoweb has a New Snapshot action in the History panel.
-- `Use snapshot as restore point`: `Partial`. History entries can be selected/reverted, but Photoshop's richer snapshot controls are not mirrored.
-- `Name/manage snapshots`: `Missing`. There is no full snapshot management workflow.
+- `Create snapshot`: `Present with differences`. Photoweb has a New Snapshot action in the History panel.
+- `Use snapshot as restore point`: `Present with differences`. Snapshots now capture document size, layer stack/order, pixels, masks, layer properties, active layer, selection, and quick mask state, and selecting the snapshot restores that state.
+- `Name/manage snapshots`: `Partial`. Users can create a labeled snapshot through the panel action, but there is no full snapshot management workflow.
 
 Implementation notes:
-- Snapshot behavior is tied to the history implementation, not a separate Photoshop-equivalent snapshot model.
+- Snapshot behavior is implemented through serialized document snapshots in `historySlice`, not a separate Photoshop-equivalent snapshot manager.
 
 ## 0046 - Paint With Image States From The History Panel
 
@@ -611,13 +612,13 @@ Function group: history state management.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Select previous state`: `Present with differences`. Photoweb can click history entries to revert.
+- `Select previous state`: `Present with differences`. Photoweb can click history entries to revert and preserve redoable future states until a new action branches the timeline.
 - `Delete specific history states`: `Missing`. There is no individual state delete UI.
 - `Create document from state`: `Missing`.
-- `Clear history`: `Partial`. The store contains history management behavior, but the UI is not as complete as Photoshop.
+- `Clear history`: `Partial`. The store contains history management behavior and tests use it, but the UI is not as complete as Photoshop.
 
 Implementation notes:
-- Current history is useful for undo/redo, but not full state lifecycle management.
+- Current history is reliable for editing undo/redo and snapshots, but not full Photoshop state lifecycle management.
 
 ## 0048 - Restore Parts Of An Image To A Previous State
 
@@ -708,12 +709,12 @@ Function group: keyboard shortcut reference.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Implemented shortcuts`: `Present with differences`. Photoweb implements common shortcuts for undo/redo, transform, view toggles, quick mask, select all, tool switching, brush size, colors, and filters.
-- `Shortcut viewer`: `Missing`. There is no dialog listing all shortcuts.
+- `Implemented shortcuts`: `Present with differences`. Photoweb implements common shortcuts for undo/redo, transform, view toggles, quick mask, select all, tool switching, brush size, colors, and filters; Shift+key now cycles through grouped tools (Brush/Pencil, Rect/Ellipse marquee, Lasso/Polygonal, Quick Select/Magic Wand, Bucket/Gradient, Type H/V, Pen/Freeform, Direct/Path, shape variants, Dodge/Burn/Sponge).
+- `Shortcut viewer`: `Present with differences`. Cmd+/ (Ctrl+/) opens a shortcut reference dialog listing the implemented shortcuts; Photoshop's category-tabbed editor is not matched.
 - `Shortcut editor`: `Missing`. Users cannot customize shortcuts.
 
 Implementation notes:
-- Shortcuts are handled mainly in `src/App.tsx` and shown selectively in `MenuBar`.
+- Shortcuts are handled mainly in `src/App.tsx`, with the new Cmd+/ shortcut reference dialog mounted from there.
 
 ## 0054 - Change Tool Pointers
 
@@ -1037,13 +1038,13 @@ Function group: layer model overview.
 Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Layer types`: `Partial`. Photoweb models raster, type, shape, adjustment, fill, and group kinds, but group behavior is not fully operational.
-- `Layer stack compositing`: `Present with differences`. Canvas 2D compositing handles visible layers, opacity, and blend modes.
-- `Layer masks`: `Partial`. Mask data and operations exist, but UI/workflow depth is below Photoshop.
-- `Layer effects`: `Missing`. Types exist, but no practical layer style UI/rendering is implemented.
+- `Layer types`: `Present with differences`. Photoweb models raster, type, shape, adjustment, fill, and group kinds; group behavior is now operational in the layer stack.
+- `Layer stack compositing`: `Present with differences`. Canvas 2D compositing handles visible layers, opacity, blend modes, and group compositing.
+- `Layer masks`: `Present with differences`. Mask data, operations, thumbnails, enable/disable, link/unlink, apply, and delete controls exist, with a simpler workflow than Photoshop.
+- `Layer effects`: `Partial`. Drop Shadow, Stroke, and Color Overlay are implemented end-to-end (compositor renders them and the Properties panel adds, removes, toggles, and edits them); Inner Shadow, Outer/Inner Glow, Bevel, Pattern Overlay, and Gradient Overlay remain missing.
 
 Implementation notes:
-- `LayerKind` includes more types than the current UI fully supports.
+- `LayerKind` includes the main browser-friendly layer types; layer effects now render through the compositor for the three implemented styles, with the rest of the Photoshop layer-style catalog still pending.
 
 ## 0074 - Organize Layers With Layer Groups
 
@@ -1051,16 +1052,17 @@ Source note: `pages/0074-organize-layers-with-layer-groups.md`
 
 Function group: layer groups.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Create group`: `Missing`. The Layer menu group command is disabled and layer grouping is not operational.
-- `Nest layers in groups`: `Missing`.
-- `Group visibility/opacity/blend handling`: `Missing`.
-- `Ungroup`: `Missing`.
+- `Create group`: `Present with differences`. Photoweb can create empty groups and group selected layers from the Layers panel/menu.
+- `Nest layers in groups`: `Partial`. The model supports parent/child group relationships; the current drag/drop UX is simpler than Photoshop.
+- `Group visibility/opacity/blend handling`: `Present with differences`. Group visibility and opacity affect child compositing in the Canvas 2D compositor.
+- `Ungroup`: `Present with differences`. Group rows can be ungrouped through the Layers panel context menu/store API.
+- `Collapse/expand`: `Present with differences`. Group rows can be collapsed/expanded in the Layers panel.
 
 Implementation notes:
-- The data model mentions `group`, but no full group workflow is wired.
+- Group behavior is implemented with `parentId` and `expanded` on layers, group-aware compositing, and undoable layer commands.
 
 ## 0075 - Work With The Layers Panel
 
@@ -1204,13 +1206,13 @@ Function group: layer selection.
 Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Select layer in Layers panel`: `Present with differences`.
+- `Select layer in Layers panel`: `Present with differences`. Regular click selects a single active layer.
 - `Auto-select layer with Move tool`: `Partial`. The UI has Move tool options, but Photoshop's full auto-select/layer bounds behavior is not matched.
-- `Select multiple layers`: `Missing` or very limited. Photoweb primarily tracks a single active layer.
+- `Select multiple layers`: `Present with differences`. Photoweb now tracks `selectedLayerIds`; Cmd/Ctrl-click toggles layers and Shift-click selects a contiguous range in the Layers panel.
 - `Find/filter layers`: `Missing`.
 
 Implementation notes:
-- Active layer state is central to most layer operations.
+- Active layer remains distinct from multi-selection. Multi-selection is used for group, align, and distribute workflows.
 
 ## 0084 - Group And Ungroup Layers
 
@@ -1218,16 +1220,16 @@ Source note: `pages/0084-group-and-ungroup-layers.md`
 
 Function group: grouping selected layers.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Group selected layers`: `Missing`.
-- `Ungroup layers`: `Missing`.
-- `Nested groups`: `Missing`.
-- `Group shortcut/menu command`: `Missing`. Related menu command is disabled.
+- `Group selected layers`: `Present with differences`. Multiple selected layers can be grouped; the folder button groups selection when more than one layer is selected.
+- `Ungroup layers`: `Present with differences`. Group rows can be ungrouped through the context menu/store API.
+- `Nested groups`: `Partial`. The data model supports nested parent relationships, but drag/drop into nested groups is not yet Photoshop-level.
+- `Group shortcut/menu command`: `Present with differences`. Layer menu group commands are wired, but no dedicated keyboard shortcut has been added.
 
 Implementation notes:
-- This overlaps with note `0074`; the data type exists, but not the workflow.
+- This overlaps with note `0074`; the workflow is now implemented in `layersSlice`, `LayersPanel`, and `MenuBar`.
 
 ## 0085 - Link And Unlink Layers
 
@@ -1322,7 +1324,7 @@ Sub-function comparison:
 - `Create adjustment layer from menu/panel`: `Present with differences`.
 - `Clip adjustment to layer below`: `Missing`. Photoweb does not clearly implement clipping-mask adjustment behavior.
 - `Edit adjustment properties later`: `Partial`. Adjustment parameters exist, but the UI is not Photoshop-equivalent.
-- `Use masks with adjustment layers`: `Partial`. Layer mask infrastructure exists.
+- `Use masks with adjustment layers`: `Present with differences`. Adjustment and filter application honor `layer.mask`, so a layer mask actually scopes where the adjustment/filter affects pixels; Photoshop's mask-aware Properties panel for adjustment layers still has more controls.
 
 Implementation notes:
 - The core adjustment engine is present; advanced workflow polish is the gap.
@@ -1333,16 +1335,17 @@ Source note: `pages/0091-use-layer-masks-to-target-adjustment-or-fill-layers.md`
 
 Function group: masks on adjustment/fill layers.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Add mask to layer`: `Present with differences`. Layer mask operations exist.
 - `Use selection to initialize mask`: `Partial`. Some menu actions imply reveal/hide selection behavior, but Photoshop's mask panel workflow is broader.
-- `Enable/disable/link/invert/apply mask`: `Partial`. Store actions exist for several mask operations, but UI parity is incomplete.
-- `Properties panel mask controls`: `Missing`.
+- `Enable/disable/link/invert/apply mask`: `Present with differences`. Store actions exist and the Layers panel now exposes mask thumbnail, enable/disable, link/unlink, apply, and delete workflows; Photoshop's Properties-level mask controls remain broader.
+- `Mask scopes adjustment/fill effect`: `Present with differences`. Adjustment and filter application now honor `layer.mask`, so painting on the mask actually limits where the effect applies; mask paint strokes are recorded as history entries.
+- `Properties panel mask controls`: `Partial`. The Properties panel is now active-layer-aware and surfaces adjustment/fill/effect editing, but a Photoshop-equivalent mask Properties section (density, feather, refine) is not yet implemented.
 
 Implementation notes:
-- Mask data is in the layer model and operations are in `layersSlice`.
+- Mask data is in the layer model, operations are in `layersSlice`, visible mask controls are in `LayersPanel`, and `applyAdjustmentToLayer`/`applyFilterToLayer` consult `layer.mask` when compositing the result.
 
 ## 0092 - Create Adjustment Layers
 
@@ -1353,12 +1356,13 @@ Function group: adjustment layer creation.
 Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Layer > New Adjustment Layer`: `Present with differences`. Photoweb menu actions create adjustment layers.
+- `Layer > New Adjustment Layer`: `Present with differences`. The Image menu now exposes a New Adjustment Layer submenu that creates editable, non-destructive adjustment layers per type.
 - `Adjustments panel buttons`: `Present with differences`. The right dock includes an Adjustments tab.
 - `Name/mode/opacity options at creation`: `Partial`. Photoweb can later edit layer name/opacity/blend mode, but does not match Photoshop's new-layer dialog flow.
+- `Edit adjustment after creation`: `Present with differences`. The active-layer-aware Properties panel surfaces an editing section for the selected adjustment layer.
 
 Implementation notes:
-- Adjustment creation is one of the better-covered Photoshop feature groups.
+- Adjustment creation is one of the better-covered Photoshop feature groups; non-destructive editing is wired through the Image menu submenu and the Properties panel.
 
 ## 0093 - Merging Adjustment Or Fill Layers
 
@@ -1437,7 +1441,8 @@ Sub-function comparison:
 - `Solid Color fill layer`: `Present with differences`.
 - `Gradient fill layer`: `Present with differences`.
 - `Pattern fill layer`: `Missing`.
-- `Fill layer mask and edit controls`: `Partial`.
+- `Fill layer mask controls`: `Present with differences`. Fill layers can use the same layer mask lifecycle and visible mask controls as other layers.
+- `Edit fill parameters after creation`: `Partial`. Fill layer data exists, but a Photoshop-like Properties editor is still pending.
 
 Implementation notes:
 - Fill layer types are defined in `src/core/fillLayer.ts`.
@@ -1453,10 +1458,10 @@ Overall Photoweb status: `Partial`
 Sub-function comparison:
 - `Common tonal/color adjustments`: `Present with differences`. Many core adjustments are implemented.
 - `Specialized Camera Raw-style options`: `Missing`. Clarity, Dehaze, Grain, and some modern controls are not present as adjustment layers.
-- `Option UI parity`: `Partial`. Photoweb uses simpler dialogs and parameter models.
+- `Option UI parity`: `Partial`. Photoweb uses simpler dialogs and parameter models; the Properties panel is now active-layer-aware and edits adjustment-layer parameters in place, but it does not match every Photoshop Properties control.
 
 Implementation notes:
-- Adjustment coverage is broad but not Photoshop-complete.
+- Adjustment coverage is broad but not Photoshop-complete; the Properties panel section for adjustment layers now closes the Properties-based editing gap.
 
 ## 0099 - Change Adjustment And Fill Layer Options
 
@@ -1464,15 +1469,15 @@ Source note: `pages/0099-change-adjustment-and-fill-layer-options.md`
 
 Function group: editing existing adjustment/fill layer settings.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Change adjustment parameters after creation`: `Partial`. Data exists for adjustment parameters, but UI for revisiting and editing all options is limited.
-- `Change fill color/gradient after creation`: `Partial`. Fill layer data exists, but the full Photoshop Properties workflow is absent.
+- `Change adjustment parameters after creation`: `Present with differences`. The active-layer-aware Properties panel exposes adjustment parameters for the selected adjustment layer and re-renders the result through the compositor.
+- `Change fill color/gradient after creation`: `Present with differences`. The Properties panel includes a fill-layer section for editing solid color and gradient fill layers; pattern fill is still not implemented.
 - `Change blend/opacity`: `Present with differences`. Layers panel supports blend mode, opacity, and fill.
 
 Implementation notes:
-- A Properties panel exists in the codebase, but the active workflow is not Photoshop-equivalent.
+- The Properties panel now mounts in the right dock, is toggled from Window > Properties, and renders sections for raster, type, shape, adjustment, fill, group, and effects on the active layer.
 
 ## 0100 - Adjust Contrast With Clarity And Dehaze
 
@@ -1512,15 +1517,15 @@ Source note: `pages/0102-apply-layer-effects.md`
 
 Function group: layer effects.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Apply effects such as shadow/glow/bevel`: `Missing`.
-- `Layer effects rendering`: `Missing`. The layer model has an `effects` field, but behavior/UI is not implemented as a usable feature.
-- `Effects dialog`: `Missing`.
+- `Apply effects such as shadow/glow/bevel`: `Partial`. Drop Shadow, Stroke, and Color Overlay can be added to a layer; Outer/Inner Glow and Bevel are not implemented.
+- `Layer effects rendering`: `Present with differences`. The compositor renders the implemented effects directly on top of the layer.
+- `Effects dialog`: `Partial`. Effects are added, removed, toggled, and edited from the active-layer Properties panel rather than a Photoshop-style modal Layer Style dialog.
 
 Implementation notes:
-- Treat this as a data-model placeholder, not a shipped Photoweb function.
+- Layer effects move from data-model placeholder to a working subset (Drop Shadow, Stroke, Color Overlay) wired through the compositor and the Properties panel.
 
 ## 0103 - Add Layer Styles
 
@@ -1528,15 +1533,15 @@ Source note: `pages/0103-add-layer-styles.md`
 
 Function group: layer styles.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Open Layer Style dialog`: `Missing`.
-- `Add drop shadow, stroke, overlay, glow, bevel`: `Missing`.
-- `Multiple effects per layer`: `Missing`.
+- `Open Layer Style dialog`: `Partial`. There is no modal Layer Style dialog; instead, layer styles are added, edited, and toggled through the active-layer Properties panel.
+- `Add drop shadow, stroke, overlay, glow, bevel`: `Partial`. Drop Shadow, Stroke, and Color Overlay are available; Inner Shadow, Outer/Inner Glow, Bevel, Pattern Overlay, and Gradient Overlay are not.
+- `Multiple effects per layer`: `Present with differences`. A single layer can carry several of the implemented effects at once.
 
 Implementation notes:
-- No layer style UI is present in menus or panels.
+- Layer style entry points are now in the Properties panel, with rendering performed in the compositor.
 
 ## 0104 - Work With Preset Styles
 
@@ -1560,17 +1565,17 @@ Source note: `pages/0105-layer-style-effects-and-options-overview.md`
 
 Function group: layer style effect catalog.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Drop Shadow/Inner Shadow`: `Missing`.
+- `Drop Shadow/Inner Shadow`: `Partial`. Drop Shadow is implemented and rendered by the compositor; Inner Shadow is not.
 - `Outer Glow/Inner Glow`: `Missing`.
 - `Bevel and Emboss`: `Missing`.
-- `Stroke/Color Overlay/Gradient Overlay/Pattern Overlay`: `Missing`.
-- `Blending options for styles`: `Missing`.
+- `Stroke/Color Overlay/Gradient Overlay/Pattern Overlay`: `Partial`. Stroke and Color Overlay are implemented; Gradient Overlay and Pattern Overlay are not.
+- `Blending options for styles`: `Partial`. Each implemented effect supports basic parameter editing through the Properties panel, but Photoshop's full blending controls (contour, knockout, etc.) are not present.
 
 Implementation notes:
-- Photoweb blend modes are layer compositing modes, not layer style effects.
+- Photoweb blend modes remain layer compositing modes; layer-style-specific effects render through the compositor's effect pass for the implemented styles.
 
 ## 0106 - Manage Preset Styles
 
@@ -1594,15 +1599,15 @@ Source note: `pages/0107-display-or-hide-layer-styles.md`
 
 Function group: layer style visibility toggles.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Toggle all effects on a layer`: `Missing`.
-- `Toggle individual effects`: `Missing`.
-- `Show/hide style indicators in Layers panel`: `Missing`.
+- `Toggle all effects on a layer`: `Missing`. There is no master switch to disable every effect on the active layer at once.
+- `Toggle individual effects`: `Present with differences`. Each Drop Shadow, Stroke, and Color Overlay effect on the active layer can be toggled on/off from the Properties panel.
+- `Show/hide style indicators in Layers panel`: `Missing`. The Layers panel does not yet draw effect indicators next to each layer row.
 
 Implementation notes:
-- Layer visibility is supported, but style-specific visibility is not.
+- Per-effect toggles live in the Properties panel; Photoshop's Layers-panel disclosure triangle and master fx eye are not implemented.
 
 ## 0108 - Copy And Paste Layer Styles
 
@@ -1663,10 +1668,10 @@ High-overlap areas:
 
 Major missing areas:
 - Generative AI: notes `0055` through `0070` are almost entirely absent except for non-AI canvas resize and local image creation/open/import.
-- Workspace customization: notes `0020` through `0037` are mostly missing because Photoweb uses a fixed workspace.
-- Preferences and product infrastructure: notes `0011` through `0017`, `0032` through `0034`, and `0049` through `0054` lack central preferences, localization, GPU settings, codec guidance, home screen, shortcut viewer, and pointer settings.
-- Advanced Photoshop layer systems: layer groups, linked layers, video layers, Smart Object-like placement, full layer effects/styles, style presets, and contours are missing.
-- History Brush/history log: undo/history exists, but Photoshop's history logging and previous-state painting are missing.
+- Workspace customization: notes `0020` through `0037` are mostly missing because Photoweb uses a fixed workspace, though Window-menu panel show/hide is now wired and persisted.
+- Preferences and product infrastructure: notes `0011` through `0017`, `0032` through `0034`, and `0049` through `0054` lack central preferences, localization, GPU settings, codec guidance, home screen, and pointer settings; a Cmd+/ shortcut reference dialog now covers part of the shortcut viewer gap.
+- Advanced Photoshop layer systems: layer groups (working), full layer effects/styles (Drop Shadow/Stroke/Color Overlay implemented; Inner Shadow, Glows, Bevel, Pattern/Gradient Overlay still missing), linked layers, video layers, Smart Object-like placement, style presets, and contours are missing.
+- History Brush/history log: undo/history exists (mask paint is now a first-class history entry), but Photoshop's history logging and previous-state painting are still missing.
 
 Recommended implementation priorities if Photoweb wants closer Photoshop parity:
 - Add workspace state first: hide/show panels, panel visibility, saved workspace presets, and a Window menu that can actually open panels.

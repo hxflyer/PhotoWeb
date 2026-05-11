@@ -9,6 +9,7 @@ import { makeToolPointerEvent } from './simulator';
 ensureStubsRegistered();
 
 function reset() {
+    useEditorStore.getState().clearHistory();
     useEditorStore.setState((s) => ({
         ...s,
         layers: [],
@@ -26,6 +27,7 @@ function reset() {
     setMagicWandOptions(defaultMagicWandOptions);
     setQuickSelectionOptions({ size: 30, sampleAllLayers: false, autoEnhance: true });
     useEditorStore.getState().addLayer();
+    useEditorStore.getState().clearHistory();
 }
 
 function ctx() {
@@ -71,6 +73,48 @@ describe('selection tools', () => {
         expect(op.path).toEqual([{ x: 10, y: 20 }, { x: 110, y: 80 }]);
     });
 
+    it('marquee-rect clears an existing selection immediately on mouse-down outside it', () => {
+        const tool = getTool('marquee-rect')!;
+        useEditorStore.getState().setSelectionOperations([
+            { mode: 'add', type: 'rect', path: [{ x: 10, y: 10 }, { x: 50, y: 50 }] },
+        ]);
+
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 70, canvasY: 70 }), ctx());
+
+        expect(useEditorStore.getState().selection.hasSelection).toBe(false);
+        expect(useEditorStore.getState().selection.operations).toEqual([]);
+    });
+
+    it('marquee-rect drags an existing selection outline when mouse starts inside it', () => {
+        const tool = getTool('marquee-rect')!;
+        useEditorStore.getState().setSelectionOperations([
+            { mode: 'add', type: 'rect', path: [{ x: 10, y: 10 }, { x: 50, y: 50 }] },
+        ]);
+
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 20, canvasY: 20 }), ctx());
+        tool.onPointerMove!(makeToolPointerEvent({ canvasX: 35, canvasY: 30 }), ctx());
+
+        expect(useEditorStore.getState().selection.operations[0].path).toEqual([
+            { x: 25, y: 20 },
+            { x: 65, y: 60 },
+        ]);
+
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 35, canvasY: 30 }), ctx());
+        expect(useEditorStore.getState().selection.hasSelection).toBe(true);
+    });
+
+    it('undo and redo restore committed selection operations', () => {
+        const op = { mode: 'add' as const, type: 'rect' as const, path: [{ x: 0, y: 0 }, { x: 20, y: 20 }] };
+        useEditorStore.getState().setSelectionOperations([op]);
+        expect(useEditorStore.getState().selection.operations).toHaveLength(1);
+
+        useEditorStore.getState().undo();
+        expect(useEditorStore.getState().selection.operations).toHaveLength(0);
+
+        useEditorStore.getState().redo();
+        expect(useEditorStore.getState().selection.operations).toEqual([op]);
+    });
+
     it('marquee-rect with Shift constrains to a square', () => {
         const tool = getTool('marquee-rect')!;
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
@@ -105,30 +149,33 @@ describe('selection tools', () => {
         expect(sel.operations[0].path.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('plain lasso replaces the previous selection instead of accumulating', () => {
+    it('lasso click outside the existing selection dismisses it and starts a fresh lasso path', () => {
         const rect = getTool('marquee-rect')!;
         rect.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 20 }), ctx());
         rect.onPointerMove!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
         rect.onPointerUp!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
 
         const lasso = getTool('lasso')!;
-        lasso.onPointerDown!(makeToolPointerEvent({ canvasX: 20, canvasY: 20 }), ctx());
-        lasso.onPointerMove!(makeToolPointerEvent({ canvasX: 70, canvasY: 20 }), ctx());
-        lasso.onPointerMove!(makeToolPointerEvent({ canvasX: 70, canvasY: 70 }), ctx());
-        lasso.onPointerUp!(makeToolPointerEvent({ canvasX: 20, canvasY: 70 }), ctx());
+        // Click clearly outside the (10..110, 20..80) rect — outside-dismiss applies.
+        lasso.onPointerDown!(makeToolPointerEvent({ canvasX: 200, canvasY: 200 }), ctx());
+        lasso.onPointerMove!(makeToolPointerEvent({ canvasX: 250, canvasY: 200 }), ctx());
+        lasso.onPointerMove!(makeToolPointerEvent({ canvasX: 250, canvasY: 250 }), ctx());
+        lasso.onPointerUp!(makeToolPointerEvent({ canvasX: 200, canvasY: 250 }), ctx());
 
         const sel = useEditorStore.getState().selection;
         expect(sel.operations).toHaveLength(1);
         expect(sel.operations[0].type).toBe('lasso');
     });
 
-    it('shift adds a second selection operation', () => {
+    it('shift held from mouse-down adds a second selection operation', () => {
         const rect = getTool('marquee-rect')!;
         rect.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 20 }), ctx());
         rect.onPointerMove!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
         rect.onPointerUp!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
 
-        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 130, canvasY: 20 }), ctx());
+        // Photoshop: Shift on pointer-down resolves to "add"; the modifier is
+        // captured on pointer-up so consistency between down and up matters.
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 130, canvasY: 20, modifiers: { shift: true } }), ctx());
         rect.onPointerMove!(makeToolPointerEvent({ canvasX: 180, canvasY: 80, modifiers: { shift: true } }), ctx());
         rect.onPointerUp!(makeToolPointerEvent({ canvasX: 180, canvasY: 80, modifiers: { shift: true } }), ctx());
 
@@ -137,13 +184,13 @@ describe('selection tools', () => {
         expect(sel.operations[1].mode).toBe('add');
     });
 
-    it('cmd/ctrl subtract appends a subtract operation for marquee selections', () => {
+    it('cmd/ctrl held from mouse-down subtracts for marquee selections', () => {
         const rect = getTool('marquee-rect')!;
         rect.onPointerDown!(makeToolPointerEvent({ canvasX: 10, canvasY: 20 }), ctx());
         rect.onPointerMove!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
         rect.onPointerUp!(makeToolPointerEvent({ canvasX: 110, canvasY: 80 }), ctx());
 
-        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 40, canvasY: 30 }), ctx());
+        rect.onPointerDown!(makeToolPointerEvent({ canvasX: 40, canvasY: 30, modifiers: { meta: true } }), ctx());
         rect.onPointerMove!(makeToolPointerEvent({ canvasX: 70, canvasY: 60, modifiers: { meta: true } }), ctx());
         rect.onPointerUp!(makeToolPointerEvent({ canvasX: 70, canvasY: 60, modifiers: { meta: true } }), ctx());
 
@@ -211,6 +258,9 @@ describe('selection tools', () => {
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
         expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(1);
 
+        // Selection inside the wand area now means a second click at the same
+        // point would enter move-mode; deselect first to test re-sampling.
+        useEditorStore.getState().clearSelection();
         setMagicWandOptions({ tolerance: 15, antiAlias: false, contiguous: false });
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
         expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(2);
@@ -233,6 +283,7 @@ describe('selection tools', () => {
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
         expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(1);
 
+        useEditorStore.getState().clearSelection();
         setMagicWandOptions({ tolerance: 0, antiAlias: false, contiguous: false });
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
         expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(2);
@@ -248,6 +299,7 @@ describe('selection tools', () => {
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
         expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(100);
 
+        useEditorStore.getState().clearSelection();
         setMagicWandOptions({ tolerance: 0, antiAlias: false, contiguous: true, sampleAllLayers: true });
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
         expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(50);
@@ -276,6 +328,9 @@ describe('selection tools', () => {
         tool.onPointerUp!(makeToolPointerEvent({ canvasX: 2, canvasY: 2 }), ctx());
         expect(selectedPixels(useEditorStore.getState().selection.operations[0].mask?.data)).toBe(50);
 
+        // Clear the existing selection so the next pointer-down doesn't enter
+        // move-mode (clicking inside a selection moves it).
+        useEditorStore.getState().clearSelection();
         setQuickSelectionOptions({ size: 6, autoEnhance: false });
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 4, canvasY: 2 }), ctx());
         tool.onPointerUp!(makeToolPointerEvent({ canvasX: 4, canvasY: 2 }), ctx());

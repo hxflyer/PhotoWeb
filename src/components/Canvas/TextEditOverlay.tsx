@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import {
     applyStyleRun,
@@ -75,6 +75,8 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
         onCancel,
     } = props;
     const ref = useRef<HTMLDivElement>(null);
+    const movingRef = useRef(false);
+    const [moveHover, setMoveHover] = useState(false);
     const lastAcceptedRef = useRef<{ text: string; styleRuns?: TypeStyleRun[] }>({ text: initialValue, styleRuns: props.styleRuns });
 
     const styleToCss = (s: Partial<TextStyle>): Partial<CSSStyleDeclaration> => ({
@@ -358,6 +360,73 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
         window.addEventListener('pointerup', onUp);
     };
 
+    const textContentRect = (): { left: number; top: number; right: number; bottom: number } | null => {
+        const root = ref.current;
+        if (!root || textMode !== 'box' || root.innerText.length === 0) return null;
+        const range = document.createRange();
+        range.selectNodeContents(root);
+        const rects = Array.from(range.getClientRects()).filter(rect => rect.width > 0 || rect.height > 0);
+        if (rects.length === 0) return null;
+        return rects.reduce((acc, rect) => ({
+            left: Math.min(acc.left, rect.left),
+            top: Math.min(acc.top, rect.top),
+            right: Math.max(acc.right, rect.right),
+            bottom: Math.max(acc.bottom, rect.bottom),
+        }), {
+            left: rects[0].left,
+            top: rects[0].top,
+            right: rects[0].right,
+            bottom: rects[0].bottom,
+        });
+    };
+
+    const isOutsideEditableText = (e: PointerEvent<HTMLDivElement>): boolean => {
+        const rect = textContentRect();
+        if (!rect) return false;
+        const slack = 4;
+        return e.clientX < rect.left - slack
+            || e.clientX > rect.right + slack
+            || e.clientY < rect.top - slack
+            || e.clientY > rect.bottom + slack;
+    };
+
+    const startMove = (e: PointerEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        movingRef.current = true;
+        setMoveHover(true);
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const start = { ...transform };
+        const onMove = (ev: globalThis.PointerEvent) => {
+            const dx = (ev.clientX - startX) / zoom;
+            const dy = (ev.clientY - startY) / zoom;
+            onTransformChange?.({ ...start, x: start.x + dx, y: start.y + dy });
+        };
+        const onUp = () => {
+            movingRef.current = false;
+            setMoveHover(false);
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    };
+
+    const handleTextPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+        if (isOutsideEditableText(e)) {
+            startMove(e);
+            return;
+        }
+        stopTextMouseEvent(e);
+    };
+
+    const handleTextPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+        if (!movingRef.current) setMoveHover(isOutsideEditableText(e));
+        stopTextMouseEvent(e);
+    };
+
     return (
         <div
             style={{
@@ -375,6 +444,20 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
             }}
         >
             <div
+                aria-hidden
+                onPointerDown={startMove}
+                onPointerEnter={() => setMoveHover(true)}
+                onPointerLeave={() => { if (!movingRef.current) setMoveHover(false); }}
+                style={{
+                    position: 'absolute',
+                    inset: -8,
+                    zIndex: 0,
+                    cursor: 'move',
+                    pointerEvents: 'auto',
+                    touchAction: 'none',
+                }}
+            />
+            <div
                 ref={ref}
                 contentEditable
                 suppressContentEditableWarning
@@ -385,9 +468,10 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
                 onInput={notifyRichChange}
                 onKeyDown={handleKeyDown}
                 onKeyUp={notifyRichChange}
-                onPointerDown={stopTextMouseEvent}
-                onPointerMove={stopTextMouseEvent}
+                onPointerDown={handleTextPointerDown}
+                onPointerMove={handleTextPointerMove}
                 onPointerUp={stopTextMouseEvent}
+                onPointerLeave={() => { if (!movingRef.current) setMoveHover(false); }}
                 onMouseDown={stopTextMouseEvent}
                 onMouseMove={stopTextMouseEvent}
                 onMouseUp={(e) => { stopTextMouseEvent(e); notifyRichChange(); }}
@@ -429,13 +513,14 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
                     wordBreak: textMode === 'box' ? 'break-word' : 'normal',
                     caretColor: style.color,
                     boxSizing: 'border-box',
+                    cursor: textMode === 'box' && moveHover ? 'move' : 'text',
                 }}
             />
             {textMode === 'box' && boxHandles.map(([id, x, y]) => (
                 <div
                     key={id}
-                    onPointerDown={(e) => startResize(id, e)}
-                    title={id === 'c' ? 'Text area' : `Resize ${id}`}
+                    onPointerDown={(e) => id === 'c' ? startMove(e) : startResize(id, e)}
+                    title={id === 'c' ? 'Move text box' : `Resize ${id}`}
                     style={{
                         position: 'absolute',
                         left: `calc(${x * 100}% - 3px)`,

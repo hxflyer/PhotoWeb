@@ -1,23 +1,36 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { getBrushTip } from './brush';
+import { captureLayerRegion, createPixelHistoryAction, createMaskPixelHistoryAction, cropImageData, expandStrokeBounds, makeStrokeBounds, strokeBoundsToRect, type StrokeBounds } from '../core/history';
+
+export type EraserMode = 'brush' | 'pencil' | 'block';
 
 interface EraserOptions {
-    size: number;
-    hardness: number;
-    opacity: number;
-    flow: number;
-    mode: 'brush' | 'pencil' | 'block';
+    mode: EraserMode;
+    // Spacing fraction-of-size for pencil and block modes.
+    // 0.15 = nearly continuous, 1.0 = barely overlapping stamps.
+    spacing: number;
 }
 
-const options: EraserOptions = { size: 30, hardness: 0.9, opacity: 1, flow: 1, mode: 'brush' };
+const options: EraserOptions = { mode: 'brush', spacing: 0.4 };
 
 export function setEraserOptions(next: Partial<EraserOptions>): void {
     Object.assign(options, next);
 }
 
-interface S { last: { x: number; y: number } | null; layerId: string | null; leftover: number }
-const s: S = { last: null, layerId: null, leftover: 0 };
+export function getEraserOptions(): EraserOptions {
+    return { ...options };
+}
+
+interface S { last: { x: number; y: number } | null; layerId: string | null; leftover: number; before: ImageData | null; target: 'layer' | 'mask'; bounds: StrokeBounds }
+const s: S = { last: null, layerId: null, leftover: 0, before: null, target: 'layer', bounds: makeStrokeBounds() };
+
+function targetCanvas(layer: import('../core/Layer').Layer, target: 'layer' | 'mask'): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+    if (target === 'mask' && layer.mask) {
+        return { canvas: layer.mask.canvas, ctx: layer.mask.ctx };
+    }
+    return { canvas: layer.canvas, ctx: layer.ctx };
+}
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
@@ -30,9 +43,17 @@ export const eraserTool: Tool = {
         const store = ctx.getStore();
         const layer = store.layers.find(l => l.id === store.activeLayerId);
         if (!layer) return;
+        s.target = store.activeLayerEditTarget === 'mask' && layer.mask ? 'mask' : 'layer';
+        const tgt = targetCanvas(layer, s.target);
         s.last = p(e);
         s.layerId = layer.id;
         s.leftover = 0;
+        s.before = s.target === 'mask'
+            ? tgt.ctx.getImageData(0, 0, tgt.canvas.width, tgt.canvas.height)
+            : captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+        s.bounds = makeStrokeBounds();
+        const r0 = (store.brushSettings.size ?? 1) / 2 + 1;
+        expandStrokeBounds(s.bounds, s.last.x, s.last.y, r0);
     },
     onPointerMove: (e, ctx) => {
         if (!s.last || !s.layerId) return;
@@ -40,33 +61,78 @@ export const eraserTool: Tool = {
         const layer = store.layers.find(l => l.id === s.layerId);
         if (!layer) return;
         const target = p(e);
-        const tip = getBrushTip({ size: options.size, hardness: options.hardness, color: '#000' });
+        const { size, hardness, opacity } = store.brushSettings;
         const dx = target.x - s.last.x;
         const dy = target.y - s.last.y;
         const dist = Math.hypot(dx, dy);
-        const spacing = Math.max(1, options.size * 0.15);
-        const start = spacing - s.leftover;
-        let i = start;
-        const lctx = layer.ctx;
+        const lctx = targetCanvas(layer, s.target).ctx;
         lctx.save();
         lctx.globalCompositeOperation = 'destination-out';
-        lctx.globalAlpha = options.opacity;
-        while (i <= dist) {
-            const x = s.last.x + (dx * i) / (dist || 1);
-            const y = s.last.y + (dy * i) / (dist || 1);
-            lctx.drawImage(tip, x - options.size / 2, y - options.size / 2);
-            i += spacing;
+        lctx.globalAlpha = opacity;
+        if (options.mode === 'block') {
+            const half = size / 2;
+            const stepSize = Math.max(1, size * options.spacing);
+            const steps = Math.max(1, Math.ceil(dist / stepSize));
+            for (let step = 0; step <= steps; step++) {
+                const t = step / steps;
+                const x = s.last.x + dx * t;
+                const y = s.last.y + dy * t;
+                lctx.fillStyle = '#000';
+                lctx.fillRect(Math.round(x - half), Math.round(y - half), Math.max(1, Math.round(size)), Math.max(1, Math.round(size)));
+            }
+        } else if (options.mode === 'pencil') {
+            const radius = size / 2;
+            const steps = Math.max(1, Math.ceil(dist / Math.max(1, size * options.spacing)));
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const x = s.last.x + dx * t;
+                const y = s.last.y + dy * t;
+                lctx.fillStyle = '#000';
+                lctx.beginPath();
+                lctx.arc(Math.round(x), Math.round(y), radius, 0, Math.PI * 2);
+                lctx.fill();
+            }
+        } else {
+            const tip = getBrushTip({ size, hardness, color: '#000' });
+            const spacing = Math.max(1, size * 0.15);
+            const start = spacing - s.leftover;
+            let i = start;
+            while (i <= dist) {
+                const x = s.last.x + (dx * i) / (dist || 1);
+                const y = s.last.y + (dy * i) / (dist || 1);
+                lctx.drawImage(tip, x - size / 2, y - size / 2);
+                i += spacing;
+            }
+            const lastStamp = i - spacing;
+            s.leftover = lastStamp < start ? s.leftover + dist : dist - lastStamp;
         }
         lctx.restore();
-        const lastStamp = i - spacing;
-        s.leftover = lastStamp < start ? s.leftover + dist : dist - lastStamp;
+        const r = (size ?? 1) / 2 + 1;
+        expandStrokeBounds(s.bounds, target.x, target.y, r);
         layer.markDirty(null);
         s.last = target;
     },
-    onPointerUp: () => {
+    onPointerUp: (_e, ctx) => {
+        if (s.layerId && s.before) {
+            const store = ctx.getStore();
+            const layer = store.layers.find(l => l.id === s.layerId);
+            if (layer) {
+                if (s.target === 'mask' && layer.mask) {
+                    const after = layer.mask.ctx.getImageData(0, 0, layer.mask.canvas.width, layer.mask.canvas.height);
+                    store.executeCommand(createMaskPixelHistoryAction(layer, s.before, after, 'Mask Eraser'));
+                } else {
+                    const rect = strokeBoundsToRect(s.bounds, layer.canvas.width, layer.canvas.height)
+                        ?? { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height };
+                    const beforeCropped = cropImageData(s.before, rect.x, rect.y, rect.width, rect.height);
+                    store.commitHistory(createPixelHistoryAction(layer, rect, beforeCropped, 'Eraser'));
+                }
+            }
+        }
         s.last = null;
         s.layerId = null;
         s.leftover = 0;
+        s.before = null;
+        s.bounds = makeStrokeBounds();
     },
 };
 

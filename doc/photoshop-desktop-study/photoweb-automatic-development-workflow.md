@@ -122,7 +122,7 @@ Use this structure when adding new requirements:
 ## Picking Rules
 
 - Always finish `P0` items before `P1` unless the user asks otherwise.
-- Do not start feature work that depends on unfinished history support unless the feature is itself part of history support.
+- Treat the history foundation as implemented, but do not start new document-mutating feature work unless it can use the existing command/history support.
 - Prefer vertical slices over broad refactors.
 - If an item grows too large, split it into smaller backlog items before coding.
 - Keep excluded features out of the backlog unless they are explicitly marked `[>]`.
@@ -140,11 +140,12 @@ Do not add implementation tickets for:
 - PSD/PSB/PDF/TIFF professional compatibility.
 - Advanced export features the user declined.
 
-## First Cycle Recommendation
+## Current Cycle Recommendation
 
-Start with:
-- `HIST-01` Full history timeline with active cursor.
-- `HIST-02` Snapshot restore correctness.
+Next focus:
+- `PROPS-01` Active layer Properties panel shell.
+- Then `PROPS-02` and `PROPS-03` for editing existing adjustment and fill layer parameters.
 
 Reason:
-- Undo/redo/history must be reliable before layer groups, properties, retouch tools, styles, or guides expand the state model.
+- `HIST-01` through `HIST-05` and `LAYERS-01` through `LAYERS-05` are implemented and verified.
+- The app now has enough history/layer foundation to make layer-specific Properties editing the next highest-leverage feature family.

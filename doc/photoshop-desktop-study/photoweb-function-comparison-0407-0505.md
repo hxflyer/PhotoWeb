@@ -45,9 +45,10 @@ Sub-function comparison:
 - `Apply filter through active selection`: `Present with differences`.
 - `Sharpen only selected pixels`: `Present with differences`.
 - `Photoshop selection edge parity`: `Partial`.
+- `Layer mask supported in filter application`: `Present`. `applyFilterToLayer` now combines the active selection with the layer's raster mask so sharpening obeys both constraints.
 
 Implementation notes:
-- `applyFilterToLayer` blends filtered output through the selection mask.
+- `applyFilterToLayer` blends filtered output through the selection mask combined with any layer mask.
 
 ## 0409 - Sharpen Image Using Edge Mask
 
@@ -91,7 +92,7 @@ Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Apply blur filter`: `Present with differences`.
-- `Blur selected areas`: `Present with differences`.
+- `Blur selected areas`: `Present with differences`. `applyFilterToLayer` now respects the layer mask combined with the active selection, so blur honors both constraints.
 - `Blur Gallery/Lens Blur/field blur workflows`: `Missing`.
 
 Implementation notes:

@@ -2,12 +2,13 @@
 """Generate tiny UI icons from a 2D grid.
 
 This helper is intentionally dependency-free so it can be used during
-development without changing the app package. Prefer SVG for interface icons;
-PNG is available when a raster asset is more convenient.
+development without changing the app package. Prefer Lucide-style SVG for
+interface icons; pixel SVG/PNG are available when a raster-like asset is more
+convenient.
 
 Example:
 
-    from scripts.icon_grid import save_icon
+    from scripts.icon_grid import save_icon, save_lucide_grid_svg
 
     save_icon(
         [
@@ -20,6 +21,17 @@ Example:
         "src/assets/icons/arrow.svg",
         palette={".": None, "#": "#d7d7d7"},
         cell=4,
+    )
+
+    save_lucide_grid_svg(
+        [
+            "..#..",
+            ".###.",
+            "#####",
+            "..#..",
+            "..#..",
+        ],
+        "src/assets/icons/arrow-lucide.svg",
     )
 """
 
@@ -137,6 +149,101 @@ def save_svg(grid: Grid, path: str | Path, palette: Palette | None = None, cell:
     path.write_text(svg, encoding="utf-8")
 
 
+def grid_to_mask(grid: Grid, palette: Palette | None = None) -> list[list[bool]]:
+    """Return a boolean mask for non-transparent grid cells."""
+    validate_grid(grid)
+    mask: list[list[bool]] = []
+    for row in grid:
+        cells: Iterable[ColorValue] = row if not isinstance(row, str) else list(row)
+        current_row: list[bool] = []
+        for value in cells:
+            if isinstance(value, str):
+                token = value.strip()
+                if palette and token in palette:
+                    current_row.append(normalize_color(palette[token], palette=None) is not None)
+                else:
+                    current_row.append(token not in {"", ".", " ", "transparent", "none", "None"})
+            else:
+                current_row.append(value is not None)
+        mask.append(current_row)
+    return mask
+
+
+def save_lucide_grid_svg(
+    grid: Grid,
+    path: str | Path,
+    palette: Palette | None = None,
+    stroke_width: float = 2,
+    size: int = 24,
+    padding: float = 3,
+) -> None:
+    """Save a 2D grid as a Lucide-compatible, stroke-only SVG.
+
+    Non-empty cells are converted into rounded horizontal and vertical strokes.
+    The result uses the same important defaults as lucide-react icons:
+    24x24 viewBox, fill="none", stroke="currentColor", rounded caps/joins.
+    """
+    width = validate_grid(grid)
+    height = len(grid)
+    mask = grid_to_mask(grid, palette)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    drawing = max(width, height)
+    scale = (size - padding * 2) / drawing
+    offset_x = (size - width * scale) / 2
+    offset_y = (size - height * scale) / 2
+
+    def cx(x: int) -> float:
+        return offset_x + (x + 0.5) * scale
+
+    def cy(y: int) -> float:
+        return offset_y + (y + 0.5) * scale
+
+    paths: list[str] = []
+
+    for y, row in enumerate(mask):
+        x = 0
+        while x < width:
+            if not row[x]:
+                x += 1
+                continue
+            start = x
+            while x + 1 < width and row[x + 1]:
+                x += 1
+            end = x
+            if start == end:
+                paths.append(f"M{cx(start) - 0.01:.2f} {cy(y):.2f}H{cx(end) + 0.01:.2f}")
+            else:
+                paths.append(f"M{cx(start):.2f} {cy(y):.2f}H{cx(end):.2f}")
+            x += 1
+
+    for x in range(width):
+        y = 0
+        while y < height:
+            if not mask[y][x]:
+                y += 1
+                continue
+            start = y
+            while y + 1 < height and mask[y + 1][x]:
+                y += 1
+            end = y
+            if start != end:
+                paths.append(f"M{cx(x):.2f} {cy(start):.2f}V{cy(end):.2f}")
+            y += 1
+
+    path_elements = [f'<path d="{escape(d)}" />' for d in paths]
+    svg = "\n".join(
+        [
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}" fill="none" stroke="currentColor" stroke-width="{stroke_width:g}" stroke-linecap="round" stroke-linejoin="round">',
+            *path_elements,
+            "</svg>",
+            "",
+        ]
+    )
+    path.write_text(svg, encoding="utf-8")
+
+
 def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
     return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
 
@@ -177,9 +284,27 @@ def save_png(grid: Grid, path: str | Path, palette: Palette | None = None, cell:
     path.write_bytes(png)
 
 
-def save_icon(grid: Grid, path: str | Path, palette: Palette | None = None, cell: int = 1) -> None:
-    """Save a grid as `.svg` or `.png` based on the output extension."""
+def save_icon(
+    grid: Grid,
+    path: str | Path,
+    palette: Palette | None = None,
+    cell: int = 1,
+    style: str = "pixel",
+    stroke_width: float = 2,
+) -> None:
+    """Save a grid as `.svg` or `.png` based on the output extension.
+
+    style="pixel" keeps the original filled-cell output.
+    style="lucide" outputs a stroke-only SVG compatible with lucide-react.
+    """
     suffix = Path(path).suffix.lower()
+    if style == "lucide":
+        if suffix != ".svg":
+            raise ValueError("Lucide-style icons must be saved as .svg")
+        save_lucide_grid_svg(grid, path, palette=palette, stroke_width=stroke_width)
+        return
+    if style != "pixel":
+        raise ValueError("style must be 'pixel' or 'lucide'")
     if suffix == ".svg":
         save_svg(grid, path, palette=palette, cell=cell)
         return
@@ -195,11 +320,13 @@ def main() -> None:
     parser.add_argument("output", help="Output path ending in .svg or .png")
     parser.add_argument("--palette", default="{}", help='JSON palette, for example \'{"#":"#d7d7d7",".":null}\'')
     parser.add_argument("--cell", type=int, default=1, help="Output pixels per grid cell")
+    parser.add_argument("--style", choices=["pixel", "lucide"], default="pixel", help="SVG style. Use lucide for currentColor stroke icons.")
+    parser.add_argument("--stroke-width", type=float, default=2, help="Stroke width for --style lucide")
     args = parser.parse_args()
 
     grid = json.loads(args.grid_json)
     palette = json.loads(args.palette)
-    save_icon(grid, args.output, palette=palette, cell=args.cell)
+    save_icon(grid, args.output, palette=palette, cell=args.cell, style=args.style, stroke_width=args.stroke_width)
 
 
 if __name__ == "__main__":

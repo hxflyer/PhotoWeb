@@ -2,7 +2,7 @@
  * ChannelsPanel — RGB / R / G / B rows. Selecting a single channel routes the
  * compositor through a greyscale extraction; "RGB" restores the composite view.
  */
-import { Eye, EyeOff, Plus, Trash2, Copy } from 'lucide-react';
+import { Eye, EyeOff, Trash2, Copy } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import type { ActiveChannel } from '../../store/types';
 
@@ -88,9 +88,14 @@ function ChannelThumbnail({ channel, size = 36 }: { channel: ActiveChannel; size
 export function ChannelsPanel() {
     const activeChannel = useEditorStore(s => s.activeChannel);
     const setActiveChannel = useEditorStore.getState().setActiveChannel;
-    // Visibility flags — kept in component state since channels aren't editable layers yet.
-    // Default: all visible. Toggling here is purely cosmetic for now.
-    const visibility = { rgb: true, r: true, g: true, b: true };
+    const channelVisibility = useEditorStore(s => s.channelVisibility);
+    const toggleChannelVisibility = useEditorStore.getState().toggleChannelVisibility;
+    const visibility = {
+        rgb: channelVisibility.r && channelVisibility.g && channelVisibility.b,
+        r: channelVisibility.r,
+        g: channelVisibility.g,
+        b: channelVisibility.b,
+    };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'hsl(var(--bg-panel))' }}>
@@ -114,7 +119,19 @@ export function ChannelsPanel() {
                             }}
                         >
                             <button
-                                onClick={(e) => { e.stopPropagation(); /* visibility toggle: no-op stub */ }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (ch.id === 'rgb') {
+                                        // Toggle all three together to match the composite-view behavior.
+                                        const allOn = channelVisibility.r && channelVisibility.g && channelVisibility.b;
+                                        const next = !allOn;
+                                        useEditorStore.getState().setChannelVisibility('r', next);
+                                        useEditorStore.getState().setChannelVisibility('g', next);
+                                        useEditorStore.getState().setChannelVisibility('b', next);
+                                    } else {
+                                        toggleChannelVisibility(ch.id);
+                                    }
+                                }}
                                 title="Channel visibility"
                                 style={{
                                     background: 'none', border: 'none', cursor: 'pointer', padding: 0,
@@ -157,9 +174,6 @@ export function ChannelsPanel() {
                     disabled
                     style={{ ...HEAD_BTN, opacity: 0.4 }}
                 ><Trash2 size={14} /></button>
-                {/* Add (+) is intentionally omitted per request — only Duplicate + Delete for now.
-                    Kept as a reference for future alpha-channel add. */}
-                {false && <button style={HEAD_BTN}><Plus size={14} /></button>}
             </div>
         </div>
     );

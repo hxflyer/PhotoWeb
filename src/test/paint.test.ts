@@ -16,6 +16,7 @@ function reset() {
         brushSettings: { size: 5, hardness: 1, opacity: 1, flow: 1 },
     }));
     useEditorStore.getState().addLayer();
+    useEditorStore.getState().clearHistory();
     setCloneStampOptions({ aligned: true, sample: 'current', mode: 'source-over' });
 }
 
@@ -39,6 +40,20 @@ describe('paint tools', () => {
         const px = layerPixelAt(layer, 50, 50);
         expect(px.r).toBe(255);
         expect(px.g).toBe(0);
+    });
+
+    it('undo and redo restore a pencil stroke', () => {
+        const tool = getTool('pencil')!;
+        useEditorStore.getState().setPrimaryColor('#ff0000');
+        tool.onPointerDown!(makeToolPointerEvent({ canvasX: 50, canvasY: 50 }), ctx());
+        tool.onPointerUp!(makeToolPointerEvent({ canvasX: 50, canvasY: 50 }), ctx());
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 50, 50).r).toBe(255);
+
+        useEditorStore.getState().undo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 50, 50).a).toBe(0);
+
+        useEditorStore.getState().redo();
+        expect(layerPixelAt(useEditorStore.getState().layers[0], 50, 50).r).toBe(255);
     });
 
     it('pencil: stamping then moving leaves both endpoints painted', () => {

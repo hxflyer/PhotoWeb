@@ -28,7 +28,10 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
     hasAutosave: false,
     documentName: 'Untitled',
 
-    setCanvasSize: (width, height) => {
+    setCanvasSize: (width, height) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: 'Canvas Size',
+        run: () => {
         const { layers } = get();
         layers.forEach(layer => {
             const temp = document.createElement('canvas');
@@ -41,9 +44,13 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             layer.markDirty(null);
         });
         set({ width, height });
-    },
+        },
+    }),
 
-    rotateCanvas: (degrees) => {
+    rotateCanvas: (degrees) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: `Rotate Canvas ${degrees}°`,
+        run: () => {
         const { layers } = get();
         let newW = 0, newH = 0;
         layers.forEach(layer => {
@@ -54,18 +61,26 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             newH = result.height;
         });
         if (newW > 0) set({ width: newW, height: newH });
-    },
+        },
+    }),
 
-    flipCanvas: (axis: FlipAxis) => {
+    flipCanvas: (axis: FlipAxis) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: `Flip Canvas ${axis === 'horizontal' ? 'Horizontal' : 'Vertical'}`,
+        run: () => {
         const { layers } = get();
         layers.forEach(layer => {
             const result = flipCanvasHelper(layer.canvas, axis);
             copyCanvasContent(layer.canvas, result);
             layer.markDirty(null);
         });
-    },
+        },
+    }),
 
-    resizeImage: (newW, newH, method: ResampleMethod) => {
+    resizeImage: (newW, newH, method: ResampleMethod) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: 'Image Size',
+        run: () => {
         const { layers } = get();
         layers.forEach(layer => {
             const result = resampleCanvas(layer.canvas, newW, newH, method);
@@ -73,9 +88,13 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             layer.markDirty(null);
         });
         set({ width: newW, height: newH });
-    },
+        },
+    }),
 
-    resizeCanvas: (newW, newH, anchorX, anchorY, extensionColor) => {
+    resizeCanvas: (newW, newH, anchorX, anchorY, extensionColor) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: 'Canvas Size',
+        run: () => {
         const { layers } = get();
         layers.forEach(layer => {
             const result = resizeCanvasWithAnchor(layer.canvas, newW, newH, anchorX, anchorY, extensionColor);
@@ -83,9 +102,13 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             layer.markDirty(null);
         });
         set({ width: newW, height: newH });
-    },
+        },
+    }),
 
-    trimCanvas: (basis: TrimBasis, sides) => {
+    trimCanvas: (basis: TrimBasis, sides) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: 'Trim',
+        run: () => {
         const { layers, width, height } = get();
         if (layers.length === 0) return;
         const visibleLayer = layers.find(l => l.visible) ?? layers[0];
@@ -102,7 +125,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         });
         void visibleLayer;
         set({ width: rect.width, height: rect.height });
-    },
+        },
+    }),
 
     newDocument: (w, h, bg) => {
         const newLayer = new LayerClass(w, h, 'Background');
@@ -116,6 +140,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             height: h,
             layers: [newLayer],
             activeLayerId: newLayer.id,
+            selectedLayerIds: [newLayer.id],
+            layerSelectionAnchorId: newLayer.id,
             documentName: 'Untitled',
             selection: {
                 ...get().selection,
@@ -139,6 +165,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             height: h,
             layers: [newLayer],
             activeLayerId: newLayer.id,
+            selectedLayerIds: [newLayer.id],
+            layerSelectionAnchorId: newLayer.id,
             documentName: name,
             selection: {
                 ...get().selection,

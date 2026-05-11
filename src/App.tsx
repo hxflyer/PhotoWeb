@@ -21,10 +21,19 @@ import { ColorPickerDialog } from './components/Dialogs/ColorPickerDialog';
 import { ExportDialog } from './components/Dialogs/ExportDialog';
 import { NewDocumentDialog } from './components/Dialogs/NewDocumentDialog';
 import { RefineEdgeDialog } from './components/Dialogs/RefineEdgeDialog';
+import { SaveSelectionDialog, LoadSelectionDialog } from './components/Dialogs/SelectionDialogs';
+import { ColorRangeDialog } from './components/Dialogs/ColorRangeDialog';
+import { ShortcutsDialog } from './components/Dialogs/ShortcutsDialog';
+import { PreferencesDialog } from './components/Dialogs/PreferencesDialog';
+import { StorageUsageDialog } from './components/Dialogs/StorageUsageDialog';
+import { RequirementsOverlay } from './components/Overlay/RequirementsOverlay';
 import { getLastFilter, getFilter, applyFilterToLayer, setLastFilter } from './filters/index';
 import { applyAdjustmentToLayer } from './adjustments';
 import { initAutoSaveCheck } from './core/autoSave';
+import { captureLayerRegion, createPixelHistoryAction } from './core/history';
 import { bindTypePanelStore, getEditingStyle, updateEditingStyle, type TypeLayerData } from './tools/type';
+import { moveSelectedPixelsBy } from './tools/move';
+import { nudgeSelectionBorderBy } from './tools/selectionMove';
 import { loadImage } from './utils/imageLoader';
 import { requestViewportFit } from './utils/viewportFit';
 import { getLayerContentBounds } from './utils/canvasUtils';
@@ -51,6 +60,20 @@ function App() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveDialogName, setSaveDialogName] = useState('Untitled');
   const [adjustmentPreview, setAdjustmentPreview] = useState<{ image: ImageData; scale: number } | null>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
+
+  useEffect(() => {
+    const openPrefs = () => setPreferencesOpen(true);
+    const openStorage = () => setStorageOpen(true);
+    window.addEventListener('photoweb:open-preferences', openPrefs);
+    window.addEventListener('photoweb:open-storage-usage', openStorage);
+    return () => {
+      window.removeEventListener('photoweb:open-preferences', openPrefs);
+      window.removeEventListener('photoweb:open-storage-usage', openStorage);
+    };
+  }, []);
   const autoSaveStarted = useRef(false);
   const openFileRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -168,24 +191,65 @@ function App() {
       }
       if (meta && key === 'i' && !e.shiftKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
 
+      if (meta && key === '/') { e.preventDefault(); setShortcutsOpen(true); return; }
+
       if (meta && (key === '=' || key === '+')) { e.preventDefault(); gs().setZoom(Math.min(gs().zoom * 1.25, 32)); return; }
       if (meta && key === '-') { e.preventDefault(); gs().setZoom(Math.max(gs().zoom / 1.25, 0.02)); return; }
       if (meta && key === '0') { e.preventDefault(); requestViewportFit(); return; }
 
+      if (!meta && !e.altKey && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(key)) {
+        const step = e.shiftKey ? 10 : 1;
+        const dx = key === 'arrowleft' ? -step : key === 'arrowright' ? step : 0;
+        const dy = key === 'arrowup' ? -step : key === 'arrowdown' ? step : 0;
+        const s = gs();
+        if (s.selection.hasSelection) {
+          const moved = s.activeTool === 'move'
+            ? moveSelectedPixelsBy(dx, dy, s)
+            : nudgeSelectionBorderBy(dx, dy);
+          if (moved) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
       if (!meta && !e.shiftKey && !e.altKey && key === 'x') { e.preventDefault(); gs().swapColors(); return; }
       if (!meta && !e.shiftKey && !e.altKey && key === 'd') { e.preventDefault(); gs().resetColors(); return; }
 
-      if (!meta && !e.shiftKey && !e.altKey) {
-        const toolMap: Record<string, string> = {
-          v: 'move', b: 'brush', e: 'eraser',
-          g: 'fill', i: 'eyedropper',
-          m: 'marquee-rect', l: 'lasso', w: 'quick-selection',
-          c: 'crop', t: 'type-horizontal', p: 'pen',
-          a: 'direct-selection', u: 'shape-rectangle',
-          h: 'hand', z: 'zoom', s: 'clone-stamp',
-          o: 'dodge', j: 'brush',
+      if (!meta && !e.altKey) {
+        // Photoshop-style tool groups: tapping the letter activates the first
+        // tool in the group; Shift+letter cycles through siblings.
+        type TID = import('./store/types').ToolId;
+        const toolGroups: Record<string, TID[]> = {
+          v: ['move'],
+          b: ['brush', 'pencil'],
+          e: ['eraser'],
+          g: ['fill', 'gradient'],
+          i: ['eyedropper'],
+          m: ['marquee-rect', 'marquee-ellipse'],
+          l: ['lasso', 'lasso-poly'],
+          w: ['quick-selection', 'magic-wand'],
+          c: ['crop'],
+          t: ['type-horizontal', 'type-vertical'],
+          p: ['pen', 'freeform-pen'],
+          a: ['direct-selection', 'path-selection'],
+          u: ['shape-rectangle', 'shape-rounded-rectangle', 'shape-ellipse', 'shape-polygon', 'shape-line', 'shape-custom'],
+          h: ['hand'],
+          z: ['zoom'],
+          s: ['clone-stamp'],
+          o: ['dodge', 'burn', 'sponge'],
         };
-        if (toolMap[key]) { e.preventDefault(); gs().setTool(toolMap[key] as import('./store/types').ToolId); return; }
+        const group = toolGroups[key];
+        if (group) {
+          e.preventDefault();
+          const current = gs().activeTool;
+          const idx = group.indexOf(current as TID);
+          const next = e.shiftKey
+              ? group[(idx + 1) % group.length]
+              : (idx >= 0 ? group[idx] : group[0]);
+          gs().setTool(next);
+          return;
+        }
       }
 
       if (!meta && !e.altKey && key === '[') {
@@ -296,8 +360,8 @@ function App() {
   const adjustmentDlg = dialogs.adjustmentDialog;
   useEffect(() => {
     if (!adjustmentDlg.isOpen) {
-      setAdjustmentPreview(null);
-      return;
+      const timeout = window.setTimeout(() => setAdjustmentPreview(null), 0);
+      return () => window.clearTimeout(timeout);
     }
 
     let cancelled = false;
@@ -410,6 +474,7 @@ function App() {
       )}
 
       <ToastContainer />
+      <RequirementsOverlay />
 
       <InputNumberDialog isOpen={dialogs.isFeatherDialogOpen} onClose={() => gs().setFeatherDialogOpen(false)}
         onConfirm={(val) => gs().setSelectionFeather(val)} title="Selection Feather"
@@ -421,7 +486,9 @@ function App() {
           const s = gs();
           const layer = s.layers.find(l => l.id === s.activeLayerId);
           if (layer && getFilter(filterDlg.filterId)) {
+            const before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
             applyFilterToLayer(layer, filterDlg.filterId, params, s.selection);
+            s.commitHistory(createPixelHistoryAction(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height }, before, `Filter: ${filterDlg.filterId}`));
             setLastFilter(filterDlg.filterId, params);
           }
         }}
@@ -433,8 +500,9 @@ function App() {
         onConfirm={(params) => {
           const s = gs();
           const layer = s.layers.find(l => l.id === s.activeLayerId);
+          const before = layer ? captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height }) : null;
           if (layer && applyAdjustmentToLayer(layer, adjustmentDlg.adjustmentId, params, s.selection)) {
-            s.commitSnapshot(`Adjustment: ${adjustmentDlg.adjustmentId}`);
+            s.commitHistory(createPixelHistoryAction(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height }, before!, `Adjustment: ${adjustmentDlg.adjustmentId}`));
           }
         }}
         onClose={() => gs().closeAdjustmentDialog()} />
@@ -463,6 +531,12 @@ function App() {
       <ExportDialog isOpen={dialogs.isExportDialogOpen} onClose={() => gs().closeExportDialog()} />
       <NewDocumentDialog isOpen={dialogs.isNewDocumentDialogOpen} onClose={() => gs().closeNewDocumentDialog()} />
       <RefineEdgeDialog isOpen={dialogs.isRefineEdgeDialogOpen} onClose={() => gs().closeRefineEdgeDialog()} />
+      <SaveSelectionDialog />
+      <LoadSelectionDialog />
+      <ColorRangeDialog />
+      <ShortcutsDialog isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <PreferencesDialog isOpen={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+      <StorageUsageDialog isOpen={storageOpen} onClose={() => setStorageOpen(false)} />
 
       {freeTransform && (
         <FreeTransformOverlay state={freeTransform} zoom={zoom} panX={pan.x} panY={pan.y}

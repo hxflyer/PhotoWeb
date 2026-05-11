@@ -23,15 +23,16 @@ Source note: `pages/0311-apply-painting-techniques.md`
 
 Function group: painting workflow overview.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Brush and Pencil painting`: `Present with differences`.
+- `Brush and Pencil painting`: `Present with differences`. Brush smoothing slider is now numeric and wired through the engine; pencil exposes a working spacing slider and reads brushSettings for size/opacity. Shift+B cycles Brush and Pencil.
 - `Opacity/flow/size/hardness`: `Present with differences`.
+- `Paint into a layer mask`: `Present with differences`. Brush, Eraser, and Pencil retarget into the active layer's mask canvas when the mask is the paint target.
 - `Mixer Brush, art/history brush, advanced brush dynamics`: `Missing`.
 
 Implementation notes:
-- Photoweb supports practical pixel painting but not Photoshop's advanced painting engine.
+- Photoweb supports practical pixel painting and mask painting, but not Photoshop's advanced painting engine.
 
 ## 0312 - Fill Objects, Selections, And Layers
 
@@ -55,16 +56,16 @@ Source note: `pages/0313-painting-tools-overview.md`
 
 Function group: painting tool catalog.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Brush and Pencil`: `Present with differences`.
-- `Gradient and Paint Bucket`: `Present with differences`.
-- `Eraser, Dodge, Burn, Sponge`: `Present with differences`.
+- `Brush and Pencil`: `Present with differences`. Shift+B cycles between them.
+- `Gradient and Paint Bucket`: `Present with differences`. Shift+G cycles between them; gradient now supports Smooth (linear-light) vs Classic (sRGB) interpolation and a working Transparency toggle.
+- `Eraser, Dodge, Burn, Sponge`: `Present with differences`. Eraser Mode dropdown (Brush/Pencil/Block) is functional and reads size/hardness/opacity/flow from the store; Dodge/Burn Range and Exposure are functional; Sponge Mode (Desaturate/Saturate) and Vibrance toggle are functional. Shift+O cycles Dodge / Burn / Sponge.
 - `Mixer Brush, History Brush, Art History Brush`: `Missing`.
 
 Implementation notes:
-- The toolbar includes core paint/fill tools, but not the full Photoshop catalog.
+- The toolbar includes core paint/fill tools with working option wiring; advanced Photoshop catalog entries are still absent.
 
 ## 0314 - Fill Adjacent Areas With Similar Colors
 
@@ -78,10 +79,10 @@ Sub-function comparison:
 - `Tolerance`: `Present with differences`.
 - `Contiguous`: `Present with differences`.
 - `Anti-alias and sample all layers`: `Present with differences`.
-- `Pattern fill source`: `Missing`.
+- `Pattern fill source`: `Missing`. Paint Bucket only fills with the foreground color; pattern fills are not supported.
 
 Implementation notes:
-- Implemented in `paintBucket` with OptionsBar controls.
+- Implemented in `paintBucket` with OptionsBar controls. Shift+G cycles Bucket and Gradient.
 
 ## 0315 - Stroke A Selection Or Layer With Color
 
@@ -89,15 +90,15 @@ Source note: `pages/0315-stroke-a-selection-or-layer-with-color.md`
 
 Function group: stroke command.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
 - `Edit > Stroke selection/layer`: `Missing`.
-- `Stroke width/color/location/blend/opacity`: `Missing`.
-- `Shape stroke controls`: `Partial`. Shape options expose stroke-like fields, but not the Photoshop Stroke command.
+- `Stroke width/color/location/blend/opacity`: `Partial`. A Stroke layer effect (outside / center / inside) is now available as a layer style on any layer, covering the location dimension of the Photoshop Stroke command, but no Edit > Stroke command exists yet.
+- `Shape stroke controls`: `Partial`. Shape options still expose stroke-like fields, and shape strokes can also be expressed via the new Stroke layer effect.
 
 Implementation notes:
-- Users can manually draw strokes, but no general Stroke command exists.
+- Users can apply a stroke as a non-destructive layer effect or draw strokes manually; the menu-driven Edit > Stroke command is still absent.
 
 ## 0316 - Use Content-Aware, Pattern, Or History Fills
 
@@ -220,12 +221,12 @@ Function group: brush system and presets.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Brush tool settings`: `Present with differences`.
+- `Brush tool settings`: `Present with differences`. Size, hardness, opacity, flow, spacing, and a numeric smoothing slider are all wired.
 - `Brush presets`: `Missing`.
-- `Brush Settings panel dynamics`: `Missing`.
+- `Brush Settings panel dynamics`: `Missing`. No advanced dynamics UI (shape dynamics, scattering, texture, dual brush, color dynamics, transfer, brush pose, noise, wet edges, build-up, smoothing dynamics) exists.
 
 Implementation notes:
-- Photoweb has brush parameters, not a preset/dynamics ecosystem.
+- Photoweb has the basic brush parameters wired, but no preset or dynamics ecosystem.
 
 ## 0324 - Get Started With Brush Presets
 
@@ -252,12 +253,12 @@ Function group: brush settings UI.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Options bar brush controls`: `Present with differences`.
+- `Options bar brush controls`: `Present with differences`. OptionsBar exposes size, hardness, opacity, flow, spacing, and numeric smoothing for Brush, plus spacing for Pencil.
 - `Brush Settings panel`: `Missing`.
-- `Shape dynamics/scattering/texture/dual brush`: `Missing`.
+- `Shape dynamics/scattering/texture/dual brush`: `Missing`. Dynamics (shape, scatter, texture, dual brush, color, transfer, brush pose, noise, wet edges, build-up, smoothing dynamics) have no UI.
 
 Implementation notes:
-- OptionsBar exposes size, hardness, opacity, and flow.
+- OptionsBar covers basic brush parameters; advanced dynamics are not exposed.
 
 ## 0326 - Create A Brush Tip From An Image
 
@@ -284,7 +285,7 @@ Function group: custom brush creation.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Set basic painting options`: `Present with differences`.
+- `Set basic painting options`: `Present with differences`. Size, hardness, opacity, flow, spacing, and smoothing are wired through the store.
 - `Create named brush preset`: `Missing`.
 - `Advanced brush dynamics`: `Missing`.
 
@@ -396,13 +397,13 @@ Function group: shape and path drawing overview.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Shape tools`: `Present with differences`.
-- `Pen/freeform pen paths`: `Present with differences`.
-- `Path selection/direct selection`: `Present with differences`.
+- `Shape tools`: `Present with differences`. Shift+U cycles registered shape variants.
+- `Pen/freeform pen paths`: `Present with differences`. Shift+P cycles Pen and Freeform Pen.
+- `Path selection/direct selection`: `Present with differences`. Shift+A cycles Direct Selection and Path Selection.
 - `Custom shapes/vector editing parity`: `Missing` or limited.
 
 Implementation notes:
-- Photoweb covers basic paths/shapes, not Photoshop's full vector toolset.
+- Photoweb covers basic paths/shapes with consistent tool cycling, but not Photoshop's full vector toolset.
 
 ## 0335 - Create Shapes
 
@@ -415,11 +416,11 @@ Overall Photoweb status: `Partial`
 Sub-function comparison:
 - `Rectangle/rounded rectangle/ellipse shape drawing`: `Present with differences`.
 - `Polygon and line shape drawing`: `Present with differences`.
-- `Shape/path/pixels modes`: `Partial`. The options UI shows the modes, but behavior is still mostly pixel drawing on the active layer rather than full Photoshop vector shape/path output.
+- `Shape/path/pixels modes`: `Present with differences`. Pen mode tabs (Path / Shape / Pixels) are now functional: Shape rasterizes the path filled with the primary color, Pixels strokes the path at the current brush size, and Path keeps a vector path. Shape layers still rasterize on commit rather than persisting as live vector layers.
 - `Custom shape library`: `Missing`.
 
 Implementation notes:
-- Shape options exist, but shape layer model and editing are simplified.
+- Shape modes drive distinct output behavior; the live Photoshop shape-layer model is still simplified.
 
 ## 0336 - Drawing Tools Overview
 
@@ -427,16 +428,16 @@ Source note: `pages/0336-drawing-tools-overview.md`
 
 Function group: drawing tool catalog.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Pen and Freeform Pen`: `Present with differences`.
-- `Shape tools`: `Present with differences`.
-- `Path selection tools`: `Present with differences`.
+- `Pen and Freeform Pen`: `Present with differences`. Shift+P cycles between them.
+- `Shape tools`: `Present with differences`. Shift+U cycles registered shape variants.
+- `Path selection tools`: `Present with differences`. Shift+A cycles Direct Selection and Path Selection.
 - `Custom Shape/Content-Aware Tracing`: `Missing`.
 
 Implementation notes:
-- Core manual drawing tools exist.
+- Core manual drawing tools and tool-cycling shortcuts are wired up.
 
 ## 0337 - Draw Shapes
 
@@ -449,11 +450,11 @@ Overall Photoweb status: `Partial`
 Sub-function comparison:
 - `Rectangle and ellipse/circle`: `Present with differences`.
 - `Polygon and line tools`: `Present with differences`.
-- `Fill/stroke options`: `Partial`.
+- `Fill/stroke options`: `Present with differences`. Stroke can now be applied as a layer effect (outside / center / inside) on shape layers; OptionsBar shape stroke fields remain.
 - `Custom shape options`: `Missing` or non-functional.
 
 Implementation notes:
-- Shape tool coverage is basic.
+- Shape tool coverage is basic; stroke effect comes through the layer-styles system.
 
 ## 0338 - Modify Fill And Stroke For Shapes
 
@@ -465,11 +466,11 @@ Overall Photoweb status: `Partial`
 
 Sub-function comparison:
 - `Shape fill color`: `Present with differences`.
-- `Stroke controls`: `Partial`.
-- `Advanced stroke alignment/dashes/caps/joins`: `Missing`.
+- `Stroke controls`: `Present with differences`. A Stroke layer effect with outside / center / inside alignment is now available on any layer, including shape layers. This is a layer-style effect rather than a live shape-tool stroke.
+- `Advanced stroke alignment/dashes/caps/joins`: `Partial`. Outside/center/inside alignment are exposed via the Stroke layer effect; dashes, caps, and joins are not.
 
 Implementation notes:
-- OptionsBar provides some shape controls, but not Photoshop's full Properties panel.
+- A Properties panel is mounted and active-layer aware (relevant for type and shape layers, though shape layers still rasterize on commit). Stroke styling now flows through the layer-effects system in addition to OptionsBar shape controls.
 
 ## 0339 - Draw Custom Shapes
 
@@ -480,7 +481,7 @@ Function group: custom shape tool.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Custom Shape tool entry`: `Partial`. Photoweb registers a Custom Shape tool in the toolbar, but the drawing code does not implement preset-based custom shape rendering.
+- `Custom Shape tool entry`: `Partial`. Photoweb registers a Custom Shape tool in the toolbar (cycled via Shift+U), but the drawing code does not implement preset-based custom shape rendering.
 - `Shape preset picker`: `Missing`.
 - `Custom shape libraries`: `Missing`.
 
@@ -561,12 +562,12 @@ Function group: line drawing.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Draw line with Pen/path`: `Present with differences`.
+- `Draw line with Pen/path`: `Present with differences`. Pen modes Path / Shape / Pixels are functional via Shift+P-cycled Pen tools.
 - `Line Shape tool`: `Present with differences`.
-- `Arrowheads/stroke line options`: `Missing`.
+- `Arrowheads/stroke line options`: `Missing`. The Line tool has no arrowhead options.
 
 Implementation notes:
-- Photoweb has a line shape tool, but Photoshop's full Line tool options are not matched.
+- Photoweb has a line shape tool, but Photoshop's full Line tool arrowhead and stroke options are not matched.
 
 ## 0345 - Shape, Path, And Pixel Mode Options
 
@@ -574,15 +575,15 @@ Source note: `pages/0345-shape-path-and-pixel-mode-options.md`
 
 Function group: drawing mode selection.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Shape/Path/Pixels mode buttons`: `Partial`. OptionsBar shows these modes for Pen/Shape tools.
-- `Fully separate output behavior`: `Partial`.
-- `Photoshop shape layer/path architecture`: `Missing` or simplified.
+- `Shape/Path/Pixels mode buttons`: `Present with differences`. OptionsBar exposes the three modes and the Pen tool implements distinct output for each: Path stores a vector path, Shape rasterizes filled with the primary color, and Pixels strokes the path at the current brush size.
+- `Fully separate output behavior`: `Present with differences`. Mode now meaningfully changes commit behavior.
+- `Photoshop shape layer/path architecture`: `Missing` or simplified. Shape commits still rasterize rather than producing a live editable vector shape layer.
 
 Implementation notes:
-- UI exposes modes, but behavior is not complete Photoshop parity.
+- Mode tabs drive real differences in output; live vector shape layers are not implemented.
 
 ## 0346 - Draw An Arrow
 
@@ -641,12 +642,12 @@ Function group: Pen tool path drawing.
 Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Create paths`: `Present with differences`.
+- `Create paths`: `Present with differences`. Pen Path mode now stores a true work path; Shape mode rasterizes fill with primary color; Pixels mode strokes at brush size.
 - `Close paths`: `Present with differences`.
 - `Manage active paths`: `Partial`.
 
 Implementation notes:
-- Path data and a Paths panel exist, but not full Photoshop path management.
+- Path data and a Paths panel exist; Pen mode tabs drive distinct outputs. Full Photoshop path management is still simplified.
 
 ## 0350 - Overview Of Pen Tool Settings
 
@@ -657,12 +658,12 @@ Function group: Pen tool settings.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Pen and Freeform Pen`: `Present with differences`.
-- `Path/shape/pixels output mode`: `Partial`.
+- `Pen and Freeform Pen`: `Present with differences`. Shift+P cycles between them.
+- `Path/shape/pixels output mode`: `Present with differences`. The mode tabs are functional and drive different commit behavior.
 - `Rubber band/auto add-delete/visual settings`: `Missing` or limited.
 
 Implementation notes:
-- Core pen behavior exists; detailed tool settings are simplified.
+- Core pen behavior and mode-tab output are wired; rubber-band and auto add/delete settings remain simplified.
 
 ## 0351 - Text And Typography
 
@@ -673,12 +674,12 @@ Function group: typography overview.
 Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Horizontal/vertical type tools`: `Present with differences`.
-- `Character and Paragraph panels`: `Present with differences`.
+- `Horizontal/vertical type tools`: `Present with differences`. Shift+T cycles Horizontal Type and Vertical Type.
+- `Character and Paragraph panels`: `Present with differences`. A Properties panel is also mounted and exposes basic whole-layer Type controls.
 - `Advanced fonts, glyphs, OpenType, text on path, dynamic text`: `Missing` or limited.
 
 Implementation notes:
-- Text support is real but much smaller than Photoshop.
+- Text support is real but much smaller than Photoshop; the Properties panel exposes and edits type-layer text, font family, size, color, alignment, and orientation.
 
 ## 0352 - Get Started With Text
 
@@ -691,10 +692,10 @@ Overall Photoweb status: `Present with differences`
 Sub-function comparison:
 - `Add text layer`: `Present with differences`.
 - `Edit text on canvas`: `Present with differences`.
-- `Format text`: `Partial`.
+- `Format text`: `Present with differences`. Character/Paragraph panels and Properties basics cover common whole-layer formatting.
 
 Implementation notes:
-- Type tools and `TextEditOverlay` provide basic text editing.
+- Type tools, `TextEditOverlay`, Character/Paragraph panels, and Properties Type basics provide common text editing.
 
 ## 0353 - Add Text
 
@@ -706,7 +707,7 @@ Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Horizontal type`: `Present with differences`.
-- `Vertical type`: `Present with differences`.
+- `Vertical type`: `Present with differences`. Shift+T cycles Horizontal and Vertical Type.
 - `Point/paragraph type parity`: `Partial`.
 
 Implementation notes:
@@ -834,7 +835,7 @@ Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Rotate type layer with transform`: `Present with differences`.
-- `Switch horizontal/vertical orientation`: `Present with differences`.
+- `Switch horizontal/vertical orientation`: `Present with differences`. Shift+T cycles Horizontal and Vertical Type to switch orientation when starting new text.
 - `Precise numeric rotation fields`: `Missing`.
 
 Implementation notes:
@@ -1062,7 +1063,7 @@ Sub-function comparison:
 - `Paragraph/rich text features`: `Partial`.
 
 Implementation notes:
-- Type layers are modeled with `typeData`.
+- Type layers are modeled with `typeData`. The mounted Properties panel is active-layer aware and surfaces type-layer state.
 
 ## 0373 - Fill Text With Image
 
@@ -1198,15 +1199,15 @@ Source note: `pages/0381-add-drop-shadows-to-text.md`
 
 Function group: text drop shadow/layer style.
 
-Overall Photoweb status: `Missing`
+Overall Photoweb status: `Partial`
 
 Sub-function comparison:
-- `Drop Shadow layer style`: `Missing`.
+- `Drop Shadow layer style`: `Missing`. Drop shadow specifically is not implemented.
 - `Text-specific shadow editing`: `Missing`.
-- `Layer effects visibility/editing`: `Missing`.
+- `Layer effects visibility/editing`: `Partial`. A layer-effects pipeline now exists (a Stroke effect is implemented for any layer with outside / center / inside alignment), so type layers can carry an editable Stroke effect; Drop Shadow has not landed yet.
 
 Implementation notes:
-- Layer styles are absent.
+- The layer-style infrastructure has begun with Stroke; Drop Shadow remains absent.
 
 ## 0382 - Characters And Glyphs
 
@@ -1630,18 +1631,24 @@ Implementation notes:
 ## Summary
 
 High-overlap areas:
-- Photoweb has usable brush, pencil, paint bucket, gradient, eraser, dodge/burn/sponge, basic shape, pen/path, type, and filter functionality.
+- Photoweb has usable brush, pencil, paint bucket, gradient, eraser, dodge/burn/sponge, basic shape, pen/path, type, and filter functionality with consistent tool-cycling shortcuts (Shift+B / G / P / T / U / O / M / L / W / A).
+- Brush smoothing, Pencil spacing, Eraser modes, Dodge/Burn Range and Exposure, Sponge Mode and Vibrance, Gradient Smooth/Classic interpolation and Transparency, and Pen Path/Shape/Pixels modes are all wired.
+- Brush, Eraser, and Pencil retarget into the active mask canvas when painting on a mask.
+- A layer-effects pipeline (Stroke effect with outside / center / inside) exists, and a Properties panel is mounted and active-layer aware.
 - Basic type creation/editing, character styling, paragraph alignment, type transforms, and core filter application are implemented.
 - Sharpening is stronger than many advanced areas because both Unsharp Mask and Smart Sharpen exist.
 
 Major missing areas:
-- Pattern workflows, content-aware/history fills, brush presets, brush packs, advanced brush dynamics, and pattern preview are missing.
-- Custom shapes, star/arrow options, content-aware tracing, advanced shape libraries, and full vector shape/path output are missing or incomplete.
-- Advanced typography is mostly missing: bullets/numbering, missing font replacement, Match Font, OpenType controls, variable fonts, glyphs panel, path text, dynamic text, and layer-style text effects.
+- Pattern workflows (pattern fills in Paint Bucket, pattern stamp, define pattern, presets), content-aware / history fills, brush presets, brush packs / abr import, custom brushes, define brush, advanced Brush Settings dynamics (shape dynamics, scattering, texture, dual brush, color dynamics, transfer, brush pose, noise, wet edges, build-up, smoothing dynamics), and Pattern Preview are absent.
+- Custom Shape preset library, star options on Polygon, arrowheads on Line, content-aware tracing, advanced shape libraries, and full live vector shape-layer output are missing or incomplete.
+- Advanced typography is mostly missing: bullets/numbering, missing font replacement, Match Font, OpenType controls and glyph palette, variable fonts, type styles / paragraph styles, spell check, find/replace, text on path, text in shape, dynamic text, and most layer-style text effects.
+- Smart Sharpen mode field is cosmetic; all modes still use USM.
+- Healing brush, spot healing, patch tool, content-aware patch, red-eye, content-aware move, and Selection Brush are absent.
 - Filter Gallery, Fade Filter, Smart Filters, and non-destructive filter stacks are missing.
+- Gradient editor with custom stops / saved presets is absent.
 
 Recommended implementation priorities:
 - Add brush presets and a simple brush preset picker before advanced brush dynamics.
-- Add a proper Stroke command and pattern fills if design workflows are important.
+- Add a proper Edit > Stroke command and pattern fills if design workflows are important.
 - Expand typography incrementally: font picker/search, richer paragraph controls, then glyph/OpenType support.
 - Add non-destructive filter support only after Smart Object or equivalent layer-source architecture is decided.

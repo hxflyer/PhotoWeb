@@ -23,8 +23,20 @@ registerFilter<HighPassParams>({
         for (let i = 0; i < size; i++) k[i] /= sum;
 
         const src = image.data;
+        // Premultiply RGB by alpha so the blur of partially-transparent regions
+        // doesn't pull in the zero-RGB of fully-transparent neighbors (which
+        // would darken edges and corrupt the High Pass + Overlay sharpening
+        // recipe). After the blur we un-premultiply by the blurred alpha.
         const tmp = new Float32Array(width * height * 4);
         const blurred = new Float32Array(width * height * 4);
+        const pre = new Float32Array(width * height * 4);
+        for (let i = 0; i < src.length; i += 4) {
+            const a = src[i + 3] / 255;
+            pre[i]     = src[i]     * a;
+            pre[i + 1] = src[i + 1] * a;
+            pre[i + 2] = src[i + 2] * a;
+            pre[i + 3] = src[i + 3];
+        }
 
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
@@ -32,8 +44,8 @@ registerFilter<HighPassParams>({
                 for (let ki = 0; ki < size; ki++) {
                     const sx = Math.max(0, Math.min(width - 1, x + ki - r));
                     const idx = (y * width + sx) * 4;
-                    ar += src[idx] * k[ki]; ag += src[idx + 1] * k[ki];
-                    ab += src[idx + 2] * k[ki]; aa += src[idx + 3] * k[ki];
+                    ar += pre[idx] * k[ki]; ag += pre[idx + 1] * k[ki];
+                    ab += pre[idx + 2] * k[ki]; aa += pre[idx + 3] * k[ki];
                 }
                 const oi = (y * width + x) * 4;
                 tmp[oi] = ar; tmp[oi + 1] = ag; tmp[oi + 2] = ab; tmp[oi + 3] = aa;
@@ -55,9 +67,13 @@ registerFilter<HighPassParams>({
 
         const out = new Uint8ClampedArray(width * height * 4);
         for (let i = 0; i < src.length; i += 4) {
-            out[i]     = clamp(src[i]     - blurred[i]     + 128);
-            out[i + 1] = clamp(src[i + 1] - blurred[i + 1] + 128);
-            out[i + 2] = clamp(src[i + 2] - blurred[i + 2] + 128);
+            const blurredA = blurred[i + 3] > 0 ? blurred[i + 3] / 255 : 1;
+            const br = blurred[i]     / blurredA;
+            const bg = blurred[i + 1] / blurredA;
+            const bb = blurred[i + 2] / blurredA;
+            out[i]     = clamp(src[i]     - br + 128);
+            out[i + 1] = clamp(src[i + 1] - bg + 128);
+            out[i + 2] = clamp(src[i + 2] - bb + 128);
             out[i + 3] = src[i + 3];
         }
         return new ImageData(out, width, height);

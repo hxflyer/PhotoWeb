@@ -1,7 +1,3 @@
-/**
- * HistoryPanel — shows the undo history stack.
- * Click an entry to revert to that state. "New Snapshot" commits a snapshot.
- */
 import { useEditorStore } from '../../store/editorStore';
 
 export function HistoryPanel() {
@@ -53,37 +49,47 @@ export function HistoryPanel() {
                         No history
                     </div>
                 )}
-                {historyEntries.map((entry, index) => (
-                    <div
-                        key={entry.id}
-                        data-testid={`history-entry-${index}`}
-                        onClick={() => revertToHistoryIndex(index)}
-                        style={{
-                            padding: '4px 8px',
-                            cursor: 'pointer',
-                            background: index === currentHistoryIndex
-                                ? 'hsl(var(--accent, 210 100% 56%) / 0.2)'
-                                : 'transparent',
-                            borderLeft: index === currentHistoryIndex
-                                ? '2px solid hsl(var(--accent, 210 100% 56%))'
-                                : '2px solid transparent',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                        }}
-                        title={new Date(entry.action.timestamp).toLocaleTimeString()}
-                    >
-                        <span style={{ opacity: 0.5, fontSize: '10px', minWidth: '20px' }}>
-                            {index + 1}
-                        </span>
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {entry.action.label}
-                        </span>
-                        {entry.action.kind === 'snapshot' && (
-                            <span style={{ fontSize: '10px', opacity: 0.6 }}>snap</span>
-                        )}
-                    </div>
-                ))}
+                {historyEntries.map((entry, index) => {
+                    const state = index === currentHistoryIndex
+                        ? 'current'
+                        : index > currentHistoryIndex
+                            ? 'future'
+                            : 'past';
+                    return (
+                        <div
+                            key={entry.id}
+                            data-testid={`history-entry-${index}`}
+                            data-history-state={state}
+                            onClick={() => revertToHistoryIndex(index)}
+                            style={{
+                                padding: '4px 8px',
+                                cursor: 'pointer',
+                                background: state === 'current'
+                                    ? 'hsl(var(--accent, 210 100% 56%) / 0.2)'
+                                    : 'transparent',
+                                borderLeft: state === 'current'
+                                    ? '2px solid hsl(var(--accent, 210 100% 56%))'
+                                    : '2px solid transparent',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                opacity: state === 'future' ? 0.48 : 1,
+                                fontStyle: state === 'future' ? 'italic' : 'normal',
+                            }}
+                            title={new Date(entry.action.timestamp).toLocaleTimeString()}
+                        >
+                            <span style={{ opacity: 0.5, fontSize: '10px', minWidth: '20px' }}>
+                                {index + 1}
+                            </span>
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {entry.action.label}
+                            </span>
+                            {entry.action.kind === 'snapshot' && (
+                                <span style={{ fontSize: '10px', opacity: 0.6 }}>snap</span>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

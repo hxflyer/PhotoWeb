@@ -8,12 +8,16 @@ interface CloneStampOptions {
     aligned: boolean;
     sample: CloneStampSampleMode;
     mode: GlobalCompositeOperation;
+    showOverlay: boolean;
+    overlayOpacity: number; // 0..1
 }
 
 const options: CloneStampOptions = {
     aligned: true,
     sample: 'current',
     mode: 'source-over',
+    showOverlay: true,
+    overlayOpacity: 0.5,
 };
 
 export function setCloneStampOptions(next: Partial<CloneStampOptions> & { sampleAllLayers?: boolean }): void {
@@ -24,6 +28,13 @@ export function setCloneStampOptions(next: Partial<CloneStampOptions> & { sample
 
 export function getCloneStampOptions(): CloneStampOptions {
     return { ...options };
+}
+
+export function resetCloneSource(store: { setCloneSource: (p: { x: number; y: number } | null) => void }): void {
+    state.source = null;
+    state.anchor = null;
+    state.last = null;
+    store.setCloneSource(null);
 }
 
 interface State {
@@ -228,22 +239,31 @@ export const cloneStampTool: Tool = {
 registerTool(cloneStampTool);
 
 function renderCloneStampOverlay(overlay: OverlayRenderContext, ctx: ToolContext): void {
+    if (!options.showOverlay) return;
     const store = ctx.getStore();
     const { size } = store.brushSettings;
     const radius = Math.max(1, size / 2);
     const zoom = Math.max(overlay.zoom, 0.01);
 
+    overlay.ctx.save();
+    overlay.ctx.globalAlpha = options.overlayOpacity;
+
     if (state.isSampling && state.hover) {
         drawStampMarker(overlay.ctx, state.hover, radius, zoom, true);
+        overlay.ctx.restore();
         return;
     }
 
-    if (!state.source || !state.anchor || !state.last) return;
+    if (!state.source || !state.anchor || !state.last) {
+        overlay.ctx.restore();
+        return;
+    }
     const sourcePoint = {
         x: state.last.x + state.source.x - state.anchor.x,
         y: state.last.y + state.source.y - state.anchor.y,
     };
     drawStampMarker(overlay.ctx, sourcePoint, radius, zoom, false);
+    overlay.ctx.restore();
 }
 
 function drawStampMarker(

@@ -1,6 +1,12 @@
 import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
+import type { SelectionOperation, SelectionState } from '../store/types';
+import { useEditorStore } from '../store/editorStore';
 import { registerTool } from './registry';
 import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
+import {
+    previewSelectionMove,
+    cloneSelectionOperation, selectionContainsPoint,
+} from './selectionMove';
 
 export interface MarqueeRect {
     x: number;
@@ -12,6 +18,21 @@ export interface MarqueeRect {
 export interface MarqueeDragState {
     anchor: { x: number; y: number };
     current: { x: number; y: number };
+}
+
+export interface MarqueeOptions {
+    feather: number;
+    antiAlias: boolean;
+}
+
+const options: MarqueeOptions = { feather: 0, antiAlias: true };
+
+export function setMarqueeOptions(next: Partial<MarqueeOptions>): void {
+    Object.assign(options, next);
+}
+
+export function getMarqueeOptions(): MarqueeOptions {
+    return { ...options };
 }
 
 export function computeMarqueeRect(
@@ -53,15 +74,83 @@ export function rectToPath(rect: MarqueeRect): { x: number; y: number }[] {
     ];
 }
 
+// Build a binary (non-AA) mask of a rectangle defined by `rect`. Used when
+// the user disables Anti-Alias on the rectangular marquee — the rect path
+// otherwise always goes through the Canvas2D AA-fill path.
+export function rasterizeBinaryRectMask(
+    rect: MarqueeRect,
+    canvasWidth: number,
+    canvasHeight: number,
+): SelectionOperation['mask'] {
+    const data = new Uint8ClampedArray(canvasWidth * canvasHeight);
+    const x0 = Math.max(0, Math.round(rect.x));
+    const y0 = Math.max(0, Math.round(rect.y));
+    const x1 = Math.min(canvasWidth, Math.round(rect.x + rect.width));
+    const y1 = Math.min(canvasHeight, Math.round(rect.y + rect.height));
+    for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+            data[y * canvasWidth + x] = 255;
+        }
+    }
+    return { data, width: canvasWidth, height: canvasHeight };
+}
+
+// Build a binary (non-AA) mask of an ellipse defined by `rect`.
+// The mask is the size of the canvas and aligned with origin (0,0).
+export function rasterizeBinaryEllipseMask(
+    rect: MarqueeRect,
+    canvasWidth: number,
+    canvasHeight: number,
+): SelectionOperation['mask'] {
+    const data = new Uint8ClampedArray(canvasWidth * canvasHeight);
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    const rx = rect.width / 2;
+    const ry = rect.height / 2;
+    if (rx <= 0 || ry <= 0) return { data, width: canvasWidth, height: canvasHeight };
+    const minX = Math.max(0, Math.floor(rect.x));
+    const minY = Math.max(0, Math.floor(rect.y));
+    const maxX = Math.min(canvasWidth, Math.ceil(rect.x + rect.width));
+    const maxY = Math.min(canvasHeight, Math.ceil(rect.y + rect.height));
+    for (let y = minY; y < maxY; y++) {
+        for (let x = minX; x < maxX; x++) {
+            // Sample the pixel center (x+0.5, y+0.5) for crisp binary edges.
+            const px = (x + 0.5 - cx) / rx;
+            const py = (y + 0.5 - cy) / ry;
+            if (px * px + py * py <= 1) {
+                data[y * canvasWidth + x] = 255;
+            }
+        }
+    }
+    return { data, width: canvasWidth, height: canvasHeight };
+}
+
 interface InternalState {
     drag: MarqueeDragState | null;
+    pendingNew: { x: number; y: number } | null;
+    move: {
+        anchor: { x: number; y: number };
+        path: SelectionState['path'];
+        operations: SelectionOperation[];
+    } | null;
+    clearedSelection: {
+        path: SelectionState['path'];
+        operations: SelectionOperation[];
+        hasSelection: boolean;
+    } | null;
     shape: 'rect' | 'circle';
     shift: boolean;
     alt: boolean;
+    // Selection-op resolved at pointer-down time. Photoshop convention: the
+    // modifier state at the START of the gesture decides add/sub/intersect/new;
+    // alt held *mid-drag* re-purposes to "draw from center", so we capture this
+    // here once and use it on commit.
+    pendingOp: import('./selectionModifiers').SelectionOp;
 }
 
-const stateRect: InternalState = { drag: null, shape: 'rect', shift: false, alt: false };
-const stateEllipse: InternalState = { drag: null, shape: 'circle', shift: false, alt: false };
+const stateRect: InternalState = { drag: null, pendingNew: null, move: null, clearedSelection: null, shape: 'rect', shift: false, alt: false, pendingOp: 'new' };
+const stateEllipse: InternalState = { drag: null, pendingNew: null, move: null, clearedSelection: null, shape: 'circle', shift: false, alt: false, pendingOp: 'new' };
+const DRAG_THRESHOLD = 3;
 
 function pointerToRect(e: ToolPointerEvent) {
     return { x: e.canvasX, y: e.canvasY };
@@ -72,28 +161,95 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
         id,
         label,
         cursor: 'crosshair',
-        onPointerDown: (e) => {
+        onPointerDown: (e, ctx) => {
             if (e.button !== 0) return;
-            state.drag = { anchor: pointerToRect(e), current: pointerToRect(e) };
+            const point = pointerToRect(e);
+            const store = ctx.getStore();
+            const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+            state.pendingOp = op;
+            state.drag = null;
+            state.pendingNew = null;
+            state.move = null;
+            state.clearedSelection = null;
+            if (op === 'new' && store.selection.hasSelection) {
+                if (selectionContainsPoint(store.selection, point.x, point.y)) {
+                    // Mouse-down inside the selection: do not dismiss. The user is
+                    // about to drag the selection outline to a new location.
+                    state.move = {
+                        anchor: point,
+                        path: store.selection.path.map(item => ({ ...item })),
+                        operations: store.selection.operations.map(cloneSelectionOperation),
+                    };
+                    return;
+                }
+                // Mouse-down outside the existing selection: dismiss it immediately
+                // (Photoshop behavior). Then start a new marquee at this point.
+                store.clearSelection();
+            }
+            state.drag = { anchor: point, current: point };
         },
         onPointerMove: (e) => {
+            const point = pointerToRect(e);
+            if (state.move) {
+                if (e.shift || e.meta || e.ctrl) {
+                    state.drag = { anchor: state.move.anchor, current: point };
+                    state.move = null;
+                    state.shift = e.shift;
+                    state.alt = e.meta || e.ctrl;
+                    return;
+                }
+                const dx = point.x - state.move.anchor.x;
+                const dy = point.y - state.move.anchor.y;
+                if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+                previewSelectionMove(state.move, dx, dy);
+                return;
+            }
+            if (state.pendingNew) {
+                if (Math.hypot(point.x - state.pendingNew.x, point.y - state.pendingNew.y) < DRAG_THRESHOLD) return;
+                state.drag = { anchor: state.pendingNew, current: point };
+                state.pendingNew = null;
+            }
             if (!state.drag) return;
-            state.drag.current = pointerToRect(e);
+            state.drag.current = point;
             state.shift = e.shift;
             state.alt = e.alt;
             // Overlay RAF loop draws from state.drag each frame — no store mutation during drag
         },
-        onPointerUp: (e, ctx) => {
+        onPointerUp: (e) => {
+            if (state.move) {
+                const point = pointerToRect(e);
+                const dx = point.x - state.move.anchor.x;
+                const dy = point.y - state.move.anchor.y;
+                if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) {
+                    previewSelectionMove(state.move, dx, dy);
+                }
+                state.move = null;
+                return;
+            }
+            if (state.pendingNew) {
+                state.pendingNew = null;
+                return;
+            }
             if (!state.drag) return;
             state.drag.current = pointerToRect(e);
             const rect = computeMarqueeRect(state.drag, e.shift, e.alt);
-            const path = rectToPath(rect);
-            const store = ctx.getStore();
             if (rect.width > 0 && rect.height > 0) {
-                const op = resolveSelectionOp(e.shift, e.meta || e.ctrl);
-                commitSelectionOperation(store, { path, type: state.shape }, op);
+                // Use the op resolved at pointer-down so that alt held mid-drag
+                // means "from center", not "subtract".
+                const op = state.pendingOp;
+                const store = useEditorStore.getState();
+                if (!options.antiAlias) {
+                    const mask = state.shape === 'circle'
+                        ? rasterizeBinaryEllipseMask(rect, store.width, store.height)
+                        : rasterizeBinaryRectMask(rect, store.width, store.height);
+                    commitSelectionOperation(store, { path: rectToPath(rect), type: state.shape, mask }, op);
+                } else {
+                    commitSelectionOperation(store, { path: rectToPath(rect), type: state.shape }, op);
+                }
+                store.setSelectionFeather(options.feather);
             }
             state.drag = null;
+            state.clearedSelection = null;
         },
     };
 }

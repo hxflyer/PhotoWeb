@@ -4,6 +4,63 @@ export interface Point {
     y: number;
 }
 
+export type SelectionShapeType = 'rect' | 'circle' | 'lasso' | 'lasso-poly';
+
+export function drawSelectionShape(
+    ctx: CanvasRenderingContext2D,
+    path: Point[],
+    type: SelectionShapeType,
+): void {
+    if (path.length === 0) return;
+    ctx.beginPath();
+    if (type === 'rect' && path.length >= 2) {
+        ctx.rect(path[0].x, path[0].y, path[1].x - path[0].x, path[1].y - path[0].y);
+    } else if (type === 'circle' && path.length >= 2) {
+        const cx = (path[0].x + path[1].x) / 2;
+        const cy = (path[0].y + path[1].y) / 2;
+        ctx.ellipse(cx, cy, Math.abs(path[1].x - path[0].x) / 2, Math.abs(path[1].y - path[0].y) / 2, 0, 0, Math.PI * 2);
+    } else {
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        ctx.closePath();
+    }
+}
+
+export function rasterizeSelectionOperations(
+    ops: SelectionOperation[],
+    width: number,
+    height: number,
+): Uint8ClampedArray {
+    const c = document.createElement('canvas');
+    c.width = width; c.height = height;
+    const ctx = c.getContext('2d');
+    if (!ctx) return new Uint8ClampedArray(width * height);
+    ctx.fillStyle = '#fff';
+    for (const op of ops) {
+        ctx.globalCompositeOperation = op.mode === 'add' ? 'source-over' : 'destination-out';
+        if (op.mask) {
+            const tmp = document.createElement('canvas');
+            tmp.width = op.mask.width; tmp.height = op.mask.height;
+            const tctx = tmp.getContext('2d');
+            if (!tctx) continue;
+            const img = tctx.createImageData(op.mask.width, op.mask.height);
+            for (let i = 0; i < op.mask.data.length; i++) {
+                img.data[i * 4] = 255; img.data[i * 4 + 1] = 255; img.data[i * 4 + 2] = 255;
+                img.data[i * 4 + 3] = op.mask.data[i];
+            }
+            tctx.putImageData(img, 0, 0);
+            ctx.drawImage(tmp, 0, 0);
+        } else {
+            drawSelectionShape(ctx, op.path, op.type as SelectionShapeType);
+            ctx.fill();
+        }
+    }
+    const img = ctx.getImageData(0, 0, width, height);
+    const out = new Uint8ClampedArray(width * height);
+    for (let i = 0; i < out.length; i++) out[i] = img.data[i * 4 + 3];
+    return out;
+}
+
 export interface SelectionOperation {
     mode: 'add' | 'sub';
     path: Point[];

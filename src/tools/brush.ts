@@ -1,11 +1,9 @@
 import type { Tool, ToolPointerEvent } from './Tool';
+import type { EditorStore } from '../store/types';
 import { registerTool } from './registry';
+import { captureLayerRegion, createPixelHistoryAction, createMaskPixelHistoryAction, cropImageData, expandStrokeBounds, makeStrokeBounds, strokeBoundsToRect, type StrokeBounds } from '../core/history';
 
 export interface BrushOptions {
-    size: number;
-    hardness: number;
-    opacity: number;
-    flow: number;
     smoothing: number;
     spacing: number;
     mode: GlobalCompositeOperation;
@@ -14,10 +12,6 @@ export interface BrushOptions {
 }
 
 const options: BrushOptions = {
-    size: 20,
-    hardness: 1,
-    opacity: 1,
-    flow: 1,
     smoothing: 0,
     spacing: 0.15,
     mode: 'source-over',
@@ -76,11 +70,31 @@ interface StrokeState {
     leftover: number;
     layerId: string | null;
     smoothPoint: { x: number; y: number } | null;
+    before: ImageData | null;
+    target: 'layer' | 'mask';
+    bounds: StrokeBounds;
 }
 
-const stroke: StrokeState = { last: null, leftover: 0, layerId: null, smoothPoint: null };
+const stroke: StrokeState = { last: null, leftover: 0, layerId: null, smoothPoint: null, before: null, target: 'layer', bounds: makeStrokeBounds() };
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
+
+function targetCanvas(layer: import('../core/Layer').Layer, target: 'layer' | 'mask'): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+    if (target === 'mask' && layer.mask) {
+        return { canvas: layer.mask.canvas, ctx: layer.mask.ctx };
+    }
+    return { canvas: layer.canvas, ctx: layer.ctx };
+}
+
+function maskColorFromPrimary(primary: string): string {
+    if (!primary.startsWith('#') || primary.length < 7) return primary;
+    const r = parseInt(primary.slice(1, 3), 16);
+    const g = parseInt(primary.slice(3, 5), 16);
+    const b = parseInt(primary.slice(5, 7), 16);
+    const luma = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+    const hex = luma.toString(16).padStart(2, '0');
+    return `#${hex}${hex}${hex}`;
+}
 
 export const brushTool: Tool = {
     id: 'brush',
@@ -91,10 +105,22 @@ export const brushTool: Tool = {
         const store = ctx.getStore();
         const layer = store.layers.find(l => l.id === store.activeLayerId);
         if (!layer) return;
+        stroke.target = store.activeLayerEditTarget === 'mask' && layer.mask ? 'mask' : 'layer';
+        const target = targetCanvas(layer, stroke.target);
         stroke.last = p(e);
         stroke.smoothPoint = stroke.last;
         stroke.leftover = 0;
         stroke.layerId = layer.id;
+        stroke.bounds = makeStrokeBounds();
+        const r0 = (store.brushSettings.size ?? 1) / 2;
+        expandStrokeBounds(stroke.bounds, stroke.last.x, stroke.last.y, r0);
+        // captureLayerRegion reads from layer.canvas; for mask painting we
+        // capture from the mask canvas via a tiny inline equivalent.
+        if (stroke.target === 'mask') {
+            stroke.before = target.ctx.getImageData(0, 0, target.canvas.width, target.canvas.height);
+        } else {
+            stroke.before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+        }
     },
     onPointerMove: (e, ctx) => {
         if (!stroke.last || !stroke.layerId) return;
@@ -106,18 +132,37 @@ export const brushTool: Tool = {
             ? smooth(stroke.smoothPoint ?? target, target, options.smoothing)
             : target;
         stroke.smoothPoint = point;
-        stampStroke(layer.ctx, stroke.last, point, e.pressure, store.primaryColor);
+        const { ctx: drawCtx } = targetCanvas(layer, stroke.target);
+        const color = stroke.target === 'mask'
+            ? maskColorFromPrimary(store.primaryColor)
+            : store.primaryColor;
+        stampStroke(store, drawCtx, stroke.last, point, e.pressure, color);
+        const r = ((store.brushSettings.size ?? 1) * (options.pressureSize ? Math.max(0.1, e.pressure) : 1)) / 2 + 1;
+        expandStrokeBounds(stroke.bounds, point.x, point.y, r);
         layer.markDirty(null);
         stroke.last = point;
     },
-    onPointerUp: () => {
+    onPointerUp: (_e, ctx) => {
+        if (stroke.layerId && stroke.before) {
+            const store = ctx.getStore();
+            const layer = store.layers.find(l => l.id === stroke.layerId);
+            if (layer) {
+                if (stroke.target === 'mask' && layer.mask) {
+                    const after = layer.mask.ctx.getImageData(0, 0, layer.mask.canvas.width, layer.mask.canvas.height);
+                    store.executeCommand(createMaskPixelHistoryAction(layer, stroke.before, after, 'Mask Brush Stroke'));
+                } else {
+                    const rect = strokeBoundsToRect(stroke.bounds, layer.canvas.width, layer.canvas.height)
+                        ?? { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height };
+                    const beforeCropped = cropImageData(stroke.before, rect.x, rect.y, rect.width, rect.height);
+                    store.commitHistory(createPixelHistoryAction(layer, rect, beforeCropped, 'Brush Stroke'));
+                }
+            }
+        }
         stroke.last = null;
         stroke.layerId = null;
         stroke.smoothPoint = null;
-    },
-    onKeyDown: (e) => {
-        if (e.key === '[') options.size = Math.max(1, options.size - 2);
-        if (e.key === ']') options.size = Math.min(2000, options.size + 2);
+        stroke.before = null;
+        stroke.bounds = makeStrokeBounds();
     },
 };
 
@@ -127,16 +172,18 @@ function smooth(prev: { x: number; y: number }, next: { x: number; y: number }, 
 }
 
 function stampStroke(
+    store: EditorStore,
     ctx: CanvasRenderingContext2D,
     from: { x: number; y: number },
     to: { x: number; y: number },
     pressure: number,
     color: string,
 ): void {
+    const { size: baseSize, hardness, opacity } = store.brushSettings;
     const sizeFactor = options.pressureSize ? Math.max(0.05, pressure || 0.5) : 1;
     const opacityFactor = options.pressureOpacity ? Math.max(0.05, pressure || 0.5) : 1;
-    const size = options.size * sizeFactor;
-    const tip = getBrushTip({ size, hardness: options.hardness, color });
+    const size = baseSize * sizeFactor;
+    const tip = getBrushTip({ size, hardness, color });
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dist = Math.hypot(dx, dy);
@@ -145,7 +192,7 @@ function stampStroke(
     let i = start;
     ctx.save();
     ctx.globalCompositeOperation = options.mode;
-    ctx.globalAlpha = options.opacity * opacityFactor;
+    ctx.globalAlpha = opacity * opacityFactor;
     while (i <= dist) {
         const x = from.x + (dx * i) / (dist || 1);
         const y = from.y + (dy * i) / (dist || 1);

@@ -13,6 +13,7 @@ export interface CompositeRequest {
     viewport: ViewportInfo;
     target: HTMLCanvasElement;
     activeChannel?: 'rgb' | 'r' | 'g' | 'b';
+    channelVisibility?: { r: boolean; g: boolean; b: boolean };
     skipTypeLayers?: boolean;
 }
 

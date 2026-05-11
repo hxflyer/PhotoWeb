@@ -9,8 +9,10 @@ lerna-debug.log*
 
 node_modules
 dist
+host/dist
 dist-ssr
 *.local
+.photoweb-agent
 
 # Editor directories and files
 .vscode/*

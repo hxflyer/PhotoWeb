@@ -2,6 +2,7 @@ import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { buildSelectionMask } from '../filters/selectionMask';
 import { blendModeToCompositeOp, applyBlendModeToImageData, type BlendModeId } from '../core/blendModes';
+import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
 
 export type GradientType = 'linear' | 'radial' | 'angle' | 'reflected' | 'diamond';
 export type GradientMethod = 'smooth' | 'classic';
@@ -89,11 +90,22 @@ function resolveStops(primaryColor: string, secondaryColor: string): GradientSto
     const stops = preset.stops.map((stop, i, arr) => ({
         ...stop,
         color: i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : stop.color,
+        opacity: options.transparency ? stop.opacity : 1,
     }));
     if (options.reverse) {
         return stops.map(s => ({ ...s, position: 1 - s.position })).sort((a, b) => a.position - b.position);
     }
     return stops;
+}
+
+function srgbToLinear(c: number): number {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+function linearToSrgb(v: number): number {
+    const c = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    return Math.max(0, Math.min(255, c * 255));
 }
 
 function withAlpha(color: string, alpha: number): string {
@@ -117,9 +129,10 @@ function constrainAngle(start: { x: number; y: number }, end: { x: number; y: nu
 
 /**
  * Sample a stop list at parameter t∈[0,1] → returns [r,g,b,a (0-1)].
- * Linear interpolation between adjacent stops.
+ * Method = 'classic' interpolates in sRGB (linear in 0..255 space).
+ * Method = 'smooth' interpolates in linear-light space (gamma-corrected).
  */
-function sampleStops(stops: GradientStop[], t: number): [number, number, number, number] {
+function sampleStops(stops: GradientStop[], t: number, method: GradientMethod): [number, number, number, number] {
     t = Math.max(0, Math.min(1, t));
     let lo = stops[0];
     let hi = stops[stops.length - 1];
@@ -139,11 +152,18 @@ function sampleStops(stops: GradientStop[], t: number): [number, number, number,
     };
     const [r1, g1, b1] = parse(lo.color);
     const [r2, g2, b2] = parse(hi.color);
+    const a = lo.opacity + (hi.opacity - lo.opacity) * k;
+    if (method === 'smooth') {
+        const r = linearToSrgb(srgbToLinear(r1) * (1 - k) + srgbToLinear(r2) * k);
+        const g = linearToSrgb(srgbToLinear(g1) * (1 - k) + srgbToLinear(g2) * k);
+        const b = linearToSrgb(srgbToLinear(b1) * (1 - k) + srgbToLinear(b2) * k);
+        return [r, g, b, a];
+    }
     return [
         r1 + (r2 - r1) * k,
         g1 + (g2 - g1) * k,
         b1 + (b2 - b1) * k,
-        lo.opacity + (hi.opacity - lo.opacity) * k,
+        a,
     ];
 }
 
@@ -160,12 +180,16 @@ function renderGradientCanvas(
     end: { x: number; y: number },
     stops: GradientStop[],
     dither: boolean,
+    method: GradientMethod,
 ): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = width; c.height = height;
     const ctx = c.getContext('2d')!;
 
-    if (type === 'linear' || type === 'radial' || type === 'reflected') {
+    // Native CanvasGradient interpolates in sRGB; this matches "classic". For
+    // "smooth" we always walk pixels through sampleStops, which interpolates
+    // in linear-light space.
+    if (method === 'classic' && (type === 'linear' || type === 'radial' || type === 'reflected')) {
         let g: CanvasGradient;
         if (type === 'linear') {
             g = ctx.createLinearGradient(start.x, start.y, end.x, end.y);
@@ -188,50 +212,47 @@ function renderGradientCanvas(
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, width, height);
     } else {
-        // angle / diamond — pixel-walked.
+        // Pixel-walked path: always for angle/diamond, also for linear/radial/
+        // reflected when method='smooth' so we can interpolate in linear light.
         const img = ctx.createImageData(width, height);
         const d = img.data;
         const dx = end.x - start.x;
         const dy = end.y - start.y;
         const len = Math.hypot(dx, dy) || 1;
-
-        if (type === 'angle') {
-            const baseAngle = Math.atan2(dy, dx);
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const px = x - start.x;
-                    const py = y - start.y;
-                    let a = Math.atan2(py, px) - baseAngle;
-                    // Normalize to [0, 2π)
-                    a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-                    const t = a / (Math.PI * 2);
-                    const [r, g, b, alpha] = sampleStops(stops, t);
-                    const idx = (y * width + x) * 4;
-                    d[idx]     = r;
-                    d[idx + 1] = g;
-                    d[idx + 2] = b;
-                    d[idx + 3] = Math.round(alpha * 255);
-                }
+        const computeT = (x: number, y: number): number => {
+            const px = x - start.x;
+            const py = y - start.y;
+            if (type === 'linear') {
+                return (px * dx + py * dy) / (len * len);
             }
-        } else {
-            // diamond: distance is max(|u|, |v|) where u/v are projection along/perp to axis,
-            // normalized by the drag length.
+            if (type === 'radial') {
+                return Math.hypot(px, py) / len;
+            }
+            if (type === 'reflected') {
+                return Math.abs(px * dx + py * dy) / (len * len);
+            }
+            if (type === 'angle') {
+                const baseAngle = Math.atan2(dy, dx);
+                let a = Math.atan2(py, px) - baseAngle;
+                a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                return a / (Math.PI * 2);
+            }
+            // diamond
             const ux = dx / len; const uy = dy / len;
             const vx = -uy;      const vy = ux;
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const px = x - start.x;
-                    const py = y - start.y;
-                    const u = px * ux + py * uy;
-                    const v = px * vx + py * vy;
-                    const t = Math.max(Math.abs(u), Math.abs(v)) / len;
-                    const [r, g, b, alpha] = sampleStops(stops, t);
-                    const idx = (y * width + x) * 4;
-                    d[idx]     = r;
-                    d[idx + 1] = g;
-                    d[idx + 2] = b;
-                    d[idx + 3] = Math.round(alpha * 255);
-                }
+            const u = px * ux + py * uy;
+            const v = px * vx + py * vy;
+            return Math.max(Math.abs(u), Math.abs(v)) / len;
+        };
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const t = computeT(x, y);
+                const [r, g, b, alpha] = sampleStops(stops, t, method);
+                const idx = (y * width + x) * 4;
+                d[idx]     = r;
+                d[idx + 1] = g;
+                d[idx + 2] = b;
+                d[idx + 3] = Math.round(alpha * 255);
             }
         }
         ctx.putImageData(img, 0, 0);
@@ -332,10 +353,12 @@ export const gradientTool: Tool = {
         if (drag.shift) endPt = constrainAngle(drag.start, drag.end);
 
         const stops = resolveStops(store.primaryColor, store.secondaryColor);
-        const grad = renderGradientCanvas(w, h, options.type, drag.start, endPt, stops, options.dither);
+        const grad = renderGradientCanvas(w, h, options.type, drag.start, endPt, stops, options.dither, options.method);
         const selectionMask = buildSelectionMask(store.selection, w, h);
+        const before = captureLayerRegion(layer, { x: 0, y: 0, width: w, height: h });
         compositeGradient(layer.ctx, w, h, grad, selectionMask);
         layer.markDirty(null);
+        store.commitHistory(createPixelHistoryAction(layer, { x: 0, y: 0, width: w, height: h }, before, 'Gradient'));
         drag.start = drag.end = null;
     },
     renderOverlay: (overlay: OverlayRenderContext) => {

@@ -34,8 +34,25 @@
  *   • "+" glyph at the projected segment-hit point
  *   • "−" glyph next to an existing anchor
  */
-import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
+import type { OverlayRenderContext, Tool, ToolContext, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
+import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
+
+export type PenMode = 'path' | 'shape' | 'pixels';
+
+export interface PenToolOptions {
+    mode: PenMode;
+}
+
+const penOptions: PenToolOptions = { mode: 'path' };
+
+export function setPenOptions(next: Partial<PenToolOptions>): void {
+    Object.assign(penOptions, next);
+}
+
+export function getPenOptions(): PenToolOptions {
+    return { ...penOptions };
+}
 
 export interface AnchorPoint {
     x: number;
@@ -405,7 +422,7 @@ function onPenMove(e: ToolPointerEvent): void {
     }
 }
 
-function onPenUp(_e: ToolPointerEvent): void {
+function onPenUp(): void {
     if (drag && drag.kind === 'alt-anchor' && !drag.moved) {
         // Alt-click on anchor without drag → convert smooth ↔ corner (toggle handles).
         const path = pathStore.paths.find(p => p.id === drag!.pathId);
@@ -588,6 +605,59 @@ function drawSquare(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
 }
 
 // ── Tools ──────────────────────────────────────────────────────────────────
+
+function tracePathIntoContext(path: PathShape, lctx: CanvasRenderingContext2D): void {
+    if (path.anchors.length === 0) return;
+    const first = path.anchors[0];
+    lctx.beginPath();
+    lctx.moveTo(first.x, first.y);
+    for (let i = 1; i < path.anchors.length; i++) {
+        const prev = path.anchors[i - 1];
+        const curr = path.anchors[i];
+        const cp1 = prev.outHandle ?? { x: prev.x, y: prev.y };
+        const cp2 = curr.inHandle ?? { x: curr.x, y: curr.y };
+        lctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, curr.x, curr.y);
+    }
+    if (path.closed && path.anchors.length >= 2) {
+        const prev = path.anchors[path.anchors.length - 1];
+        const curr = path.anchors[0];
+        const cp1 = prev.outHandle ?? { x: prev.x, y: prev.y };
+        const cp2 = curr.inHandle ?? { x: curr.x, y: curr.y };
+        lctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, curr.x, curr.y);
+        lctx.closePath();
+    }
+}
+
+function commitPathToActiveLayer(path: PathShape, mode: PenMode, ctx: ToolContext): void {
+    if (mode === 'path') return;
+    const store = ctx.getStore();
+    const layer = store.layers.find(l => l.id === store.activeLayerId);
+    if (!layer) return;
+    const before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+    const lctx = layer.ctx;
+    lctx.save();
+    tracePathIntoContext(path, lctx);
+    if (mode === 'shape') {
+        lctx.fillStyle = store.primaryColor;
+        lctx.fill();
+    } else {
+        // Pixels: stroke at brush size with the primary color.
+        lctx.strokeStyle = store.primaryColor;
+        lctx.lineWidth = Math.max(1, store.brushSettings.size);
+        lctx.lineCap = 'round';
+        lctx.lineJoin = 'round';
+        lctx.stroke();
+    }
+    lctx.restore();
+    layer.markDirty(null);
+    store.commitHistory(createPixelHistoryAction(
+        layer,
+        { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height },
+        before,
+        mode === 'shape' ? 'Pen Shape' : 'Pen Pixels',
+    ));
+}
+
 export const penTool: Tool = {
     id: 'pen',
     label: 'Pen',
@@ -595,13 +665,19 @@ export const penTool: Tool = {
     onPointerDown: onPenDown,
     onPointerMove: onPenMove,
     onPointerUp: onPenUp,
-    onKeyDown: (e) => {
+    onKeyDown: (e, ctx) => {
         if (e.key === 'Escape') {
             pathStore.activeId = null;
             selection = { pathId: null, anchorIndices: new Set() };
         } else if (e.key === 'Enter') {
             const path = getActivePath();
             if (path && !path.closed && path.anchors.length >= 2) path.closed = true;
+            if (path) commitPathToActiveLayer(path, penOptions.mode, ctx);
+            if (path && penOptions.mode !== 'path') {
+                // Shape/pixels modes rasterize and discard the path entry, so the
+                // user does not end up with both a stray path and committed pixels.
+                removePath(path.id);
+            }
             pathStore.activeId = null;
             selection = { pathId: null, anchorIndices: new Set() };
         }

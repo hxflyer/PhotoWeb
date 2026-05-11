@@ -19,6 +19,7 @@ import { getCropRect } from '../../tools/crop';
 const CURSOR_ADD = `url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L12 22M2 12L22 12" stroke="white" stroke-width="4"/><path d="M12 2L12 22M2 12L22 12" stroke="black" stroke-width="2"/></svg>') 12 12, crosshair`;
 const CURSOR_CLONE_SAMPLE = `url('data:image/svg+xml;utf8,<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="14" r="10" fill="none" stroke="white" stroke-width="4"/><circle cx="14" cy="14" r="10" fill="none" stroke="black" stroke-width="2"/><path d="M9 18H19V21H9V18ZM11 18L12 12Q14 10 16 12L17 18" fill="white" stroke="black" stroke-width="1.5" stroke-linejoin="round"/></svg>') 14 14, copy`;
 const SELECTION_EDGE_THRESHOLD = 0.5;
+const SELECTION_DRAG_THRESHOLD = 3;
 const START_FREE_TRANSFORM_EVENT = 'photoweb:start-free-transform';
 
 // Module-level helpers used by both compositor and overlay canvas
@@ -86,7 +87,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         layers, activeLayerId, brushSettings,
         selection, setSelectionPath, setHasSelection, setIsDraggingSelection, clearSelection,
         addSelectionOperation, setSelectionOperations, setFreeEditMode, setPolyPoints,
-        showRulers, showGrid, gridSize, activeChannel,
+        showRulers, showGrid, gridSize, activeChannel, channelVisibility,
     } = useEditorStore();
     // primaryColor is subscribed imperatively in the brush tip effect to avoid
     // re-rendering the entire Viewport on every color slider change.
@@ -95,6 +96,8 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
     const lastMousePosRef = useRef({ x: 0, y: 0 });
     const lastMousePos = lastMousePosRef.current;
     const currentOpMode = useRef<'add' | 'sub' | 'new'>('new');
+    const pendingSelectionMoveRef = useRef<{ x: number; y: number } | null>(null);
+    const pendingSelectionStartRef = useRef<{ x: number; y: number } | null>(null);
     const [modifiers, setModifiers] = useState({ shift: false, alt: false, meta: false });
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -258,7 +261,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         const { zoom, pan } = useEditorStore.getState();
         const viewportInfo = { width, height, zoom, pan };
         compositor.beginFrame(canvas);
-        compositor.render({ layers, activeLayerId, viewport: viewportInfo, target: canvas, activeChannel, skipTypeLayers: !activeChannel || activeChannel === 'rgb' });
+        compositor.render({ layers, activeLayerId, viewport: viewportInfo, target: canvas, activeChannel, channelVisibility, skipTypeLayers: !activeChannel || activeChannel === 'rgb' });
         compositor.present();
 
         // Grid overlay
@@ -271,6 +274,26 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             }
             for (let y2 = 0; y2 <= height; y2 += gridSize) {
                 ctx.beginPath(); ctx.moveTo(0, y2); ctx.lineTo(width, y2); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Guides — draw on top of layer content so they're always visible.
+        const guides = useEditorStore.getState().guides;
+        if (guides.length > 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0,200,255,0.85)';
+            ctx.lineWidth = 1 / zoom;
+            for (const g of guides) {
+                ctx.beginPath();
+                if (g.orientation === 'horizontal') {
+                    ctx.moveTo(0, g.position);
+                    ctx.lineTo(width, g.position);
+                } else {
+                    ctx.moveTo(g.position, 0);
+                    ctx.lineTo(g.position, height);
+                }
+                ctx.stroke();
             }
             ctx.restore();
         }
@@ -585,7 +608,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         }
 
         // 3. Selection marching ants (committed selections)
-        if (!osel.isFreeEditMode && (osel.hasSelection || (oat === 'select' && osel.path.length > 0))) {
+        if (st.showSelectionEdges && !osel.isFreeEditMode && (osel.hasSelection || (oat === 'select' && osel.path.length > 0))) {
             octx.save();
             octx.lineWidth = 1 / oz;
             octx.setLineDash([4 / oz, 4 / oz]);
@@ -763,19 +786,26 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             if (currentOpMode.current === 'new') {
                 // If clicking inside EXISTING selection (without modifiers), it's a DRAG
                 if (selection.hasSelection && isInside && !isShift && !isAlt) {
-                    // Start Drag
-                    // If we have floating pixels, we continue dragging them
-                    // If NOT, we must CUT them from layer
-                    if (!floatingPixelsRef.current) {
-                        ensureFloatingPixels();
-                    }
-                    setIsDraggingSelection(true);
+                    // Wait until the pointer actually moves before cutting pixels for a drag.
+                    // A simple click inside an existing selection should dismiss it instead.
+                    pendingSelectionMoveRef.current = coords;
+                    setIsDraggingSelection(false);
                     lastMousePosRef.current = coords;
                     return;
                 } else {
-                    // Start New Selection
+                    // Start New Selection. If an existing selection was clicked outside,
+                    // clear it immediately but wait for actual movement before drawing
+                    // a replacement marquee.
                     if (floatingPixelsRef.current) commitFloatingPixels();
-                    if (selection.hasSelection) { clearSelection(); setUnifiedPath(null); }
+                    if (selection.hasSelection) {
+                        clearSelection();
+                        setUnifiedPath(null);
+                        setSelectionPath([]);
+                        pendingSelectionStartRef.current = coords;
+                        setIsDragging(false);
+                        lastMousePosRef.current = coords;
+                        return;
+                    }
                     setSelectionPath([coords]);
                     setIsDragging(true);
                     lastMousePosRef.current = coords;
@@ -899,6 +929,37 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         // Free Edit Drag & Cursor (Deferred to Hook)
         handleFreeEditMove(e);
 
+        if (activeTool === 'select' && pendingSelectionMoveRef.current) {
+            if (e.buttons !== 1) return;
+            const pending = pendingSelectionMoveRef.current;
+            const moved = Math.hypot(coords.x - pending.x, coords.y - pending.y);
+            if (moved < SELECTION_DRAG_THRESHOLD) return;
+            if (!floatingPixelsRef.current) {
+                ensureFloatingPixels();
+            }
+            setIsDraggingSelection(true);
+            if (floatingPixelsRef.current) {
+                floatingPixelsRef.current.x += coords.x - lastMousePos.x;
+                floatingPixelsRef.current.y += coords.y - lastMousePos.y;
+            }
+            pendingSelectionMoveRef.current = null;
+            lastMousePosRef.current = coords;
+            requestRender();
+            return;
+        }
+
+        if (activeTool === 'select' && pendingSelectionStartRef.current) {
+            if (e.buttons !== 1) return;
+            const start = pendingSelectionStartRef.current;
+            const moved = Math.hypot(coords.x - start.x, coords.y - start.y);
+            if (moved < SELECTION_DRAG_THRESHOLD) return;
+            pendingSelectionStartRef.current = null;
+            setSelectionPath([start, coords]);
+            setIsDragging(true);
+            lastMousePosRef.current = coords;
+            return;
+        }
+
         if (activeTool === 'select' && selection.isDraggingSelection && floatingPixelsRef.current) {
             // Recalculated above: const coords = getCanvasCoords(e);
             const dx = coords.x - lastMousePos.x;
@@ -986,6 +1047,18 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         }
 
         if (activeTool === 'select') {
+            if (pendingSelectionMoveRef.current) {
+                pendingSelectionMoveRef.current = null;
+                setIsDraggingSelection(false);
+                setIsDragging(false);
+                return;
+            }
+            if (pendingSelectionStartRef.current) {
+                pendingSelectionStartRef.current = null;
+                setSelectionPath([]);
+                setIsDragging(false);
+                return;
+            }
             if (isDragging) {
                 if (selection.path.length > 1) {
                     setHasSelection(true);
@@ -1082,7 +1155,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
 
     const getCursor = () => {
         if (selection.isFreeEditMode) return freeEditCursor;
-        if (activeTool === 'move') return 'grab';
+        if (activeTool === 'move') return 'move';
         if (activeTool === 'select') {
             if (modifiers.shift) return CURSOR_ADD;
             if (modifiers.alt || modifiers.meta) return CURSOR_SUB;

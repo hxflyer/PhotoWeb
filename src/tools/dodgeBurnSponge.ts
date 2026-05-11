@@ -1,23 +1,31 @@
 import type { Tool, ToolPointerEvent } from './Tool';
+import type { EditorStore } from '../store/types';
 import { registerTool } from './registry';
 import { getBrushTip } from './brush';
 
 export type ToneRange = 'shadows' | 'midtones' | 'highlights';
 
 export interface ToneToolOptions {
-    size: number;
-    hardness: number;
     exposure: number;
     range: ToneRange;
 }
 
-const dodge: ToneToolOptions = { size: 60, hardness: 0.5, exposure: 0.5, range: 'midtones' };
-const burn: ToneToolOptions = { size: 60, hardness: 0.5, exposure: 0.5, range: 'midtones' };
-const sponge = { size: 60, hardness: 0.5, flow: 0.5, mode: 'desaturate' as 'desaturate' | 'saturate', vibrance: true };
+export type SpongeMode = 'desaturate' | 'saturate';
+export interface SpongeOptions {
+    mode: SpongeMode;
+    vibrance: boolean;
+}
+
+const dodge: ToneToolOptions = { exposure: 0.5, range: 'midtones' };
+const burn: ToneToolOptions = { exposure: 0.5, range: 'midtones' };
+const sponge: SpongeOptions = { mode: 'desaturate', vibrance: false };
 
 export function setDodgeOptions(next: Partial<ToneToolOptions>): void { Object.assign(dodge, next); }
 export function setBurnOptions(next: Partial<ToneToolOptions>): void { Object.assign(burn, next); }
-export function setSpongeOptions(next: Partial<typeof sponge>): void { Object.assign(sponge, next); }
+export function setSpongeOptions(next: Partial<SpongeOptions>): void { Object.assign(sponge, next); }
+export function getDodgeOptions(): ToneToolOptions { return { ...dodge }; }
+export function getBurnOptions(): ToneToolOptions { return { ...burn }; }
+export function getSpongeOptions(): SpongeOptions { return { ...sponge }; }
 
 interface S { last: { x: number; y: number } | null; layerId: string | null }
 const dodgeState: S = { last: null, layerId: null };
@@ -67,7 +75,7 @@ function applyDodgeBurn(
 
 function applySponge(
     layerCtx: CanvasRenderingContext2D,
-    centerX: number, centerY: number, size: number, flow: number, mode: 'desaturate' | 'saturate',
+    centerX: number, centerY: number, size: number, flow: number, mode: SpongeMode, vibrance: boolean,
 ): void {
     const r = size / 2;
     const x0 = Math.max(0, Math.floor(centerX - r));
@@ -89,7 +97,12 @@ function applySponge(
             const idx = (y * w + x) * 4;
             const r0 = d[idx], g0 = d[idx + 1], b0 = d[idx + 2];
             const luma = 0.299 * r0 + 0.587 * g0 + 0.114 * b0;
-            const factor = mode === 'saturate' ? 1 + fall * flow : 1 - fall * flow;
+            const max = Math.max(r0, g0, b0);
+            const min = Math.min(r0, g0, b0);
+            const sat = max === 0 ? 0 : (max - min) / max;
+            const protectFactor = vibrance ? 1 - sat : 1;
+            const change = fall * flow * protectFactor;
+            const factor = mode === 'saturate' ? 1 + change : 1 - change;
             d[idx] = clamp(luma + (r0 - luma) * factor);
             d[idx + 1] = clamp(luma + (g0 - luma) * factor);
             d[idx + 2] = clamp(luma + (b0 - luma) * factor);
@@ -114,7 +127,8 @@ function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions
             if (!layer) return;
             state.last = p(e);
             state.layerId = layer.id;
-            applyDodgeBurn(layer.ctx, state.last.x, state.last.y, opts.size, opts.exposure, opts.range, mode);
+            const { size } = store.brushSettings;
+            applyDodgeBurn(layer.ctx, state.last.x, state.last.y, size, opts.exposure, opts.range, mode);
             layer.markDirty(null);
         },
         onPointerMove: (e, ctx) => {
@@ -123,16 +137,16 @@ function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions
             const layer = store.layers.find(l => l.id === state.layerId);
             if (!layer) return;
             const next = p(e);
+            const { size, hardness } = store.brushSettings;
             const dist = Math.hypot(next.x - state.last.x, next.y - state.last.y);
-            const steps = Math.max(1, Math.ceil(dist / Math.max(1, opts.size * 0.25)));
+            const steps = Math.max(1, Math.ceil(dist / Math.max(1, size * 0.25)));
             for (let i = 1; i <= steps; i++) {
                 const t = i / steps;
                 const x = state.last.x + (next.x - state.last.x) * t;
                 const y = state.last.y + (next.y - state.last.y) * t;
-                applyDodgeBurn(layer.ctx, x, y, opts.size, opts.exposure, opts.range, mode);
+                applyDodgeBurn(layer.ctx, x, y, size, opts.exposure, opts.range, mode);
             }
-            // Use brush tip cache to keep params warm for option panels.
-            void getBrushTip({ size: opts.size, hardness: opts.hardness, color: '#ffffff' });
+            void getBrushTip({ size, hardness, color: '#ffffff' });
             layer.markDirty(null);
             state.last = next;
         },
@@ -142,6 +156,15 @@ function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions
 
 export const dodgeTool = makeToneTool('dodge', 'Dodge', dodgeState, dodge, 'dodge');
 export const burnTool = makeToneTool('burn', 'Burn', burnState, burn, 'burn');
+
+function spongeStep(store: EditorStore, x: number, y: number): void {
+    const layer = store.layers.find(l => l.id === spongeState.layerId);
+    if (!layer) return;
+    const { size, flow } = store.brushSettings;
+    applySponge(layer.ctx, x, y, size, flow, sponge.mode, sponge.vibrance);
+    layer.markDirty(null);
+}
+
 export const spongeTool: Tool = {
     id: 'sponge',
     label: 'Sponge',
@@ -153,17 +176,13 @@ export const spongeTool: Tool = {
         if (!layer) return;
         spongeState.last = p(e);
         spongeState.layerId = layer.id;
-        applySponge(layer.ctx, spongeState.last.x, spongeState.last.y, sponge.size, sponge.flow, sponge.mode);
-        layer.markDirty(null);
+        spongeStep(store, spongeState.last.x, spongeState.last.y);
     },
     onPointerMove: (e, ctx) => {
         if (!spongeState.last || !spongeState.layerId) return;
         const store = ctx.getStore();
-        const layer = store.layers.find(l => l.id === spongeState.layerId);
-        if (!layer) return;
         const next = p(e);
-        applySponge(layer.ctx, next.x, next.y, sponge.size, sponge.flow, sponge.mode);
-        layer.markDirty(null);
+        spongeStep(store, next.x, next.y);
         spongeState.last = next;
     },
     onPointerUp: () => { spongeState.last = null; spongeState.layerId = null; },

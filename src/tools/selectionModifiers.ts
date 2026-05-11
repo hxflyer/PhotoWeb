@@ -1,4 +1,5 @@
 import type { EditorStore, SelectionOperation } from '../store/types';
+import { rasterizeSelectionOperations } from '../utils/selectionUtils';
 
 // Universal selection modifier semantics — Phase 1.5.
 // Every selection tool (marquee, lasso, lasso-poly, magic wand, quick selection)
@@ -15,7 +16,7 @@ export function resolveSelectionOp(shift: boolean, alt: boolean): SelectionOp {
 
 type SelectionStore = Pick<
     EditorStore,
-    'selection' | 'setSelectionMode' | 'setSelectionOperations' | 'addSelectionOperation' | 'setHasSelection'
+    'selection' | 'setSelectionMode' | 'setSelectionOperations' | 'addSelectionOperation' | 'setHasSelection' | 'width' | 'height'
 >;
 
 export function commitSelectionOperation(
@@ -27,7 +28,7 @@ export function commitSelectionOperation(
     store.setSelectionMode(incoming.type);
 
     if (op === 'intersect') {
-        const nextOps = intersectionOpsFromOperation(store.selection.operations, incoming);
+        const nextOps = trueIntersectOps(store.selection.operations, incoming, store.width, store.height);
         store.setSelectionOperations(nextOps);
         store.setHasSelection(nextOps.length > 0);
         return;
@@ -59,20 +60,33 @@ export function commitSelectionOperation(
     store.setHasSelection(true);
 }
 
-// Convert resolved op into a {mode} suitable for selection.operations slice.
-// "intersect" is implemented as: replace ops with [add(existing-bounds), sub(complement-of-new)].
-// For now the selection layer collapses 'intersect' callers into a single add+sub pair handled
-// at the slice level.
-export function intersectionOpsFromOperation(
-    existing: { mode: 'add' | 'sub'; path: { x: number; y: number }[]; type: 'rect' | 'circle' | 'lasso' | 'lasso-poly' }[],
-    incoming: { path: { x: number; y: number }[]; type: 'rect' | 'circle' | 'lasso' | 'lasso-poly' },
-): { mode: 'add' | 'sub'; path: { x: number; y: number }[]; type: 'rect' | 'circle' | 'lasso' | 'lasso-poly' }[] {
-    // Intersection rule: keep only pixels that are inside BOTH the existing op stack
-    // and the new region. We push the new region as 'add' first (a no-op if it is the
-    // first add), then for every previous 'add' we apply a paired 'sub' that removes
-    // the area outside the new region. The slice's mask compositing handles the rest.
-    return [
-        ...existing,
-        { mode: 'add' as const, path: incoming.path, type: incoming.type },
-    ];
+/**
+ * True set intersection of an existing op stack with an incoming region. We
+ * rasterize both to alpha masks, AND them per pixel, and emit a single raster
+ * op carrying the result. This is the only way to get correct pixel-by-pixel
+ * intersection across mixed shape types (rect ∩ lasso, mask ∩ rect, etc.).
+ */
+export function trueIntersectOps(
+    existing: SelectionOperation[],
+    incoming: Omit<SelectionOperation, 'mode'>,
+    width: number,
+    height: number,
+): SelectionOperation[] {
+    if (existing.length === 0) {
+        return [{ mode: 'add', path: incoming.path, type: incoming.type, mask: incoming.mask }];
+    }
+    const a = rasterizeSelectionOperations(existing, width, height);
+    const incomingOp: SelectionOperation = { mode: 'add', path: incoming.path, type: incoming.type, mask: incoming.mask };
+    const b = rasterizeSelectionOperations([incomingOp], width, height);
+    const out = new Uint8ClampedArray(width * height);
+    let any = false;
+    for (let i = 0; i < out.length; i++) {
+        out[i] = Math.min(a[i], b[i]);
+        if (out[i] > 0) any = true;
+    }
+    if (!any) return [];
+    return [{ mode: 'add', path: [], type: incoming.type, mask: { data: out, width, height } }];
 }
+
+// Legacy alias retained for callers that imported the old name.
+export const intersectionOpsFromOperation = trueIntersectOps;

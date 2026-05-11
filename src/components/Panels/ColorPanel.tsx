@@ -5,6 +5,7 @@
  * change hue. Click either FG/BG swatch to open the full picker dialog.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Repeat2 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -146,15 +147,20 @@ export function ColorPanel() {
                         zIndex: 2,
                     }}
                 />
-                <span
+                <button
                     onClick={swapColors}
                     title="Swap Colors (X)"
                     style={{
                         position: 'absolute', right: -2, top: 0,
-                        fontSize: 10, color: 'hsl(var(--text-main))',
-                        cursor: 'pointer', userSelect: 'none', lineHeight: 1,
+                        width: 14, height: 14, padding: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'transparent', border: 'none',
+                        color: 'hsl(var(--text-main))',
+                        cursor: 'pointer', userSelect: 'none',
                     }}
-                >⇄</span>
+                >
+                    <Repeat2 size={13} strokeWidth={2.1} />
+                </button>
             </div>
 
             {/* SV color field */}

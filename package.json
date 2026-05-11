@@ -8,6 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "host:build": "tsc -p host/tsconfig.json",
+    "host:serve": "node host/dist/server.js",
+    "host:start": "npm run host:build && npm run host:serve",
     "test": "vitest run",
     "test:watch": "vitest"
   },

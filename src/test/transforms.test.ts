@@ -13,6 +13,7 @@ import { pixelAt } from './simulator';
 function reset() {
     useEditorStore.setState(s => ({ ...s, layers: [], activeLayerId: null }));
     useEditorStore.getState().addLayer();
+    useEditorStore.getState().clearHistory();
 }
 
 // ── Core helpers ──────────────────────────────────────────────────────────
@@ -168,6 +169,23 @@ describe('store: resizeImage', () => {
         expect(s.height).toBe(300);
         expect(s.layers[0].canvas.width).toBe(400);
         expect(s.layers[0].canvas.height).toBe(300);
+    });
+
+    it('undo and redo restore image resize dimensions', () => {
+        const store = useEditorStore.getState();
+        const before = { width: store.width, height: store.height };
+        store.resizeImage(320, 240, 'nearest');
+        expect(useEditorStore.getState().width).toBe(320);
+        expect(useEditorStore.getState().layers[0].canvas.width).toBe(320);
+
+        useEditorStore.getState().undo();
+        expect(useEditorStore.getState().width).toBe(before.width);
+        expect(useEditorStore.getState().height).toBe(before.height);
+        expect(useEditorStore.getState().layers[0].canvas.width).toBe(before.width);
+
+        useEditorStore.getState().redo();
+        expect(useEditorStore.getState().width).toBe(320);
+        expect(useEditorStore.getState().height).toBe(240);
     });
 });
 

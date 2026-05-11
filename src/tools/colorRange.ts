@@ -1,0 +1,85 @@
+import type { Layer } from '../core/Layer';
+import type { EditorStore, SelectionMaskData } from '../store/types';
+
+export type ColorRangeSampleMode = 'add' | 'sub';
+
+export interface ColorRangeSample {
+    color: string;
+    mode: ColorRangeSampleMode;
+}
+
+export interface ColorRangeOptions {
+    samples: ColorRangeSample[];
+    fuzziness: number;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+    const clean = hex.replace('#', '').trim();
+    const full = clean.length === 3
+        ? clean.split('').map(ch => ch + ch).join('')
+        : clean.padEnd(6, '0').slice(0, 6);
+    return [
+        parseInt(full.slice(0, 2), 16) || 0,
+        parseInt(full.slice(2, 4), 16) || 0,
+        parseInt(full.slice(4, 6), 16) || 0,
+    ];
+}
+
+function matchesSample(r: number, g: number, b: number, sample: [number, number, number], fuzziness: number): boolean {
+    const dr = r - sample[0];
+    const dg = g - sample[1];
+    const db = b - sample[2];
+    return Math.sqrt(dr * dr + dg * dg + db * db) <= Math.max(0, fuzziness);
+}
+
+function compositeVisibleLayers(layers: Layer[], width: number, height: number): ImageData {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new ImageData(width, height);
+    for (const layer of layers) {
+        if (!layer.visible || layer.kind === 'group') continue;
+        ctx.globalAlpha = layer.opacity * layer.fill;
+        ctx.globalCompositeOperation = layer.blendMode;
+        ctx.drawImage(layer.canvas, 0, 0);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    return ctx.getImageData(0, 0, width, height);
+}
+
+export function buildColorRangeMask(
+    image: ImageData,
+    options: ColorRangeOptions,
+): SelectionMaskData {
+    const addSamples = options.samples.filter(sample => sample.mode === 'add').map(sample => hexToRgb(sample.color));
+    const subSamples = options.samples.filter(sample => sample.mode === 'sub').map(sample => hexToRgb(sample.color));
+    const data = new Uint8ClampedArray(image.width * image.height);
+    if (addSamples.length === 0) return { data, width: image.width, height: image.height };
+
+    for (let i = 0; i < data.length; i++) {
+        const pixel = i * 4;
+        const alpha = image.data[pixel + 3];
+        if (alpha === 0) continue;
+        const r = image.data[pixel];
+        const g = image.data[pixel + 1];
+        const b = image.data[pixel + 2];
+        const inAdd = addSamples.some(sample => matchesSample(r, g, b, sample, options.fuzziness));
+        if (!inAdd) continue;
+        const inSub = subSamples.some(sample => matchesSample(r, g, b, sample, options.fuzziness));
+        data[i] = inSub ? 0 : 255;
+    }
+    return { data, width: image.width, height: image.height };
+}
+
+export function applyColorRangeSelection(store: EditorStore, options: ColorRangeOptions): boolean {
+    const image = compositeVisibleLayers(store.layers, store.width, store.height);
+    const mask = buildColorRangeMask(image, options);
+    const hasPixels = mask.data.some(alpha => alpha > 0);
+    store.setSelectionOperations(hasPixels
+        ? [{ mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: store.width, y: store.height }], mask }]
+        : []);
+    store.setHasSelection(hasPixels);
+    return hasPixels;
+}

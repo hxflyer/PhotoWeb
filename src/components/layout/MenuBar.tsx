@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Check, ChevronRight } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { getLastFilter, applyFilterToLayer } from '../../filters/index';
 import { requestViewportFit } from '../../utils/viewportFit';
 import { applyAdjustmentToLayer } from '../../adjustments';
+import { createWorkPathFromLayer } from '../../tools/textToPath';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MI =
@@ -86,11 +88,11 @@ function MenuPopup({ items, x, y, onClose, depth = 0 }: PopupProps) {
             onClick={(e) => handleItem(item, idx, e)}
             onMouseEnter={(e) => !disabled && handleItemHover(item, idx, e)}
           >
-            {isCheck && <span className="check">{checked ? '✓' : ''}</span>}
+            {isCheck && <span className="check">{checked ? <Check size={12} /> : ''}</span>}
             <span>{item.l}</span>
             {item.k === 'act' && item.s && <span className="shortcut">{item.s}</span>}
             {item.k === 'chk' && item.s && <span className="shortcut">{item.s}</span>}
-            {item.k === 'sub' && <span className="arrow">▶</span>}
+            {item.k === 'sub' && <span className="arrow"><ChevronRight size={12} /></span>}
             {item.k === 'sub' && subOpen === idx && (
               <MenuPopup items={item.items} x={subPos.x} y={subPos.y} onClose={onClose} depth={depth + 1} />
             )}
@@ -196,8 +198,53 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Flip Vertical', () => useEditorStore.getState().flipCanvas('vertical')),
       ),
       sep,
-      act('Define Brush Preset…', () => {}, undefined, true),
-      act('Define Pattern…', () => {}, undefined, true),
+      act('Define Brush Preset…', () => {
+        const name = window.prompt('Brush preset name', 'New Brush Preset');
+        if (name) useEditorStore.getState().saveBrushPreset(name);
+      }),
+      act('Define Pattern…', () => {
+        const store = useEditorStore.getState();
+        const layer = store.layers.find(l => l.id === store.activeLayerId);
+        if (!layer) return;
+        const name = window.prompt('Pattern name', 'New Pattern');
+        if (!name) return;
+        const sel = store.selection;
+        const hasSel = sel.hasSelection && (sel.operations.length > 0 || sel.path.length > 1);
+        if (hasSel) {
+            let minX = layer.canvas.width, minY = layer.canvas.height, maxX = 0, maxY = 0;
+            for (const op of sel.operations) {
+                if (op.type === 'rect' && op.path.length === 2) {
+                    const [a, b] = op.path;
+                    minX = Math.min(minX, Math.floor(Math.min(a.x, b.x)));
+                    minY = Math.min(minY, Math.floor(Math.min(a.y, b.y)));
+                    maxX = Math.max(maxX, Math.ceil(Math.max(a.x, b.x)));
+                    maxY = Math.max(maxY, Math.ceil(Math.max(a.y, b.y)));
+                } else {
+                    for (const p of op.path) {
+                        minX = Math.min(minX, Math.floor(p.x));
+                        minY = Math.min(minY, Math.floor(p.y));
+                        maxX = Math.max(maxX, Math.ceil(p.x));
+                        maxY = Math.max(maxY, Math.ceil(p.y));
+                    }
+                }
+            }
+            minX = Math.max(0, minX); minY = Math.max(0, minY);
+            maxX = Math.min(layer.canvas.width, maxX);
+            maxY = Math.min(layer.canvas.height, maxY);
+            const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d')!.drawImage(layer.canvas, minX, minY, w, h, 0, 0, w, h);
+            store.definePattern(name, c);
+        } else {
+            store.definePattern(name, layer.canvas);
+        }
+      }),
+      sep,
+      sub('Preferences',
+        act('General…', () => window.dispatchEvent(new Event('photoweb:open-preferences'))),
+        act('Storage Usage…', () => window.dispatchEvent(new Event('photoweb:open-storage-usage'))),
+      ),
     ],
 
     Image: [
@@ -214,6 +261,24 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('32 Bits/Channel', () => {}, undefined, true),
       ),
       sep,
+      sub('New Adjustment Layer',
+        act('Brightness/Contrast', () => useEditorStore.getState().addAdjustmentLayer('brightness-contrast')),
+        act('Levels', () => useEditorStore.getState().addAdjustmentLayer('levels')),
+        act('Curves', () => useEditorStore.getState().addAdjustmentLayer('curves')),
+        act('Exposure', () => useEditorStore.getState().addAdjustmentLayer('exposure')),
+        sep,
+        act('Vibrance', () => useEditorStore.getState().addAdjustmentLayer('vibrance')),
+        act('Hue/Saturation', () => useEditorStore.getState().addAdjustmentLayer('hue-saturation')),
+        act('Color Balance', () => useEditorStore.getState().addAdjustmentLayer('color-balance')),
+        act('Black & White', () => useEditorStore.getState().addAdjustmentLayer('black-and-white')),
+        act('Photo Filter', () => useEditorStore.getState().addAdjustmentLayer('photo-filter')),
+        act('Channel Mixer', () => useEditorStore.getState().addAdjustmentLayer('channel-mixer')),
+        act('Gradient Map', () => useEditorStore.getState().addAdjustmentLayer('gradient-map')),
+        sep,
+        act('Invert', () => useEditorStore.getState().addAdjustmentLayer('invert')),
+        act('Posterize', () => useEditorStore.getState().addAdjustmentLayer('posterize')),
+        act('Threshold', () => useEditorStore.getState().addAdjustmentLayer('threshold')),
+      ),
       sub('Adjustments',
         act('Brightness/Contrast…', () => openAdjustment('brightness-contrast')),
         act('Levels…', () => openAdjustment('levels'), '⌘L'),
@@ -258,13 +323,16 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Layer…', () => useEditorStore.getState().addLayer(), '⌘⇧N'),
         act('Layer from Background…', () => {}, undefined, true),
         sep,
-        act('Group…', () => {}, undefined, true),
-        act('Group from Layers…', () => {}, undefined, true),
+        act('Group…', () => useEditorStore.getState().createLayerGroup()),
+        act('Group from Layers…', () => {
+          const s = useEditorStore.getState();
+          if (s.selectedLayerIds.length > 1) s.groupLayers(s.selectedLayerIds);
+        }),
         sep,
         act('Solid Color…', () => useEditorStore.getState().addFillLayer({ kind: 'solid-color', color: '#ffffff' })),
         act('Gradient…', () => useEditorStore.getState().addFillLayer({ kind: 'gradient', type: 'linear', angle: 0, stops: [{ position: 0, color: '#000000', opacity: 1 }, { position: 1, color: '#ffffff', opacity: 1 }] })),
       ),
-      act('Duplicate Layer…', () => {}, undefined, true),
+      act('Duplicate Layer…', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.duplicateLayer(s.activeLayerId); }, '⌘J'),
       sub('Delete',
         act('Layer', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.removeLayer(s.activeLayerId); }),
         act('Hidden Layers', () => {}, undefined, true),
@@ -299,8 +367,8 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       sub('Layer Mask',
         act('Reveal All', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.addLayerMask(s.activeLayerId, 'reveal-all'); }),
         act('Hide All', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.addLayerMask(s.activeLayerId, 'hide-all'); }),
-        act('Reveal Selection', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.addLayerMask(s.activeLayerId, 'reveal-all'); }),
-        act('Hide Selection', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.addLayerMask(s.activeLayerId, 'hide-all'); }),
+        act('Reveal Selection', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.addLayerMaskFromSelection(s.activeLayerId, 'reveal'); }),
+        act('Hide Selection', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.addLayerMaskFromSelection(s.activeLayerId, 'hide'); }),
         sep,
         act('Disable', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.setLayerMaskEnabled(s.activeLayerId, false); }),
         act('Apply', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.applyLayerMask(s.activeLayerId); }),
@@ -312,6 +380,24 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Bring Forward', () => {}, undefined, true),
         act('Send Backward', () => {}, undefined, true),
         act('Send to Back', () => {}, undefined, true),
+      ),
+      sub('Align',
+        act('Left Edges', () => useEditorStore.getState().alignSelectedLayers('left')),
+        act('Horizontal Centers', () => useEditorStore.getState().alignSelectedLayers('horizontal-center')),
+        act('Right Edges', () => useEditorStore.getState().alignSelectedLayers('right')),
+        sep,
+        act('Top Edges', () => useEditorStore.getState().alignSelectedLayers('top')),
+        act('Vertical Centers', () => useEditorStore.getState().alignSelectedLayers('vertical-center')),
+        act('Bottom Edges', () => useEditorStore.getState().alignSelectedLayers('bottom')),
+      ),
+      sub('Distribute',
+        act('Left Edges', () => useEditorStore.getState().distributeSelectedLayers('left')),
+        act('Horizontal Centers', () => useEditorStore.getState().distributeSelectedLayers('horizontal-center')),
+        act('Right Edges', () => useEditorStore.getState().distributeSelectedLayers('right')),
+        sep,
+        act('Top Edges', () => useEditorStore.getState().distributeSelectedLayers('top')),
+        act('Vertical Centers', () => useEditorStore.getState().distributeSelectedLayers('vertical-center')),
+        act('Bottom Edges', () => useEditorStore.getState().distributeSelectedLayers('bottom')),
       ),
       sep,
       act('Merge Down', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.mergeLayerDown(s.activeLayerId); }, '⌘E'),
@@ -331,9 +417,26 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Vertical', () => useEditorStore.getState().setTool('type-vertical')),
       ),
       sep,
-      act('Create Work Path', () => {}, undefined, true),
-      act('Convert to Shape', () => {}, undefined, true),
-      act('Rasterize Type Layer', () => {}, undefined, true),
+      act('Create Work Path', () => {
+        const s = useEditorStore.getState();
+        const layer = s.layers.find(l => l.id === s.activeLayerId);
+        if (!layer) return;
+        const added = createWorkPathFromLayer(layer);
+        window.dispatchEvent(new Event('photoweb:paths-changed'));
+        if (added === 0) window.alert('Could not trace any path from this layer.');
+      }),
+      act('Convert to Shape', () => {
+        // Shape layers in photoweb are still raster, so "Convert to Shape" is
+        // equivalent to Rasterize Type — the visual stays, the source data
+        // becomes pixels. Track GAP-07 to make this produce a real vector
+        // shape layer once shape-kind editing lands.
+        const s = useEditorStore.getState();
+        if (s.activeLayerId) s.rasterizeTypeLayer(s.activeLayerId);
+      }),
+      act('Rasterize Type Layer', () => {
+        const s = useEditorStore.getState();
+        if (s.activeLayerId) s.rasterizeTypeLayer(s.activeLayerId);
+      }),
     ],
 
     Select: [
@@ -350,7 +453,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       act('Deselect Layers', () => {}, undefined, true),
       act('Find Layers…', () => {}, '⌘⌥F', true),
       sep,
-      act('Color Range…', () => {}, undefined, true),
+      act('Color Range…', () => useEditorStore.getState().openColorRangeDialog()),
       sep,
       act('Select and Mask…', () => useEditorStore.getState().openRefineEdgeDialog(), '⌘⌥R'),
       sep,
@@ -369,8 +472,8 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         const s = useEditorStore.getState(); s.setQuickMaskMode(!s.quickMaskMode);
       }, 'Q'),
       sep,
-      act('Load Selection…', () => {}, undefined, true),
-      act('Save Selection…', () => {}, undefined, true),
+      act('Load Selection…', () => useEditorStore.getState().openLoadSelectionDialog()),
+      act('Save Selection…', () => useEditorStore.getState().openSaveSelectionDialog()),
     ],
 
     Filter: [
@@ -426,6 +529,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       sub('Show',
         chk('Rulers', () => useEditorStore.getState().showRulers, () => { const s = useEditorStore.getState(); s.setShowRulers(!s.showRulers); }, '⌘R'),
         chk('Grid', () => useEditorStore.getState().showGrid, () => { const s = useEditorStore.getState(); s.setShowGrid(!s.showGrid); }, "⌘'"),
+        chk('Selection Edges', () => useEditorStore.getState().showSelectionEdges, () => { const s = useEditorStore.getState(); s.setShowSelectionEdges(!s.showSelectionEdges); }, '⌘H'),
         chk('Snap', () => useEditorStore.getState().snapEnabled, () => { const s = useEditorStore.getState(); s.setSnapEnabled(!s.snapEnabled); }, '⌘⇧;'),
       ),
       sep,
@@ -438,15 +542,35 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Slices', () => {}, undefined, true),
         act('Document Bounds', () => {}),
       ),
+      sep,
+      sub('Guides',
+        act('New Horizontal Guide', () => {
+          const s = useEditorStore.getState();
+          s.addGuide('horizontal', Math.round(s.height / 2));
+        }),
+        act('New Vertical Guide', () => {
+          const s = useEditorStore.getState();
+          s.addGuide('vertical', Math.round(s.width / 2));
+        }),
+        sep,
+        act('Clear Guides', () => useEditorStore.getState().clearGuides()),
+      ),
     ],
 
     Window: [
-      act('History', () => {}, undefined, true),
-      act('Layers', () => {}, undefined, true),
-      act('Color', () => {}, undefined, true),
-      act('Swatches', () => {}, undefined, true),
-      act('Adjustments', () => {}, undefined, true),
-      act('Properties', () => {}, undefined, true),
+      chk('History', () => useEditorStore.getState().panelVisibility.history, () => useEditorStore.getState().togglePanelVisibility('history')),
+      chk('Layers', () => useEditorStore.getState().panelVisibility.layers, () => useEditorStore.getState().togglePanelVisibility('layers')),
+      chk('Channels', () => useEditorStore.getState().panelVisibility.channels, () => useEditorStore.getState().togglePanelVisibility('channels')),
+      chk('Paths', () => useEditorStore.getState().panelVisibility.paths, () => useEditorStore.getState().togglePanelVisibility('paths')),
+      sep,
+      chk('Color', () => useEditorStore.getState().panelVisibility.color, () => useEditorStore.getState().togglePanelVisibility('color')),
+      chk('Swatches', () => useEditorStore.getState().panelVisibility.swatches, () => useEditorStore.getState().togglePanelVisibility('swatches')),
+      chk('Adjustments', () => useEditorStore.getState().panelVisibility.adjustments, () => useEditorStore.getState().togglePanelVisibility('adjustments')),
+      sep,
+      chk('Character', () => useEditorStore.getState().panelVisibility.character, () => useEditorStore.getState().togglePanelVisibility('character')),
+      chk('Paragraph', () => useEditorStore.getState().panelVisibility.paragraph, () => useEditorStore.getState().togglePanelVisibility('paragraph')),
+      sep,
+      chk('Properties', () => useEditorStore.getState().panelVisibility.properties, () => useEditorStore.getState().togglePanelVisibility('properties')),
       act('Navigator', () => {}, undefined, true),
       act('Info', () => {}, undefined, true),
       sep,

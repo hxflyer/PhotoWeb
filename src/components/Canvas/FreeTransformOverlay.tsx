@@ -6,6 +6,7 @@
  * On confirm it calls applyFreeTransform() and writes result back to the layer.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { Check, X as XIcon } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { applyFreeTransform } from '../../core/imageTransforms';
 import { commitTypeLayer, type TypeLayerData } from '../../tools/type';
@@ -227,8 +228,8 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
                                 style={{ width: '48px', padding: '2px 4px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '3px', color: 'white', fontSize: '11px' }} />
                         </label>
                     ))}
-                    <button onClick={onCommit} style={{ padding: '2px 8px', background: '#0090ff', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '11px' }}>✓</button>
-                    <button onClick={onCancel} style={{ padding: '2px 8px', background: 'rgba(255,80,80,0.8)', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                    <button onClick={onCommit} title="Commit transform" style={{ padding: '2px 8px', background: '#0090ff', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center' }}><Check size={13} /></button>
+                    <button onClick={onCancel} title="Cancel transform" style={{ padding: '2px 8px', background: 'rgba(255,80,80,0.8)', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center' }}><XIcon size={13} /></button>
                 </div>
             </foreignObject>
         </svg>

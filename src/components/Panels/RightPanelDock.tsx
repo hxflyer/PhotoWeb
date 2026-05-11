@@ -7,6 +7,7 @@ import { ColorPanel } from './ColorPanel';
 import { SwatchesPanel } from './SwatchesPanel';
 import { CharacterPanel } from './CharacterPanel';
 import { ParagraphPanel } from './ParagraphPanel';
+import { PropertiesPanel } from './PropertiesPanel';
 import { useEditorStore } from '../../store/editorStore';
 
 const ADJUSTMENTS: { id: string; label: string; short: string }[] = [
@@ -77,125 +78,137 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
 });
 
 export function RightPanelDock() {
+    const panelVisibility = useEditorStore(s => s.panelVisibility);
     const [topTab, setTopTab] = useState<'color' | 'swatches' | 'adjustments'>('color');
     const [showTop, setShowTop] = useState(true);
     const [textTab, setTextTab] = useState<'character' | 'paragraph'>('character');
     const [showText, setShowText] = useState(true);
-    const [bottomTab, setBottomTab] = useState<'layers' | 'channels' | 'paths' | 'history'>('layers');
+    const [bottomTab, setBottomTab] = useState<'layers' | 'channels' | 'paths' | 'history' | 'properties'>('layers');
+
+    const topVisibleTabs = (['color', 'swatches', 'adjustments'] as const).filter(t => panelVisibility[t]);
+    const textVisibleTabs = (['character', 'paragraph'] as const).filter(t => panelVisibility[t]);
+    const bottomVisibleTabs = (['layers', 'channels', 'paths', 'history', 'properties'] as const).filter(t => panelVisibility[t]);
+    const activeTopTab = topVisibleTabs.includes(topTab) ? topTab : topVisibleTabs[0];
+    const activeTextTab = textVisibleTabs.includes(textTab) ? textTab : textVisibleTabs[0];
+    const activeBottomTab = bottomVisibleTabs.includes(bottomTab) ? bottomTab : bottomVisibleTabs[0];
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
             {/* ── Top panel group: Color / Swatches / Adjustments ── */}
-            <div style={{
-                flex: '0 0 auto',
-                borderBottom: '1px solid hsl(var(--border-light))',
-                display: 'flex', flexDirection: 'column',
-                maxHeight: showTop ? 220 : 28,
-                overflow: 'hidden',
-                transition: 'max-height 0.15s',
-            }}>
-                {/* Tab bar */}
+            {topVisibleTabs.length > 0 && (
                 <div style={{
-                    display: 'flex', alignItems: 'center',
-                    backgroundColor: 'hsl(var(--bg-header))',
+                    flex: '0 0 auto',
                     borderBottom: '1px solid hsl(var(--border-light))',
-                    height: 28,
-                    flexShrink: 0,
+                    display: 'flex', flexDirection: 'column',
+                    maxHeight: showTop ? 220 : 28,
+                    overflow: 'hidden',
+                    transition: 'max-height 0.15s',
                 }}>
-                    {(['color', 'swatches', 'adjustments'] as const).map(t => (
-                        <button key={t} style={tabStyle(topTab === t && showTop)} onClick={() => { setTopTab(t); setShowTop(true); }}>
-                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                    <div style={{
+                        display: 'flex', alignItems: 'center',
+                        backgroundColor: 'hsl(var(--bg-header))',
+                        borderBottom: '1px solid hsl(var(--border-light))',
+                        height: 28,
+                        flexShrink: 0,
+                    }}>
+                        {topVisibleTabs.map(t => (
+                            <button key={t} style={tabStyle(activeTopTab === t && showTop)} onClick={() => { setTopTab(t); setShowTop(true); }}>
+                                {t.charAt(0).toUpperCase() + t.slice(1)}
+                            </button>
+                        ))}
+                        <div style={{ flex: 1 }} />
+                        <button
+                            onClick={() => setShowTop(o => !o)}
+                            style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 8px', fontSize: 12 }}
+                        >
+                            {showTop ? '▴' : '▾'}
                         </button>
-                    ))}
-                    <div style={{ flex: 1 }} />
-                    <button
-                        onClick={() => setShowTop(o => !o)}
-                        style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 8px', fontSize: 12 }}
-                    >
-                        {showTop ? '▴' : '▾'}
-                    </button>
-                </div>
-
-                {/* Panel content */}
-                {showTop && (
-                    <div style={{ flex: 1, overflowY: 'auto' }}>
-                        {topTab === 'color' && <ColorPanel />}
-                        {topTab === 'swatches' && <SwatchesPanel />}
-                        {topTab === 'adjustments' && <AdjustmentsPanel />}
                     </div>
-                )}
-            </div>
-
-            {/* ── Middle panel group: Character / Paragraph ── */}
-            <div style={{
-                flex: '0 0 auto',
-                borderBottom: '1px solid hsl(var(--border-light))',
-                display: 'flex',
-                flexDirection: 'column',
-                maxHeight: showText ? 330 : 28,
-                overflow: 'hidden',
-                transition: 'max-height 0.15s',
-            }}>
-                <div style={{
-                    display: 'flex', alignItems: 'center',
-                    backgroundColor: 'hsl(var(--bg-header))',
-                    borderBottom: '1px solid hsl(var(--border-light))',
-                    height: 28,
-                    flexShrink: 0,
-                }}>
-                    {(['character', 'paragraph'] as const).map(t => (
-                        <button key={t} style={tabStyle(textTab === t && showText)} onClick={() => { setTextTab(t); setShowText(true); }}>
-                            {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </button>
-                    ))}
-                    <div style={{ flex: 1 }} />
-                    <button
-                        onClick={() => setShowText(o => !o)}
-                        style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 8px', fontSize: 12 }}
-                    >
-                        {showText ? '▴' : '▾'}
-                    </button>
-                </div>
-
-                {showText && (
-                    <div style={{ flex: 1, overflowY: 'auto' }}>
-                        {textTab === 'character' && <CharacterPanel />}
-                        {textTab === 'paragraph' && <ParagraphPanel />}
-                    </div>
-                )}
-            </div>
-
-            {/* ── Bottom panel group: Layers / Channels / Paths / History ── */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {/* Tab bar */}
-                <div style={{
-                    display: 'flex', alignItems: 'center',
-                    backgroundColor: 'hsl(var(--bg-header))',
-                    borderBottom: '1px solid hsl(var(--border-light))',
-                    height: 28,
-                    flexShrink: 0,
-                }}>
-                    {(['layers', 'channels', 'paths', 'history'] as const).map(t => (
-                        <button key={t} style={tabStyle(bottomTab === t)} onClick={() => setBottomTab(t)}>
-                            {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </button>
-                    ))}
-                    <div style={{ flex: 1 }} />
-                </div>
-
-                {/* Panel content */}
-                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    {bottomTab === 'layers' && <LayersPanel />}
-                    {bottomTab === 'channels' && <ChannelsPanel />}
-                    {bottomTab === 'paths' && <PathsPanel />}
-                    {bottomTab === 'history' && (
+                    {showTop && (
                         <div style={{ flex: 1, overflowY: 'auto' }}>
-                            <HistoryPanel />
+                            {activeTopTab === 'color' && <ColorPanel />}
+                            {activeTopTab === 'swatches' && <SwatchesPanel />}
+                            {activeTopTab === 'adjustments' && <AdjustmentsPanel />}
                         </div>
                     )}
                 </div>
-            </div>
+            )}
+
+            {/* ── Middle panel group: Character / Paragraph ── */}
+            {textVisibleTabs.length > 0 && (
+                <div style={{
+                    flex: '0 0 auto',
+                    borderBottom: '1px solid hsl(var(--border-light))',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    maxHeight: showText ? 330 : 28,
+                    overflow: 'hidden',
+                    transition: 'max-height 0.15s',
+                }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center',
+                        backgroundColor: 'hsl(var(--bg-header))',
+                        borderBottom: '1px solid hsl(var(--border-light))',
+                        height: 28,
+                        flexShrink: 0,
+                    }}>
+                        {textVisibleTabs.map(t => (
+                            <button key={t} style={tabStyle(activeTextTab === t && showText)} onClick={() => { setTextTab(t); setShowText(true); }}>
+                                {t.charAt(0).toUpperCase() + t.slice(1)}
+                            </button>
+                        ))}
+                        <div style={{ flex: 1 }} />
+                        <button
+                            onClick={() => setShowText(o => !o)}
+                            style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 8px', fontSize: 12 }}
+                        >
+                            {showText ? '▴' : '▾'}
+                        </button>
+                    </div>
+                    {showText && (
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {activeTextTab === 'character' && <CharacterPanel />}
+                            {activeTextTab === 'paragraph' && <ParagraphPanel />}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Bottom panel group: Layers / Channels / Paths / History ── */}
+            {bottomVisibleTabs.length > 0 && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center',
+                        backgroundColor: 'hsl(var(--bg-header))',
+                        borderBottom: '1px solid hsl(var(--border-light))',
+                        height: 28,
+                        flexShrink: 0,
+                    }}>
+                        {bottomVisibleTabs.map(t => (
+                            <button key={t} style={tabStyle(activeBottomTab === t)} onClick={() => setBottomTab(t)}>
+                                {t.charAt(0).toUpperCase() + t.slice(1)}
+                            </button>
+                        ))}
+                        <div style={{ flex: 1 }} />
+                    </div>
+                    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        {activeBottomTab === 'layers' && <LayersPanel />}
+                        {activeBottomTab === 'channels' && <ChannelsPanel />}
+                        {activeBottomTab === 'paths' && <PathsPanel />}
+                        {activeBottomTab === 'history' && (
+                            <div style={{ flex: 1, overflowY: 'auto' }}>
+                                <HistoryPanel />
+                            </div>
+                        )}
+                        {activeBottomTab === 'properties' && (
+                            <div style={{ flex: 1, overflowY: 'auto' }}>
+                                <PropertiesPanel />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

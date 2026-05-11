@@ -1,9 +1,22 @@
 import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
+import { beginSelectionInteraction, previewSelectionMove, type SelectionMoveAnchor } from './selectionMove';
 
-const free: { points: { x: number; y: number }[] | null } = { points: null };
-const poly: { points: { x: number; y: number }[]; live: { x: number; y: number } | null } = { points: [], live: null };
+const DRAG_THRESHOLD = 3;
+
+interface FreeState {
+    points: { x: number; y: number }[] | null;
+    move: SelectionMoveAnchor | null;
+}
+interface PolyState {
+    points: { x: number; y: number }[];
+    live: { x: number; y: number } | null;
+    move: SelectionMoveAnchor | null;
+}
+
+const free: FreeState = { points: null, move: null };
+const poly: PolyState = { points: [], live: null, move: null };
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
@@ -11,16 +24,39 @@ export const lassoTool: Tool = {
     id: 'lasso',
     label: 'Lasso',
     cursor: 'crosshair',
-    onPointerDown: (e) => {
+    onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
+        const store = ctx.getStore();
+        free.move = null;
+        free.points = null;
+        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+        if (decision.kind === 'move') {
+            free.move = decision.move;
+            return;
+        }
         free.points = [p(e)];
     },
     onPointerMove: (e) => {
+        if (free.move) {
+            const point = p(e);
+            const dx = point.x - free.move.anchor.x;
+            const dy = point.y - free.move.anchor.y;
+            if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+            previewSelectionMove(free.move, dx, dy);
+            return;
+        }
         if (!free.points) return;
         free.points.push(p(e));
-        // Overlay RAF loop picks up free.points each frame — no store mutation needed during drag
     },
     onPointerUp: (e, ctx) => {
+        if (free.move) {
+            const point = p(e);
+            const dx = point.x - free.move.anchor.x;
+            const dy = point.y - free.move.anchor.y;
+            if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) previewSelectionMove(free.move, dx, dy);
+            free.move = null;
+            return;
+        }
         if (!free.points || free.points.length < 3) {
             free.points = null;
             return;
@@ -57,25 +93,52 @@ export const lassoPolyTool: Tool = {
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
         const point = p(e);
+        const store = ctx.getStore();
+        // Polygon-in-progress: a click near the first vertex closes the path.
         if (poly.points.length > 2) {
             const first = poly.points[0];
             const dist = Math.hypot(point.x - first.x, point.y - first.y);
             if (dist < 10) {
                 const path = [...poly.points];
-                const store = ctx.getStore();
                 const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
                 commitSelectionOperation(store, { path, type: 'lasso-poly' }, op);
                 poly.points = [];
                 poly.live = null;
-                ctx.getStore().setPolyPoints([]);
+                store.setPolyPoints([]);
+                return;
+            }
+        }
+        // First click of a new polygon: respect the inside-drag / outside-dismiss
+        // contract before adding the anchor point.
+        if (poly.points.length === 0) {
+            poly.move = null;
+            const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+            if (decision.kind === 'move') {
+                poly.move = decision.move;
                 return;
             }
         }
         poly.points.push(point);
-        ctx.getStore().setPolyPoints([...poly.points]);
+        store.setPolyPoints([...poly.points]);
     },
     onPointerMove: (e) => {
+        if (poly.move) {
+            const point = p(e);
+            const dx = point.x - poly.move.anchor.x;
+            const dy = point.y - poly.move.anchor.y;
+            if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) previewSelectionMove(poly.move, dx, dy);
+            return;
+        }
         poly.live = p(e);
+    },
+    onPointerUp: (e) => {
+        if (poly.move) {
+            const point = p(e);
+            const dx = point.x - poly.move.anchor.x;
+            const dy = point.y - poly.move.anchor.y;
+            if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) previewSelectionMove(poly.move, dx, dy);
+            poly.move = null;
+        }
     },
     onKeyDown: (e, ctx) => {
         if (e.key === 'Enter' && poly.points.length > 2) {

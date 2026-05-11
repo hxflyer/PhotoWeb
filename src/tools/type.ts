@@ -283,8 +283,23 @@ export function findTypeLayerAt(layers: Layer[], x: number, y: number): Layer | 
         const data = layer.typeData as TypeLayerData | null;
         if (!data?.bounds) continue;
         const b = data.bounds;
+        // Rotate the test point into the layer's local frame so a rotated type
+        // layer can be re-edited by clicking on its visible text rather than on
+        // its axis-aligned bounding box.
+        const rot = data.transform.rotation ?? 0;
+        let lx = x, ly = y;
+        if (rot !== 0) {
+            const cx = data.transform.x;
+            const cy = data.transform.y;
+            const cos = Math.cos(-rot);
+            const sin = Math.sin(-rot);
+            const dx = x - cx;
+            const dy = y - cy;
+            lx = cx + dx * cos - dy * sin;
+            ly = cy + dx * sin + dy * cos;
+        }
         // 4-px slack so clicks just outside the text rect still re-enter edit mode.
-        if (x >= b.x - 4 && x <= b.x + b.w + 4 && y >= b.y - 4 && y <= b.y + b.h + 4) return layer;
+        if (lx >= b.x - 4 && lx <= b.x + b.w + 4 && ly >= b.y - 4 && ly <= b.y + b.h + 4) return layer;
     }
     return null;
 }
@@ -442,7 +457,29 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
             let charY = y - s.baselineShift;
             if (s.superscript) charY -= s.fontSize * 0.35;
             if (s.subscript) charY += s.fontSize * 0.25;
-            ctx.fillText(ch, x, charY);
+            // Faux italic: apply a horizontal skew so the glyph slants even if
+            // the font lacks an italic variant.
+            const useSkew = s.fauxItalic && s.fontStyle !== 'italic';
+            if (useSkew) {
+                ctx.save();
+                ctx.transform(1, 0, -0.2, 1, x + 0.2 * charY, 0);
+                ctx.fillText(ch, 0, charY);
+                ctx.restore();
+            } else {
+                ctx.fillText(ch, x, charY);
+            }
+            // Faux bold: re-stroke at +1px offset to thicken the glyph if the
+            // font lacks a 700-weight variant. Cheap and visually adequate.
+            if (s.fauxBold) {
+                if (useSkew) {
+                    ctx.save();
+                    ctx.transform(1, 0, -0.2, 1, x + 0.2 * charY + 0.5, 0);
+                    ctx.fillText(ch, 0, charY);
+                    ctx.restore();
+                } else {
+                    ctx.fillText(ch, x + 0.5, charY);
+                }
+            }
             const w = ctx.measureText(ch).width + tracking;
             if (s.underline) ctx.fillRect(x, charY + s.fontSize * 0.95, Math.max(1, w), Math.max(1, s.fontSize / 16));
             if (s.strikethrough) ctx.fillRect(x, charY + s.fontSize * 0.55, Math.max(1, w), Math.max(1, s.fontSize / 16));

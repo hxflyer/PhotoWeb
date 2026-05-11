@@ -5,6 +5,10 @@ export interface LayerMask {
     ctx: CanvasRenderingContext2D;
     enabled: boolean;
     linked: boolean;
+    // Non-destructive density (0..1) and feather (px). Compositor uses these
+    // at render time without modifying the mask canvas.
+    density?: number;
+    feather?: number;
 }
 
 export interface LayerTransform {
@@ -87,6 +91,8 @@ export class Layer {
     locks: LayerLocks = noLocks();
     colorTag: LayerColorTag = 'none';
     dirtyRect: DirtyRect | null = null;
+    parentId: string | null = null;
+    expanded: boolean = true;
     // Type-layer source-of-truth — present when kind === 'type'. Lets us re-edit
     // the layer's text + style without losing data after rasterization.
     // Stored as `unknown` here to avoid a circular type import; the type tool casts.

@@ -24,15 +24,15 @@ Source note: `pages/0211-select-only-an-area-intersected-by-other-selections.md`
 
 Function group: selection intersection.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Add to selection`: `Present with differences`. Photoweb supports additive selection operations.
 - `Subtract from selection`: `Present with differences`.
-- `Intersect with selection`: `Partial`. Photoweb has a Shift+Alt/Option-style `intersect` operation path in selection tooling, but the implementation is simpler than Photoshop's true pixel-accurate intersection behavior.
+- `Intersect with selection`: `Present`. Shift+Alt/Option intersect now performs a true raster AND between the existing selection mask and the new region; a previous bug where intersect appended a union has been fixed.
 
 Implementation notes:
-- Selection modifiers are implemented in `selectionModifiers`; intersection should be treated as present but still needing correctness/polish review.
+- Selection modifiers are implemented in `selectionModifiers`; intersect uses pixel-accurate mask AND so subsequent operations operate on the actual overlap.
 
 ## 0212 - Refine And Soften Selection Edges
 
@@ -40,15 +40,15 @@ Source note: `pages/0212-refine-and-soften-selection-edges.md`
 
 Function group: softening and refining selection edges.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Feather selection`: `Present with differences`.
-- `Select and Mask/Refine Edge`: `Partial`. Photoweb has a simplified Refine Edge dialog.
-- `Smooth, contrast, shift edge style controls`: `Missing` or incomplete.
+- `Select and Mask/Refine Edge`: `Present with differences`. The Refine Edge dialog now applies Radius (blur), Smooth (median), and Contrast (steepen) to the selection mask alongside Feather and Shift Edge.
+- `Smooth, contrast, shift edge style controls`: `Present with differences`. Smooth, Contrast, and Shift Edge all run real mask transforms; smart-radius and decontaminate-colors features remain absent.
 
 Implementation notes:
-- Edge softening exists mainly through feathered masks, not Photoshop's full refinement workspace.
+- Refine Edge now performs true blur/median/contrast/feather/shift-edge passes on the selection mask, though it does not yet match Photoshop's full Select and Mask workspace.
 
 ## 0213 - Select Pixels Using Anti-Aliasing
 
@@ -56,15 +56,15 @@ Source note: `pages/0213-select-pixels-using-anti-aliasing.md`
 
 Function group: anti-aliased selection edges.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Anti-alias option for color selection`: `Present with differences`. Magic Wand has anti-alias behavior.
-- `Anti-aliased marquee/lasso edges`: `Partial`. Selection masks render with canvas paths, but Photoshop-level per-tool anti-alias controls are not complete.
-- `Disable/enable anti-alias per tool`: `Partial`.
+- `Anti-aliased marquee/lasso edges`: `Present with differences`. The elliptical Marquee Anti-Alias toggle is now functional: off produces a binary mask, on produces an anti-aliased mask.
+- `Disable/enable anti-alias per tool`: `Present with differences`. Elliptical marquee exposes a working Anti-Alias toggle; other tools still have varying levels of control.
 
 Implementation notes:
-- The strongest explicit support is in `magicWand`.
+- Marquee options bar now drives the anti-alias setting end-to-end for elliptical selections.
 
 ## 0214 - Define A Feathered Edge For A Selection Tool
 
@@ -77,10 +77,10 @@ Overall Photoweb status: `Present with differences`
 Sub-function comparison:
 - `Feather Radius command`: `Present with differences`.
 - `Feathered selection mask rendering`: `Present with differences`.
-- `Per-tool feather fields`: `Partial`. Some options UI exposes feather-like values, but Photoshop parity is incomplete.
+- `Per-tool feather fields`: `Present with differences`. The Marquee options bar Feather field now writes `selection.feather` on commit so per-tool feather radius takes effect on the next selection.
 
 Implementation notes:
-- Feather value is stored in selection state and applied when generating the selection mask.
+- Feather value is stored in selection state and applied when generating the selection mask; the marquee options bar feeds that value at commit time.
 
 ## 0215 - Create A Selection Around A Selection Border
 
@@ -104,15 +104,15 @@ Source note: `pages/0216-expand-or-contract-a-selection.md`
 
 Function group: selection expansion and contraction.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Expand selection`: `Partial`. Store action exists, but menu/dialog UI is disabled or incomplete.
-- `Contract selection`: `Partial`.
-- `Precise pixel dialog`: `Missing`.
+- `Expand selection`: `Present`. Implemented as iterative 4-neighbor dilation on the selection mask.
+- `Contract selection`: `Present`. Implemented as erosion (dilate of the inverse mask).
+- `Precise pixel dialog`: `Present with differences`. A pixel-radius prompt drives expand/contract; full Photoshop dialog polish is still pending.
 
 Implementation notes:
-- The engine has markers for expand/contract; UI needs finishing.
+- Expand and Contract are real raster operations on the selection mask; an earlier no-op implementation has been replaced.
 
 ## 0217 - Clean Up Stray Pixels In A Color-Based Selection
 
@@ -204,12 +204,12 @@ Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
 - `Reveal/hide layer areas with grayscale mask`: `Present with differences`.
-- `Enable/disable mask`: `Present with differences`.
-- `Apply/delete mask`: `Present with differences`.
+- `Enable/disable mask`: `Present with differences`. Layers panel mask thumbnails can toggle enabled state and show a disabled indicator.
+- `Apply/delete mask`: `Present with differences`. Menu and Layers panel context actions can apply or delete masks.
 - `Mask Properties panel controls`: `Missing`.
 
 Implementation notes:
-- Photoweb implements the important mask lifecycle, but with simpler UI.
+- Photoweb implements the important mask lifecycle and visible Layers panel controls, but still lacks Photoshop's full mask Properties controls such as density/feather.
 
 ## 0223 - Add Layer Masks
 
@@ -223,10 +223,11 @@ Sub-function comparison:
 - `Reveal All`: `Present with differences`.
 - `Hide All`: `Present with differences`.
 - `Reveal/Hide Selection`: `Partial`. Menu routes are present, but selection-specific mask generation is simplified.
-- `Add mask button in Layers panel`: `Partial` depending on current panel controls.
+- `Add mask button in Layers panel`: `Present with differences`. The Layers panel now includes a mask toolbar button for the active layer.
+- `Mask thumbnail display`: `Present with differences`. Layers with masks show a mask thumbnail beside the layer thumbnail.
 
 Implementation notes:
-- Layer mask commands are available from the Layer menu.
+- Layer mask commands are available from the Layer menu and Layers panel.
 
 ## 0224 - Create Layer Masks For All Detected Objects In A Layer
 
@@ -250,15 +251,15 @@ Source note: `pages/0225-unlink-layers-and-masks.md`
 
 Function group: layer-mask linking.
 
-Overall Photoweb status: `Partial`
+Overall Photoweb status: `Present with differences`
 
 Sub-function comparison:
-- `Mask linked to layer`: `Partial`. Mask data includes link-like state in the model.
-- `Unlink mask from layer`: `Partial`. Store actions exist for mask link state, but UI parity is limited.
-- `Move layer and mask independently`: `Missing` or incomplete.
+- `Mask linked to layer`: `Present with differences`. Mask link state exists in the layer model and is visible in the Layers panel.
+- `Unlink mask from layer`: `Present with differences`. The Layers panel exposes a link/unlink control for each mask.
+- `Move layer and mask independently`: `Partial`. Linked masks move with pixel movement in supported operations; independent mask-only movement is not yet a full Photoshop-style workflow.
 
 Implementation notes:
-- The data model is ahead of the visible workflow here.
+- Link state is now visible and editable, but independent mask targeting/movement remains a future refinement.
 
 ## 0226 - Disable Or Enable Layer Masks
 
@@ -271,10 +272,10 @@ Overall Photoweb status: `Present with differences`
 Sub-function comparison:
 - `Disable mask`: `Present with differences`.
 - `Enable mask`: `Present with differences`.
-- `Disabled mask indicator`: `Partial`.
+- `Disabled mask indicator`: `Present with differences`. Disabled masks show red styling/diagonal indicator on the mask thumbnail.
 
 Implementation notes:
-- The Layer menu exposes mask disable/apply/delete actions.
+- The Layer menu and Layers panel expose mask enable/disable behavior.
 
 ## 0227 - Apply Or Delete Layer Masks
 
@@ -290,7 +291,7 @@ Sub-function comparison:
 - `Prompt/confirm behavior`: `Missing`.
 
 Implementation notes:
-- Core operations are present in `layersSlice`.
+- Core operations are present in `layersSlice` and are reachable from the Layers panel context menu.
 
 ## 0228 - Blend Images
 
@@ -1634,20 +1635,24 @@ Implementation notes:
 ## Summary
 
 High-overlap areas:
-- Selection basics and several selection modifications are present: feather, border, invert, Magic Wand, Quick Selection, lasso tools, and selection-limited operations.
+- Selection basics and selection modifications are now well covered: add/subtract/intersect (true raster AND), feather, border, expand, contract, smooth (median), inverse (canvas-bounds-correct), Save Selection and Load Selection menu commands, plus Magic Wand, Quick Selection, lasso tools, and selection-limited operations.
+- Selection move-by-drag is now a universal behavior: clicking inside an existing selection drags the selection; clicking outside dismisses it.
+- Refine Edge applies real Radius (blur), Smooth (median), Contrast (steepen), Feather, and Shift Edge passes to the selection mask.
+- Adjustments and filters honor the active selection combined with `layer.mask` when applied to a layer.
 - Layer masks are meaningfully implemented with reveal/hide, enable/disable, apply, and delete workflows.
 - Manual retouching overlaps through Clone Stamp, Eraser, Dodge, Burn, Sponge, brush, and pencil tools.
 - Color adjustments, blend modes, foreground/background colors, eyedropper, color picker, gradient tool, and gradient fill layers are solid partial-to-present matches.
 
 Major missing areas:
-- Photoshop matting/defringe commands, Color Range, polished intersection selections, and full Select and Mask controls are incomplete or absent.
+- Color Range is present in simplified manual-sample form. Object Selection, Sky Selection, Subject Selection, Focus Area, Magnetic Lasso, Refine Edge smart-radius/decontaminate, Select Subject AI, Select All Layers, Find Layers, and advanced Quick Mask features remain absent or partial.
+- Photoshop matting/defringe commands and Photoshop's full Select and Mask workspace are still incomplete or absent.
 - Content-Aware Fill, Remove tool, background removal, reflection removal, harmonize, generative upscale, and AI distraction workflows are missing.
 - Healing Brush, Spot Healing Brush, Patch, Red Eye, Background Eraser, Magic Eraser, and Clone Source panel advanced controls are missing.
 - Color profiles, ICC embedding, CMYK, spot colors, indexed/bitmap/grayscale document modes, and print color-management workflows are missing.
 - Photomerge, 360 panoramas, and Vanishing Point/perspective plane workflows are missing.
 
 Recommended implementation priorities:
-- Complete selection refinement UI: polish intersect behavior, add expand/contract dialogs, smooth, Color Range, matting/defringe, and hide/show selection edges.
+- Continue selection polish: smart-radius/decontaminate in Refine Edge, honest Select and Mask output destinations, matting/defringe, and a richer Save/Load Selection dialog.
 - Add basic Healing Brush or Spot Healing before attempting full content-aware/AI removal.
 - Add a lightweight color-management decision: explicitly RGB-only, or begin document profile/mode support.
 - Improve gradient editor and preset management if design workflows are a priority.

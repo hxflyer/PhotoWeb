@@ -6,7 +6,7 @@ import { useEditorStore } from '../store/editorStore';
 import { runScript } from './simulator';
 
 function reset() {
-    useEditorStore.setState((s) => ({ ...s, layers: [], activeLayerId: null }));
+    useEditorStore.setState((s) => ({ ...s, layers: [], activeLayerId: null, selectedLayerIds: [], layerSelectionAnchorId: null }));
 }
 
 describe('UI: Toolbar simulated clicks', () => {
@@ -68,5 +68,76 @@ describe('UI: LayersPanel simulated interactions', () => {
         await runScript([{ type: 'click', target: addBtn }], container);
         const after = useEditorStore.getState().layers.length;
         expect(after).toBe(before + 1);
+    });
+
+    it('clicking the folder button adds a group row', async () => {
+        const { container } = render(<LayersPanel />);
+        const groupBtn = container.querySelector('button[title="New Group"]') as HTMLElement;
+        await runScript([{ type: 'click', target: groupBtn }], container);
+        const group = useEditorStore.getState().layers.find(layer => layer.kind === 'group');
+        expect(group).toBeTruthy();
+        expect(container.textContent).toContain(group!.name);
+    });
+
+    it('collapsing a group hides its child layer rows', async () => {
+        useEditorStore.getState().addLayer();
+        const ids = useEditorStore.getState().layers.map(layer => layer.id);
+        useEditorStore.getState().renameLayer(ids[0], 'Child A');
+        useEditorStore.getState().renameLayer(ids[1], 'Child B');
+        useEditorStore.getState().groupLayers(ids, 'Folder');
+
+        const { container } = render(<LayersPanel />);
+        expect(container.textContent).toContain('Child A');
+        expect(container.textContent).toContain('Child B');
+        const collapseBtn = container.querySelector('button[title="Collapse group"]') as HTMLElement;
+        await runScript([{ type: 'click', target: collapseBtn }], container);
+        expect(container.textContent).toContain('Folder');
+        expect(container.textContent).not.toContain('Child A');
+        expect(container.textContent).not.toContain('Child B');
+    });
+
+    it('supports Ctrl/Command toggle and Shift range selection in the Layers panel', async () => {
+        useEditorStore.getState().addLayer();
+        useEditorStore.getState().addLayer();
+        const ids = useEditorStore.getState().layers.map(layer => layer.id);
+        const { container } = render(<LayersPanel />);
+        const bottomRow = container.querySelector(`[data-testid="layer-row-${ids[0]}"]`) as HTMLElement;
+        const middleRow = container.querySelector(`[data-testid="layer-row-${ids[1]}"]`) as HTMLElement;
+        const topRow = container.querySelector(`[data-testid="layer-row-${ids[2]}"]`) as HTMLElement;
+
+        await runScript([{ type: 'click', target: bottomRow }], container);
+        expect(useEditorStore.getState().selectedLayerIds).toEqual([ids[0]]);
+
+        await runScript([{ type: 'click', target: topRow, modifiers: { meta: true } }], container);
+        expect(useEditorStore.getState().selectedLayerIds).toEqual([ids[0], ids[2]]);
+        expect(topRow.getAttribute('data-layer-selected')).toBe('true');
+
+        await runScript([{ type: 'click', target: middleRow, modifiers: { shift: true } }], container);
+        expect(useEditorStore.getState().selectedLayerIds).toEqual([ids[1], ids[2]]);
+        expect(middleRow.getAttribute('data-layer-active')).toBe('true');
+    });
+
+    it('shows layer mask thumbnail plus enabled and linked controls', async () => {
+        const layer = useEditorStore.getState().layers[0];
+        useEditorStore.getState().addLayerMask(layer.id, 'reveal-all');
+        const { container } = render(<LayersPanel />);
+        const maskThumb = container.querySelector(`[data-testid="mask-thumbnail-${layer.id}"]`) as HTMLElement;
+        const link = container.querySelector(`[data-testid="mask-link-${layer.id}"]`) as HTMLElement;
+        expect(maskThumb).toBeTruthy();
+        expect(maskThumb.getAttribute('data-mask-enabled')).toBe('true');
+        expect(link.getAttribute('data-mask-linked')).toBe('true');
+
+        // Plain click now focuses the mask for paint mode.
+        await runScript([{ type: 'click', target: maskThumb.parentElement as HTMLElement }], container);
+        expect(useEditorStore.getState().activeLayerEditTarget).toBe('mask');
+
+        // Alt-click toggles enabled.
+        await runScript([{ type: 'click', target: maskThumb.parentElement as HTMLElement, modifiers: { alt: true } }], container);
+        expect(useEditorStore.getState().layers[0].mask?.enabled).toBe(false);
+        expect(maskThumb.getAttribute('data-mask-enabled')).toBe('false');
+
+        await runScript([{ type: 'click', target: link }], container);
+        expect(useEditorStore.getState().layers[0].mask?.linked).toBe(false);
+        expect(link.getAttribute('data-mask-linked')).toBe('false');
     });
 });
