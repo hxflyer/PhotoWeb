@@ -27,6 +27,7 @@ import { SaveSelectionDialog, LoadSelectionDialog } from './components/Dialogs/S
 import { ColorRangeDialog } from './components/Dialogs/ColorRangeDialog';
 import { BorderSelectionDialog } from './components/Dialogs/BorderSelectionDialog';
 import { SmoothSelectionDialog } from './components/Dialogs/SmoothSelectionDialog';
+import { ExpandSelectionDialog, ContractSelectionDialog } from './components/Dialogs/ExpandSelectionDialog';
 import { TransformSelectionOverlay } from './components/Canvas/TransformSelectionOverlay';
 import { ShortcutsDialog } from './components/Dialogs/ShortcutsDialog';
 import { PreferencesDialog } from './components/Dialogs/PreferencesDialog';
@@ -255,7 +256,14 @@ function App() {
         return;
       }
 
-      if (meta && key === 'd') { e.preventDefault(); gs().clearSelection(); return; }
+      if (meta && key === 'd' && !e.shiftKey && !e.altKey) { e.preventDefault(); gs().clearSelection(); return; }
+      if (meta && key === 'd' && e.shiftKey && !e.altKey) { e.preventDefault(); gs().reselect(); return; }
+      if (meta && key === 'h' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        const s = gs();
+        s.setSelectionEdgesHidden(!s.selection.edgesHidden);
+        return;
+      }
       if (meta && key === 'a') {
         e.preventDefault();
         const s = gs();
@@ -761,6 +769,8 @@ function App() {
       <ColorRangeDialog />
       <BorderSelectionDialog />
       <SmoothSelectionDialog />
+      <ExpandSelectionDialog />
+      <ContractSelectionDialog />
       {isTransformSelectionOpen && (
         <TransformSelectionOverlay zoom={zoom} panX={pan.x} panY={pan.y} onClose={() => gs().closeTransformSelection()} />
       )}

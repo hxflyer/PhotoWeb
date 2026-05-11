@@ -7,16 +7,33 @@ import {
 } from '../core/history';
 import { applyBlendModeToImageData, blendModeToCompositeOp, type BlendModeId } from '../core/blendModes';
 
+export type HealingBrushSource = 'sampled' | 'pattern';
+
 export interface HealingBrushOptions {
     aligned: boolean;
     mode: BlendModeId;
     sampleAllLayers: boolean;
+    /**
+     * Photoshop's Source picker. `sampled` = Alt-click sets the source
+     * patch (current behavior). `pattern` = use the active pattern preset
+     * as the source for each stamp.
+     */
+    source: HealingBrushSource;
+    /**
+     * Photoshop's Diffusion (1-7). Wider diffusion radius produces a softer,
+     * more blended healed boundary. Currently informational; the heal blend
+     * already feathers at the brush hardness edge, so larger values tighten
+     * by scaling the spatial mean-shift sigma.
+     */
+    diffusion: number;
 }
 
 let options: HealingBrushOptions = {
     aligned: true,
     mode: 'normal',
     sampleAllLayers: false,
+    source: 'sampled',
+    diffusion: 5,
 };
 
 export function setHealingBrushOptions(next: Partial<HealingBrushOptions>): void {

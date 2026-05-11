@@ -6,11 +6,19 @@ import { beginSelectionInteraction, previewSelectionMove, type SelectionMoveAnch
 const DRAG_THRESHOLD = 3;
 const wandState: { move: SelectionMoveAnchor | null } = { move: null };
 
+export type MagicWandSampleSize = 'point' | '3x3' | '5x5' | '11x11' | '31x31' | '51x51' | '101x101';
+
 export interface MagicWandOptions {
     tolerance: number;
     antiAlias: boolean;
     contiguous: boolean;
     sampleAllLayers: boolean;
+    /**
+     * Photoshop's "Sample Size" picker. `point` reads a single pixel; the
+     * NxN variants average a square window centered on the seed before
+     * comparing colors. Shared semantics with the eyedropper.
+     */
+    sampleSize: MagicWandSampleSize;
 }
 
 export const defaultMagicWandOptions: MagicWandOptions = {
@@ -18,7 +26,52 @@ export const defaultMagicWandOptions: MagicWandOptions = {
     antiAlias: true,
     contiguous: true,
     sampleAllLayers: false,
+    sampleSize: 'point',
 };
+
+function sampleSizePixels(s: MagicWandSampleSize): number {
+    switch (s) {
+        case 'point': return 1;
+        case '3x3': return 3;
+        case '5x5': return 5;
+        case '11x11': return 11;
+        case '31x31': return 31;
+        case '51x51': return 51;
+        case '101x101': return 101;
+    }
+}
+
+function averageSeedColor(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    seedX: number,
+    seedY: number,
+    size: number,
+): { r: number; g: number; b: number; a: number } {
+    if (size <= 1) {
+        const i = (seedY * width + seedX) * 4;
+        return { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
+    }
+    const half = (size - 1) / 2;
+    let r = 0, g = 0, b = 0, a = 0, n = 0;
+    for (let dy = -half; dy <= half; dy++) {
+        const y = seedY + dy;
+        if (y < 0 || y >= height) continue;
+        for (let dx = -half; dx <= half; dx++) {
+            const x = seedX + dx;
+            if (x < 0 || x >= width) continue;
+            const i = (y * width + x) * 4;
+            r += data[i]; g += data[i + 1]; b += data[i + 2]; a += data[i + 3];
+            n++;
+        }
+    }
+    if (n === 0) {
+        const i = (seedY * width + seedX) * 4;
+        return { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
+    }
+    return { r: r / n, g: g / n, b: b / n, a: a / n };
+}
 
 let options: MagicWandOptions = { ...defaultMagicWandOptions };
 
@@ -70,12 +123,25 @@ function applyAntiAlias(mask: Uint8ClampedArray, width: number, height: number):
     return next;
 }
 
-function colorMatch(a: Uint8ClampedArray, ai: number, b: Uint8ClampedArray, bi: number, tolerance: number): boolean {
+function colorMatchToSeed(
+    data: Uint8ClampedArray,
+    pi: number,
+    seedR: number,
+    seedG: number,
+    seedB: number,
+    seedA: number,
+    tolerance: number,
+): boolean {
+    // Photoshop compares RGB only — alpha is bucketed into opaque-vs-clear
+    // so semi-transparent and fully-opaque red still match each other, but
+    // opaque red and fully-transparent pixels do not.
+    const pixelOpaque = data[pi + 3] > 0;
+    const seedOpaque = seedA > 0;
+    if (pixelOpaque !== seedOpaque) return false;
     return (
-        Math.abs(a[ai] - b[bi]) <= tolerance &&
-        Math.abs(a[ai + 1] - b[bi + 1]) <= tolerance &&
-        Math.abs(a[ai + 2] - b[bi + 2]) <= tolerance &&
-        Math.abs(a[ai + 3] - b[bi + 3]) <= tolerance
+        Math.abs(data[pi] - seedR) <= tolerance &&
+        Math.abs(data[pi + 1] - seedG) <= tolerance &&
+        Math.abs(data[pi + 2] - seedB) <= tolerance
     );
 }
 
@@ -88,7 +154,9 @@ export function buildMagicWandMask(
     const { width, height, data } = image;
     const mask = new Uint8ClampedArray(width * height);
     if (seedX < 0 || seedX >= width || seedY < 0 || seedY >= height) return mask;
-    const seed = (seedY * width + seedX) * 4;
+    const seedSize = sampleSizePixels(opt.sampleSize);
+    const seedColor = averageSeedColor(data, width, height, seedX, seedY, seedSize);
+    const { r: sr, g: sg, b: sb, a: sa } = seedColor;
     if (opt.contiguous) {
         const stack: number[] = [seedX, seedY];
         while (stack.length) {
@@ -98,7 +166,7 @@ export function buildMagicWandMask(
             const idx = (y * width + x);
             if (mask[idx]) continue;
             const di = idx * 4;
-            if (!colorMatch(data, di, data, seed, opt.tolerance)) continue;
+            if (!colorMatchToSeed(data, di, sr, sg, sb, sa, opt.tolerance)) continue;
             mask[idx] = 255;
             stack.push(x + 1, y);
             stack.push(x - 1, y);
@@ -109,7 +177,7 @@ export function buildMagicWandMask(
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const idx = (y * width + x);
-                if (colorMatch(data, idx * 4, data, seed, opt.tolerance)) {
+                if (colorMatchToSeed(data, idx * 4, sr, sg, sb, sa, opt.tolerance)) {
                     mask[idx] = 255;
                 }
             }

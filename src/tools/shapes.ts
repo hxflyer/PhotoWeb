@@ -36,6 +36,10 @@ export interface ShapeOptions {
     polygonSides: number;
     polygonStar: boolean;       // GAP-05: Polygon → Star toggle
     polygonStarRatio: number;   // 0.1..1.0 — inner-radius / outer-radius
+    /** Round the outer vertices of the polygon/star (Photoshop "Smooth Corners"). */
+    polygonSmoothCorners: boolean;
+    /** Round the inner vertices of a star (Photoshop "Smooth Indents"). */
+    polygonSmoothIndents: boolean;
     lineWeight: number;
     lineArrowStart: boolean;    // GAP-06: arrowhead at line start
     lineArrowEnd: boolean;      // GAP-06: arrowhead at line end
@@ -62,6 +66,8 @@ const options: ShapeOptions = {
     polygonSides: 5,
     polygonStar: false,
     polygonStarRatio: 0.5,
+    polygonSmoothCorners: false,
+    polygonSmoothIndents: false,
     lineWeight: 2,
     lineArrowStart: false,
     lineArrowEnd: false,
@@ -217,6 +223,8 @@ function buildShapeData(
                 sides: options.polygonSides,
                 star: options.polygonStar,
                 starRatio: options.polygonStarRatio,
+                smoothCorners: options.polygonSmoothCorners,
+                smoothIndents: options.polygonSmoothIndents,
                 rotation: 0,
                 fill,
                 stroke,

@@ -20,6 +20,17 @@ const poly: PolyState = { points: [], live: null, move: null };
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
+function snapTo45(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (dx === 0 && dy === 0) return to;
+    const len = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+    const step = Math.PI / 4;
+    const snapped = Math.round(angle / step) * step;
+    return { x: from.x + Math.cos(snapped) * len, y: from.y + Math.sin(snapped) * len };
+}
+
 export const lassoTool: Tool = {
     id: 'lasso',
     label: 'Lasso',
@@ -92,7 +103,7 @@ export const lassoPolyTool: Tool = {
     cursor: 'crosshair',
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
-        const point = p(e);
+        let point = p(e);
         const store = ctx.getStore();
         // Polygon-in-progress: a click near the first vertex closes the path.
         if (poly.points.length > 2) {
@@ -117,6 +128,10 @@ export const lassoPolyTool: Tool = {
                 poly.move = decision.move;
                 return;
             }
+        } else if (e.shift) {
+            // Shift constrains the new segment to 0/45/90/... degrees from
+            // the previous anchor (Photoshop's angle-snap behavior).
+            point = snapTo45(poly.points[poly.points.length - 1], point);
         }
         poly.points.push(point);
         store.setPolyPoints([...poly.points]);
@@ -129,7 +144,12 @@ export const lassoPolyTool: Tool = {
             if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) previewSelectionMove(poly.move, dx, dy);
             return;
         }
-        poly.live = p(e);
+        let live = p(e);
+        // Live segment preview also honors Shift so the user sees the snap.
+        if (e.shift && poly.points.length > 0) {
+            live = snapTo45(poly.points[poly.points.length - 1], live);
+        }
+        poly.live = live;
     },
     onPointerUp: (e) => {
         if (poly.move) {

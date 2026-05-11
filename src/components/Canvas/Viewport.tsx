@@ -653,7 +653,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         }
 
         // 3. Selection marching ants (committed selections)
-        if (st.showSelectionEdges && !osel.isFreeEditMode && (osel.hasSelection || (oat === 'select' && osel.path.length > 0))) {
+        if (st.showSelectionEdges && !osel.edgesHidden && !osel.isFreeEditMode && (osel.hasSelection || (oat === 'select' && osel.path.length > 0))) {
             octx.save();
             octx.lineWidth = 1 / oz;
             octx.setLineDash([4 / oz, 4 / oz]);

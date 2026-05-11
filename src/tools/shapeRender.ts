@@ -86,24 +86,54 @@ function ellipsePath(ctx: CanvasRenderingContext2D, b: { x: number; y: number; w
 }
 
 function polygonPath(ctx: CanvasRenderingContext2D, d: ShapePolygonData): void {
-    const { center, radius, sides, star, starRatio, rotation } = d;
-    ctx.beginPath();
+    const { center, radius, sides, star, starRatio, rotation, smoothCorners, smoothIndents } = d;
+    const innerR = radius * Math.max(0.05, Math.min(1, starRatio));
+    // Build the vertex list first so we can mid-point quadratic-curve through it.
+    const points: { x: number; y: number; isOuter: boolean }[] = [];
     if (star) {
-        const innerR = radius * Math.max(0.05, Math.min(1, starRatio));
-        const points = sides * 2;
-        for (let i = 0; i < points; i++) {
+        const total = sides * 2;
+        for (let i = 0; i < total; i++) {
             const angle = rotation + (-Math.PI / 2) + (i * Math.PI) / sides;
             const r = i % 2 === 0 ? radius : innerR;
-            const px = center.x + r * Math.cos(angle);
-            const py = center.y + r * Math.sin(angle);
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            points.push({ x: center.x + r * Math.cos(angle), y: center.y + r * Math.sin(angle), isOuter: i % 2 === 0 });
         }
     } else {
         for (let i = 0; i < sides; i++) {
             const angle = rotation + (-Math.PI / 2) + (i * 2 * Math.PI) / sides;
-            const px = center.x + radius * Math.cos(angle);
-            const py = center.y + radius * Math.sin(angle);
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            points.push({ x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle), isOuter: true });
+        }
+    }
+
+    ctx.beginPath();
+    const n = points.length;
+    const anySmooth = !!smoothCorners || (!!smoothIndents && star);
+    if (!anySmooth) {
+        for (let i = 0; i < n; i++) {
+            if (i === 0) ctx.moveTo(points[i].x, points[i].y);
+            else ctx.lineTo(points[i].x, points[i].y);
+        }
+    } else {
+        // For each vertex, decide whether to round (quadraticCurveTo through
+        // the midpoint of the segment from that vertex to the next) or to
+        // draw a hard corner. We always emit a quadratic curve at smoothed
+        // vertices using the midpoint of the incoming and outgoing segments
+        // as the endpoint, with the vertex itself as the control point.
+        // Move to the midpoint between the last and first vertex so the
+        // loop can use quadraticCurveTo for every vertex uniformly.
+        const mid = (a: { x: number; y: number }, b: { x: number; y: number }) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        const startMid = mid(points[n - 1], points[0]);
+        ctx.moveTo(startMid.x, startMid.y);
+        for (let i = 0; i < n; i++) {
+            const v = points[i];
+            const next = points[(i + 1) % n];
+            const m = mid(v, next);
+            const shouldSmooth = v.isOuter ? !!smoothCorners : !!smoothIndents;
+            if (shouldSmooth) {
+                ctx.quadraticCurveTo(v.x, v.y, m.x, m.y);
+            } else {
+                ctx.lineTo(v.x, v.y);
+                ctx.lineTo(m.x, m.y);
+            }
         }
     }
     ctx.closePath();

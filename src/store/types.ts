@@ -67,6 +67,10 @@ export interface ShapePolygonData {
     rotation: number;
     fill: ShapeFill | null;
     stroke: ShapeStroke | null;
+    /** Round the outer (and inner, for stars) vertices via quadratic curves. */
+    smoothCorners?: boolean;
+    /** Round only the inner-star vertices (star mode). */
+    smoothIndents?: boolean;
     combineMode?: ShapeCombineMode;
 }
 
@@ -122,6 +126,16 @@ export interface SelectionState {
     isDraggingSelection: boolean;
     feather?: number;
     isFreeEditMode: boolean;
+    /**
+     * Cmd+H toggle: when true, the marching-ants edges are hidden but the
+     * selection state itself is preserved (operations still apply).
+     */
+    edgesHidden?: boolean;
+    /**
+     * Snapshot of the last selection cleared via `clearSelection` so
+     * `reselect()` (Cmd+Shift+D) can restore it.
+     */
+    lastCleared?: { operations: SelectionOperation[]; mode: SelectionMode; feather?: number };
 }
 
 export interface DialogState {
@@ -317,6 +331,8 @@ export interface SelectionSlice {
     setHasSelection: (has: boolean) => void;
     setIsDraggingSelection: (is: boolean) => void;
     clearSelection: () => void;
+    reselect: () => void;
+    setSelectionEdgesHidden: (hidden: boolean) => void;
     toggleInvertSelection: () => void;
     setSelectionFeather: (radius: number) => void;
     setFreeEditMode: (mode: boolean) => void;
@@ -501,6 +517,8 @@ export interface SelectionDialogPrefs {
     defringeWidth: number;
     borderWidth: number;
     smoothRadius: number;
+    expandPx: number;
+    contractPx: number;
 }
 
 export interface PanelsSlice {
@@ -510,6 +528,8 @@ export interface PanelsSlice {
     isScaleEffectsDialogOpen: boolean;
     isBorderSelectionDialogOpen: boolean;
     isSmoothSelectionDialogOpen: boolean;
+    isExpandSelectionDialogOpen: boolean;
+    isContractSelectionDialogOpen: boolean;
     isTransformSelectionOpen: boolean;
     selectionDialogPrefs: SelectionDialogPrefs;
     setSelectionDialogPref: (key: keyof SelectionDialogPrefs, value: number) => void;
@@ -517,6 +537,10 @@ export interface PanelsSlice {
     closeBorderSelectionDialog: () => void;
     openSmoothSelectionDialog: () => void;
     closeSmoothSelectionDialog: () => void;
+    openExpandSelectionDialog: () => void;
+    closeExpandSelectionDialog: () => void;
+    openContractSelectionDialog: () => void;
+    closeContractSelectionDialog: () => void;
     openTransformSelection: () => void;
     closeTransformSelection: () => void;
     setCopiedLayerStyle: (effects: import('../core/Layer').LayerEffect[] | null) => void;

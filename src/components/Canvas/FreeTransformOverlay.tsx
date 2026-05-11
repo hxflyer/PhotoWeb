@@ -53,6 +53,7 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
     const [tw, setTw] = useState(state.width);
     const [th, setTh] = useState(state.height);
     const [rot, setRot] = useState(state.rotation);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
     const dragRef = useRef<{ handle: Handle; startX: number; startY: number; origTx: number; origTy: number; origTw: number; origTh: number; origRot: number; snapCandidates: SnapTarget[] } | null>(null);
     const overlayRef = useRef<SVGSVGElement>(null);
     const { layers } = useEditorStore();
@@ -341,6 +342,22 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
         return () => window.removeEventListener('keydown', onKey);
     }, [onCommit, onCancel]);
 
+    // Dismiss the context menu on any outside click.
+    useEffect(() => {
+        if (!contextMenu) return;
+        const onDown = (e: MouseEvent) => {
+            const t = e.target as Element | null;
+            if (!t?.closest('[data-testid="ft-context-menu"]')) setContextMenu(null);
+        };
+        // Defer attach so the right-click that opened the menu doesn't
+        // immediately close it.
+        const id = window.setTimeout(() => window.addEventListener('mousedown', onDown, true), 0);
+        return () => {
+            window.clearTimeout(id);
+            window.removeEventListener('mousedown', onDown, true);
+        };
+    }, [contextMenu]);
+
     const HANDLE_IDS: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
     const CURSORS: Record<Handle, string> = {
         nw: 'nw-resize', n: 'n-resize', ne: 'ne-resize', e: 'e-resize',
@@ -368,13 +385,24 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
                     style={{ pointerEvents: 'all', cursor: 'crosshair' }}
                     onMouseDown={e => handleMouseDown(e, 'rotate')}
                 />
-                {/* Cut-out: a same-color rect that blocks pointer events over
-                    the actual bbox interior so move/scale handles work. */}
+                {/* Bbox interior: catch right-clicks to open the transform
+                    context menu (Rotate 180 / 90 CW/CCW / Flip H/V). Left
+                    clicks pass through so the move/scale handles still work. */}
                 <rect
+                    data-testid="ft-bbox-interior"
                     x={sx} y={sy}
                     width={sw} height={sh}
                     fill="transparent"
-                    style={{ pointerEvents: 'none' }}
+                    style={{ pointerEvents: 'all', cursor: 'move' }}
+                    onMouseDown={e => {
+                        if (e.button === 2) return; // let contextmenu handle it
+                        handleMouseDown(e, 'move');
+                    }}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setContextMenu({ x: e.clientX, y: e.clientY });
+                    }}
                 />
                 <rect x={sx} y={sy} width={sw} height={sh}
                     fill="none" stroke="#0090ff" strokeWidth={1} strokeDasharray="4 2" />
@@ -405,6 +433,65 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
                     style={{ pointerEvents: 'all', cursor: 'crosshair' }}
                     onMouseDown={e => handleMouseDown(e, 'rotate')} />
             </g>
+
+            {/* Right-click context menu — Photoshop's Free Transform menu.
+                Reference-point pivot is the bbox center, so flips operate
+                around (tx + tw/2, ty + th/2) and rotations are applied to
+                the current `rot` state. */}
+            {contextMenu && (
+                <foreignObject
+                    x={contextMenu.x - (documentRect?.left ?? 0)}
+                    y={contextMenu.y - (documentRect?.top ?? 0)}
+                    width={180}
+                    height={180}
+                    style={{ pointerEvents: 'all', overflow: 'visible' }}
+                >
+                    <div
+                        data-testid="ft-context-menu"
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: '#2a2a2a',
+                            border: '1px solid #555',
+                            borderRadius: 4,
+                            padding: 4,
+                            fontSize: 12,
+                            color: 'white',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.45)',
+                            minWidth: 160,
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        {([
+                            ['Rotate 180°', () => setRot(r => r + 180)],
+                            ['Rotate 90° CW', () => setRot(r => r + 90)],
+                            ['Rotate 90° CCW', () => setRot(r => r - 90)],
+                            ['Flip Horizontal', () => setTw(w => -w)],
+                            ['Flip Vertical', () => setTh(h => -h)],
+                        ] as [string, () => void][]).map(([label, action]) => (
+                            <button
+                                key={label}
+                                data-testid={`ft-context-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`}
+                                onClick={() => {
+                                    action();
+                                    setContextMenu(null);
+                                }}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: 'white',
+                                    padding: '4px 8px',
+                                    textAlign: 'left',
+                                    fontSize: 11,
+                                    cursor: 'pointer',
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                            >{label}</button>
+                        ))}
+                    </div>
+                </foreignObject>
+            )}
 
             {/* Options bar: W/H/X/Y/Rotation */}
             <foreignObject x={0} y={0} width={400} height={36} style={{ pointerEvents: 'all' }}>

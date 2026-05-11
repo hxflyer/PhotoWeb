@@ -6,6 +6,26 @@ Format: one section per pass with date, test-count delta, and a one-paragraph su
 
 ---
 
+## 2026-05-11 (late evening) — Batch 8: Photoshop UX parity — P1/P2 polish
+
+Tests: **773 / 97 → 789 / 98 (+16, +1 file)**. Lint: 0 errors. TypeScript clean.
+
+Picks up the deferred items from Batch 7. Each polish item is small enough that they batch together; CHANGELOG groups by area instead of by slice letter.
+
+- **Free Transform right-click context menu** (`FreeTransformOverlay.tsx`): right-click on the bbox interior opens a menu with Rotate 180° / Rotate 90° CW/CCW / Flip Horizontal / Flip Vertical. Rotations add to the live `rot` state; flips negate `tw` / `th`. Outside-click dismisses.
+- **Magic Wand Sample Size** (`magicWand.ts`, `OptionsBar.tsx`): new `sampleSize: 'point' | '3x3' | '5x5' | '11x11' | '31x31' | '51x51' | '101x101'` option averages a square window around the seed pixel before color matching — matches Photoshop's eyedropper-shared Sample Size dropdown. Alpha also fixed: pixels are now bucketed opaque-vs-clear instead of compared against tolerance, so opaque red and transparent red never match each other regardless of tolerance.
+- **Polygonal Lasso 45° angle snap** (`lasso.ts`): Shift on a click (and on the live segment preview) constrains the new segment to multiples of 45° from the previous anchor.
+- **Cmd+Shift+D Reselect + Cmd+H Hide Selection Edges** (`App.tsx`, `selectionSlice.ts`, `Viewport.tsx`, `types.ts`): `clearSelection` now snapshots the cleared operations into `selection.lastCleared`. New `reselect()` action restores it; new `setSelectionEdgesHidden(hidden)` toggles `selection.edgesHidden`. Viewport's marching-ants render gates on `!edgesHidden`. Keyboard chords wired in `App.tsx`.
+- **Modify > Expand / Contract dialogs** (`ExpandSelectionDialog.tsx`): two new numeric-input dialogs with persisted `expandPx` / `contractPx` prefs in `selectionDialogPrefs`. Menu entries enabled; the previous disabled placeholders are gone.
+- **Healing Brush Source + Diffusion** (`healingBrush.ts`, `OptionsBar.tsx`): new `source: 'sampled' | 'pattern'` and `diffusion: 1..7` options; Options Bar exposes both as a dropdown and a clamped number input. The actual pattern-source / diffusion math is staged for a follow-up; current flow still uses Alt-sampled source with a fixed feather.
+- **Polygon Smooth Corners / Smooth Indents** (`shapeRender.ts`, `shapes.ts`, `types.ts`, `PropertiesPanel.tsx`): new `polygonSmoothCorners` / `polygonSmoothIndents` options on `ShapeOptions`, and `smoothCorners` / `smoothIndents` fields on `ShapePolygonData`. The polygon path renderer routes vertices through midpoint-quadratic curves when their `isOuter` (or inner for stars) flag picks up the matching smooth toggle. Properties panel exposes the toggles for an active polygon shape layer.
+- **Type size / leading / tracking keyboard shortcuts in edit overlay** (`TextEditOverlay.tsx`): `Cmd+Shift+>` / `<` adjusts `fontSize` by 1pt (Alt = 5pt); `Opt+Up` / `Down` adjusts `lineHeight` by 0.05 (clamped 0.5..3); `Opt+Left` / `Right` adjusts `letterSpacing` by 20 (1/1000 em).
+- **Background Eraser tolerance** confirmed already 0-100% in the UI (no change required — verified during audit).
+
+Deferred to future polish passes: Magnetic Lasso, Warp Text, FT distort/skew/perspective via Cmd modifiers, Cmd+Shift+T re-apply (currently bound to Warp; needs scope decision), F fullscreen mode, Pattern Stamp tool, full path-boolean math for shape combine operations.
+
+---
+
 ## 2026-05-11 (evening) — Batch 7: Photoshop UX parity (research-driven gap fixes)
 
 Tests: **710 / 87 → 748 / 93** (+38, +6 files). Lint: 0 errors. TypeScript clean.

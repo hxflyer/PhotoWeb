@@ -246,18 +246,52 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
         kind: 'selection',
         label: 'Deselect',
         affectedIds: ['selection'],
-        run: () => set(state => ({
-        selection: {
-            ...state.selection,
-            hasSelection: false,
-            path: [],
-            polyPoints: [],
-            operations: [],
-            isDraggingSelection: false,
-            feather: 0,
-        },
-        })),
+        run: () => set(state => {
+            // Snapshot the cleared selection so `reselect()` can restore it.
+            const lastCleared = state.selection.hasSelection
+                ? {
+                    operations: state.selection.operations.map(op => ({ ...op })),
+                    mode: state.selection.mode,
+                    feather: state.selection.feather,
+                }
+                : state.selection.lastCleared;
+            return {
+                selection: {
+                    ...state.selection,
+                    hasSelection: false,
+                    path: [],
+                    polyPoints: [],
+                    operations: [],
+                    isDraggingSelection: false,
+                    feather: 0,
+                    lastCleared,
+                },
+            };
+        }),
     }),
+    reselect: () => get().executeDocumentCommand({
+        kind: 'selection',
+        label: 'Reselect',
+        affectedIds: ['selection'],
+        run: () => set(state => {
+            const snap = state.selection.lastCleared;
+            if (!snap || snap.operations.length === 0) return state;
+            return {
+                selection: {
+                    ...state.selection,
+                    hasSelection: true,
+                    mode: snap.mode,
+                    operations: snap.operations.map(op => ({ ...op })),
+                    path: [],
+                    polyPoints: [],
+                    feather: snap.feather ?? 0,
+                },
+            };
+        }),
+    }),
+    setSelectionEdgesHidden: (hidden) => set(state => ({
+        selection: { ...state.selection, edgesHidden: hidden },
+    })),
     toggleInvertSelection: () => get().executeDocumentCommand({
         kind: 'selection',
         label: 'Inverse Selection',

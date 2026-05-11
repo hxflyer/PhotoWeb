@@ -3,7 +3,9 @@ import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import {
     applyStyleRun,
     bindTextEditorBridge,
+    getEditingStyle,
     styleAtOffset,
+    updateEditingStyle,
     type TypeLayerData,
     type TypeStyleRun,
     type TypeTextMode,
@@ -317,6 +319,42 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
             // inserts a line break; Cmd/Ctrl+Enter is the secondary commit.
             e.preventDefault();
             onCommit((e.target as HTMLDivElement).innerText);
+            return;
+        }
+        // Photoshop type shortcuts — only apply when the contenteditable has
+        // focus, so they don't fight with the global App key handler.
+        const meta = e.metaKey || e.ctrlKey;
+        // Cmd+Shift+> / < adjusts size by 1pt; +Alt by 5pt.
+        if (meta && e.shiftKey && (e.key === '>' || e.key === '.')) {
+            e.preventDefault();
+            const cur = getEditingStyle();
+            const step = e.altKey ? 5 : 1;
+            updateEditingStyle({ fontSize: Math.max(1, cur.fontSize + step) });
+            return;
+        }
+        if (meta && e.shiftKey && (e.key === '<' || e.key === ',')) {
+            e.preventDefault();
+            const cur = getEditingStyle();
+            const step = e.altKey ? 5 : 1;
+            updateEditingStyle({ fontSize: Math.max(1, cur.fontSize - step) });
+            return;
+        }
+        // Opt+Up / Opt+Down adjusts leading (0 = Auto, keep at 0).
+        if (e.altKey && !meta && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            e.preventDefault();
+            const cur = getEditingStyle();
+            const base = cur.lineHeight === 0 ? 1.2 : cur.lineHeight;
+            const delta = e.key === 'ArrowUp' ? -0.05 : 0.05;
+            updateEditingStyle({ lineHeight: Math.max(0.5, Math.min(3, base + delta)) });
+            return;
+        }
+        // Opt+Left / Opt+Right adjusts letter-spacing (tracking) by 20/1000em.
+        if (e.altKey && !meta && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            e.preventDefault();
+            const cur = getEditingStyle();
+            const delta = e.key === 'ArrowLeft' ? -20 : 20;
+            updateEditingStyle({ letterSpacing: cur.letterSpacing + delta });
+            return;
         }
     };
 

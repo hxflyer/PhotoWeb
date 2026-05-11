@@ -8,10 +8,12 @@ interface SelectionDialogPrefs {
     defringeWidth: number;
     borderWidth: number;
     smoothRadius: number;
+    expandPx: number;
+    contractPx: number;
 }
 
 function defaultSelectionDialogPrefs(): SelectionDialogPrefs {
-    return { defringeWidth: 1, borderWidth: 5, smoothRadius: 3 };
+    return { defringeWidth: 1, borderWidth: 5, smoothRadius: 3, expandPx: 5, contractPx: 5 };
 }
 
 function loadSelectionDialogPrefs(): SelectionDialogPrefs {
@@ -99,6 +101,8 @@ export const createPanelsSlice: StateCreator<EditorStore, [], [], PanelsSlice> =
     isScaleEffectsDialogOpen: false,
     isBorderSelectionDialogOpen: false,
     isSmoothSelectionDialogOpen: false,
+    isExpandSelectionDialogOpen: false,
+    isContractSelectionDialogOpen: false,
     isTransformSelectionOpen: false,
     selectionDialogPrefs: loadSelectionDialogPrefs(),
     setSelectionDialogPref: (key, value) => set(state => {
@@ -110,6 +114,10 @@ export const createPanelsSlice: StateCreator<EditorStore, [], [], PanelsSlice> =
     closeBorderSelectionDialog: () => set({ isBorderSelectionDialogOpen: false }),
     openSmoothSelectionDialog: () => set({ isSmoothSelectionDialogOpen: true }),
     closeSmoothSelectionDialog: () => set({ isSmoothSelectionDialogOpen: false }),
+    openExpandSelectionDialog: () => set({ isExpandSelectionDialogOpen: true }),
+    closeExpandSelectionDialog: () => set({ isExpandSelectionDialogOpen: false }),
+    openContractSelectionDialog: () => set({ isContractSelectionDialogOpen: true }),
+    closeContractSelectionDialog: () => set({ isContractSelectionDialogOpen: false }),
     openTransformSelection: () => set({ isTransformSelectionOpen: true }),
     closeTransformSelection: () => set({ isTransformSelectionOpen: false }),
     setCopiedLayerStyle: (effects) => set({ copiedLayerStyle: effects }),

@@ -89,6 +89,7 @@ function addBrushSelection(seed: { x: number; y: number }): void {
             antiAlias: options.autoEnhance,
             contiguous: true,
             sampleAllLayers: false,
+            sampleSize: 'point',
         });
         mergeMask(state.mask, partial);
     }

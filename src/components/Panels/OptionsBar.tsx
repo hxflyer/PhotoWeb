@@ -5,7 +5,7 @@ import {
     AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
     Repeat2, X,
 } from 'lucide-react';
-import { getMagicWandOptions, setMagicWandOptions } from '../../tools/magicWand';
+import { getMagicWandOptions, setMagicWandOptions, type MagicWandSampleSize } from '../../tools/magicWand';
 import { getQuickSelectionOptions, setQuickSelectionOptions } from '../../tools/quickSelection';
 import {
     getGradientOptions, setGradientOptions, getGradientPresets,
@@ -312,6 +312,25 @@ function MagicWandOptions() {
     return (
         <>
             <SelectionOperationButtons />
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Sample Size:')}
+                <select
+                    className="opts-input"
+                    style={{ width: 90 }}
+                    value={opts.sampleSize}
+                    onChange={e => update({ sampleSize: e.target.value as MagicWandSampleSize })}
+                    title="Eyedropper-style sample window"
+                >
+                    <option value="point">Point</option>
+                    <option value="3x3">3 by 3</option>
+                    <option value="5x5">5 by 5</option>
+                    <option value="11x11">11 by 11</option>
+                    <option value="31x31">31 by 31</option>
+                    <option value="51x51">51 by 51</option>
+                    <option value="101x101">101 by 101</option>
+                </select>
+            </div>
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Tolerance:')}
@@ -714,6 +733,32 @@ function HealingBrushOptionsPanel() {
         <>
             <ModeDropdown value={opts.mode} onChange={v => update({ mode: v })} />
             <BrushControls showFlow={false} />
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Source:')}
+                <select
+                    className="opts-input"
+                    style={{ width: 84 }}
+                    value={opts.source}
+                    onChange={e => update({ source: e.target.value as 'sampled' | 'pattern' })}
+                    title="Sampled = Alt-click sets source; Pattern = use the active pattern"
+                >
+                    <option value="sampled">Sampled</option>
+                    <option value="pattern">Pattern</option>
+                </select>
+            </div>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Diffusion:')}
+                <input
+                    type="number" min={1} max={7}
+                    value={opts.diffusion}
+                    onChange={e => update({ diffusion: Math.max(1, Math.min(7, Math.round(Number(e.target.value) || 5))) })}
+                    className="opts-input"
+                    style={{ width: 36 }}
+                    title="Diffusion 1-7: lower = sharper edge, higher = softer blend"
+                />
+            </div>
             {S.sep()}
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
                 <input type="checkbox" checked={opts.aligned}

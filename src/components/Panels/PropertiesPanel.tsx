@@ -1331,6 +1331,30 @@ function ShapeSection({ layer }: { layer: Layer }) {
                     </div>
                 )}
                 <div style={rowStyle}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="properties-shape-smooth-corners"
+                            type="checkbox"
+                            checked={!!poly.smoothCorners}
+                            onChange={e => patch(e.target.checked ? 'Smooth Corners On' : 'Smooth Corners Off', { smoothCorners: e.target.checked } as Partial<ShapeData>)}
+                        />
+                        Smooth Corners
+                    </label>
+                </div>
+                {poly.star && (
+                    <div style={rowStyle}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <input
+                                data-testid="properties-shape-smooth-indents"
+                                type="checkbox"
+                                checked={!!poly.smoothIndents}
+                                onChange={e => patch(e.target.checked ? 'Smooth Indents On' : 'Smooth Indents Off', { smoothIndents: e.target.checked } as Partial<ShapeData>)}
+                            />
+                            Smooth Indents
+                        </label>
+                    </div>
+                )}
+                <div style={rowStyle}>
                     <span style={{ width: 70 }}>Rotation</span>
                     <input
                         data-testid="properties-shape-rotation"
