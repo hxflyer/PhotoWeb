@@ -17,6 +17,8 @@ export interface TextEditTransform {
     rotation: number;
 }
 
+export type TextAntiAlias = 'none' | 'sharp' | 'crisp' | 'strong' | 'smooth';
+
 export interface TextStyle {
     fontFamily: string;
     fontSize: number;
@@ -38,6 +40,7 @@ export interface TextStyle {
     subscript: boolean;
     underline: boolean;
     strikethrough: boolean;
+    antiAlias: TextAntiAlias;
     // PS Paragraph panel extras
     indentLeft: number;          // px
     indentRight: number;
@@ -309,7 +312,9 @@ export function TextEditOverlay(props: TextEditOverlayProps) {
         if (e.key === 'Escape') {
             e.preventDefault();
             onCancel();
-        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        } else if (e.code === 'NumpadEnter' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) {
+            // Numpad Enter commits without inserting a newline; main Enter
+            // inserts a line break; Cmd/Ctrl+Enter is the secondary commit.
             e.preventDefault();
             onCommit((e.target as HTMLDivElement).innerText);
         }

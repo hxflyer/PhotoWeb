@@ -47,9 +47,20 @@ export type PenMode = 'path' | 'shape' | 'pixels';
 
 export interface PenToolOptions {
     mode: PenMode;
+    /**
+     * Auto Add/Delete: when on (Photoshop default), hovering the Pen over a
+     * path segment shows the +/- cursor and clicking inserts or removes an
+     * anchor. When off, the same click starts a new path instead.
+     */
+    autoAddDelete: boolean;
+    /**
+     * Rubber Band: when on, draws a live preview line from the last anchor
+     * to the cursor while the path is open. When off, the preview is hidden.
+     */
+    rubberBand: boolean;
 }
 
-const penOptions: PenToolOptions = { mode: 'path' };
+const penOptions: PenToolOptions = { mode: 'path', autoAddDelete: true, rubberBand: true };
 
 export function setPenOptions(next: Partial<PenToolOptions>): void {
     Object.assign(penOptions, next);
@@ -316,9 +327,13 @@ function onPenDown(e: ToolPointerEvent, ctx?: ToolContext): void {
             }
             return;
         }
-        // 1b. Plain click on existing anchor → delete it
-        path.anchors.splice(anchorHit.anchorIndex, 1);
-        return;
+        // 1b. Plain click on existing anchor → delete it (Auto Add/Delete).
+        // When off, the click falls through to "add new anchor" so the user
+        // can start a new path from anywhere.
+        if (penOptions.autoAddDelete) {
+            path.anchors.splice(anchorHit.anchorIndex, 1);
+            return;
+        }
     }
 
     // 2. Existing handle under cursor → drag handle (mirroring opposite)
@@ -328,11 +343,13 @@ function onPenDown(e: ToolPointerEvent, ctx?: ToolContext): void {
         return;
     }
 
-    // 3. Click on existing segment → split-insert anchor
-    const segHit = path ? hitSegment(x, y) : null;
-    if (segHit && path) {
-        splitSegment(path, segHit.segmentIndex, segHit.t);
-        return;
+    // 3. Click on existing segment → split-insert anchor (Auto Add/Delete).
+    if (penOptions.autoAddDelete) {
+        const segHit = path ? hitSegment(x, y) : null;
+        if (segHit && path) {
+            splitSegment(path, segHit.segmentIndex, segHit.t);
+            return;
+        }
     }
 
     // 4. Empty area → add new anchor (start a new path if needed)
@@ -545,9 +562,11 @@ export function renderPathOverlay(overlay: OverlayRenderContext): void {
         });
     });
 
-    // Rubber-band preview from last anchor to cursor (active open path, no active drag, no Cmd)
+    // Rubber-band preview from last anchor to cursor (active open path, no
+    // active drag, no Cmd). Gated by penOptions.rubberBand so users can
+    // suppress the preview as in Photoshop.
     const active = getActivePath();
-    if (active && !active.closed && active.anchors.length > 0 && cursorPos && !drag && !cursorMods.meta) {
+    if (active && !active.closed && active.anchors.length > 0 && cursorPos && !drag && !cursorMods.meta && penOptions.rubberBand) {
         const last = active.anchors[active.anchors.length - 1];
         ctx.save();
         ctx.lineWidth = lineW;

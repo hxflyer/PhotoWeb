@@ -1,6 +1,6 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
-import { getActivePath, getPaths, renderPathOverlay, setActivePath } from './pen';
+import { getActivePath, getPaths, removePath, renderPathOverlay, setActivePath } from './pen';
 
 interface DragState {
     pathId: string;
@@ -59,6 +59,15 @@ export const pathSelectionTool: Tool = {
         drag.state.last = point;
     },
     onPointerUp: () => { drag.state = null; },
+    onKeyDown: (e) => {
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+            const path = getActivePath();
+            if (path) {
+                e.rawEvent.preventDefault();
+                removePath(path.id);
+            }
+        }
+    },
     renderOverlay: (overlay) => renderPathOverlay(overlay),
 };
 
@@ -98,6 +107,24 @@ export const directSelectionTool: Tool = {
         drag.state.last = point;
     },
     onPointerUp: () => { drag.state = null; },
+    onKeyDown: (e) => {
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+            const path = getActivePath();
+            if (!path || drag.state?.anchorIndex == null) {
+                // No specific anchor → delete the whole path.
+                if (path) {
+                    e.rawEvent.preventDefault();
+                    removePath(path.id);
+                }
+                return;
+            }
+            // Delete the selected anchor; if it was the last one, drop the path.
+            e.rawEvent.preventDefault();
+            path.anchors.splice(drag.state.anchorIndex, 1);
+            if (path.anchors.length === 0) removePath(path.id);
+            drag.state = null;
+        }
+    },
     renderOverlay: (overlay) => renderPathOverlay(overlay),
 };
 

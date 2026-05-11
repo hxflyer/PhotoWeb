@@ -92,6 +92,44 @@ export function ColorRangeDialog() {
         }
     }, [isOpen, primaryColor]);
 
+    // On-canvas eyedropper sampling. While the dialog is open, clicking on the
+    // document canvas samples the composite pixel and appends a sample.
+    // Shift = Add, Alt = Subtract; no modifier = Replace samples with one.
+    useEffect(() => {
+        if (!isOpen) return;
+        const handler = (ev: MouseEvent) => {
+            const target = ev.target as Element | null;
+            const doc = target?.closest('[data-photoweb-document]') as HTMLElement | null;
+            if (!doc) return;
+            const state = useEditorStore.getState();
+            const rect = doc.getBoundingClientRect();
+            const zoom = state.zoom || 1;
+            const x = Math.floor((ev.clientX - rect.left) / zoom);
+            const y = Math.floor((ev.clientY - rect.top) / zoom);
+            if (x < 0 || y < 0 || x >= state.width || y >= state.height) return;
+            const img = compositeForPreview();
+            if (!img) return;
+            const idx = (y * img.width + x) * 4;
+            const r = img.data[idx];
+            const g = img.data[idx + 1];
+            const b = img.data[idx + 2];
+            const hex = `#${[r, g, b].map(n => n.toString(16).padStart(2, '0')).join('')}`;
+            ev.preventDefault();
+            ev.stopPropagation();
+            setColor(hex);
+            if (ev.shiftKey && !ev.altKey) {
+                setSamples(prev => [...prev, { color: hex, mode: 'add' }]);
+            } else if (ev.altKey && !ev.shiftKey) {
+                setSamples(prev => [...prev, { color: hex, mode: 'sub' }]);
+            } else {
+                setSamples([{ color: hex, mode: 'add' }]);
+            }
+        };
+        // Capture phase so we intercept before the Viewport sees the click.
+        window.addEventListener('mousedown', handler, true);
+        return () => window.removeEventListener('mousedown', handler, true);
+    }, [isOpen]);
+
     const summary = useMemo(() => {
         const add = samples.filter(sample => sample.mode === 'add').length;
         const sub = samples.length - add;

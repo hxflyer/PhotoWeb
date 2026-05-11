@@ -33,7 +33,7 @@ const options: CropOptions = {
     aspect: 'free',
     customRatio: { w: 1, h: 1 },
     overlay: 'rule-of-thirds',
-    deleteCroppedPixels: false,
+    deleteCroppedPixels: true,
     straighten: false,
 };
 
@@ -115,7 +115,7 @@ function handleAtPoint(rect: CropRect, x: number, y: number, zoom: number): Crop
     return null;
 }
 
-function resizeFromHandle(base: CropRect, handle: CropHandle, dx: number, dy: number): CropRect {
+function resizeFromHandle(base: CropRect, handle: CropHandle, dx: number, dy: number, shift = false, alt = false): CropRect {
     let x1 = base.x;
     let y1 = base.y;
     let x2 = base.x + base.w;
@@ -129,6 +129,51 @@ function resizeFromHandle(base: CropRect, handle: CropHandle, dx: number, dy: nu
     if (handle.includes('e')) x2 += dx;
     if (handle.includes('n')) y1 += dy;
     if (handle.includes('s')) y2 += dy;
+
+    // Aspect ratio constraint (Shift forces a square; options.aspect picks a
+    // preset; both honor corner-handle anchoring at the opposite corner).
+    const presetRatio = aspectRatio();
+    const ratio = shift ? 1 : presetRatio;
+    if (ratio !== null) {
+        const isCorner = handle.length === 2;
+        if (isCorner) {
+            const w = x2 - x1;
+            const h = y2 - y1;
+            const target = Math.max(Math.abs(w), Math.abs(h) * ratio);
+            const newW = Math.sign(w || 1) * target;
+            const newH = Math.sign(h || 1) * (target / ratio);
+            if (handle.includes('w')) x1 = x2 - newW;
+            else x2 = x1 + newW;
+            if (handle.includes('n')) y1 = y2 - newH;
+            else y2 = y1 + newH;
+        } else {
+            // Side handles: lock the perpendicular dimension to the ratio.
+            const w = x2 - x1;
+            const h = y2 - y1;
+            if (handle === 'n' || handle === 's') {
+                const cx = (x1 + x2) / 2;
+                const targetW = Math.abs(h) * ratio;
+                x1 = cx - targetW / 2;
+                x2 = cx + targetW / 2;
+            } else {
+                const cy = (y1 + y2) / 2;
+                const targetH = Math.abs(w) / ratio;
+                y1 = cy - targetH / 2;
+                y2 = cy + targetH / 2;
+            }
+        }
+    }
+
+    // Alt = grow symmetrically about the opposite edge/center. Mirror the
+    // pulled side onto the fixed side, so the rect expands from its center.
+    if (alt) {
+        const cx = (base.x + base.x + base.w) / 2;
+        const cy = (base.y + base.y + base.h) / 2;
+        if (handle.includes('w')) x2 = 2 * cx - x1;
+        else if (handle.includes('e')) x1 = 2 * cx - x2;
+        if (handle.includes('n')) y2 = 2 * cy - y1;
+        else if (handle.includes('s')) y1 = 2 * cy - y2;
+    }
 
     if (x2 - x1 < MIN_CROP_SIZE) {
         if (handle.includes('w')) x1 = x2 - MIN_CROP_SIZE;
@@ -200,7 +245,7 @@ export const cropTool: Tool = {
         const point = p(e);
         const dx = point.x - state.drag.start.x;
         const dy = point.y - state.drag.start.y;
-        state.rect = resizeFromHandle(state.drag.rect, state.drag.handle, dx, dy);
+        state.rect = resizeFromHandle(state.drag.rect, state.drag.handle, dx, dy, e.shift, e.alt);
         ctx.requestRender();
     },
     onPointerUp: (_e, ctx) => {
@@ -392,20 +437,39 @@ function applyCrop(
     const cropH = Math.round(h);
     const offsetX = Math.round(x);
     const offsetY = Math.round(y);
+    const deletePixels = options.deleteCroppedPixels;
     store.executeDocumentCommand({
         kind: 'transform',
         label: 'Crop',
         run: () => {
             store.layers.forEach(layer => {
-                const tmp = document.createElement('canvas');
-                tmp.width = cropW;
-                tmp.height = cropH;
-                const tctx = tmp.getContext('2d');
-                if (!tctx) return;
-                tctx.drawImage(layer.canvas, -offsetX, -offsetY);
-                layer.canvas.width = cropW;
-                layer.canvas.height = cropH;
-                layer.ctx.drawImage(tmp, 0, 0);
+                const origW = layer.canvas.width;
+                const origH = layer.canvas.height;
+                if (deletePixels) {
+                    const tmp = document.createElement('canvas');
+                    tmp.width = cropW;
+                    tmp.height = cropH;
+                    const tctx = tmp.getContext('2d');
+                    if (!tctx) return;
+                    tctx.drawImage(layer.canvas, -offsetX, -offsetY);
+                    layer.canvas.width = cropW;
+                    layer.canvas.height = cropH;
+                    layer.ctx.drawImage(tmp, 0, 0);
+                } else {
+                    // Preserve cropped pixels: keep layer canvas at its
+                    // original size but shift content by (-offsetX,-offsetY)
+                    // so the crop area aligns with the new document origin.
+                    // Pixels outside the new document bounds remain on the
+                    // layer canvas and become visible again on a wider crop.
+                    const tmp = document.createElement('canvas');
+                    tmp.width = origW;
+                    tmp.height = origH;
+                    const tctx = tmp.getContext('2d');
+                    if (!tctx) return;
+                    tctx.drawImage(layer.canvas, -offsetX, -offsetY);
+                    layer.ctx.clearRect(0, 0, origW, origH);
+                    layer.ctx.drawImage(tmp, 0, 0);
+                }
                 layer.markDirty(null);
             });
             useEditorStore.setState({ width: cropW, height: cropH });

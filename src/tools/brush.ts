@@ -77,6 +77,19 @@ interface StrokeState {
 
 const stroke: StrokeState = { last: null, leftover: 0, layerId: null, smoothPoint: null, before: null, target: 'layer', bounds: makeStrokeBounds() };
 
+// Remembers the last stamped point per layer/target so Shift+click can paint a
+// straight line from there to the new click. Cleared when a non-Shift stroke
+// starts, when the layer changes, or when the user explicitly clears it.
+let lastStampedPoint: { layerId: string; target: 'layer' | 'mask'; x: number; y: number } | null = null;
+
+export function getBrushLastStampedPoint(): { layerId: string; target: 'layer' | 'mask'; x: number; y: number } | null {
+    return lastStampedPoint;
+}
+
+export function clearBrushLastStampedPoint(): void {
+    lastStampedPoint = null;
+}
+
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
 function targetCanvas(layer: import('../core/Layer').Layer, target: 'layer' | 'mask'): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
@@ -107,20 +120,40 @@ export const brushTool: Tool = {
         if (!layer) return;
         stroke.target = store.activeLayerEditTarget === 'mask' && layer.mask ? 'mask' : 'layer';
         const target = targetCanvas(layer, stroke.target);
-        stroke.last = p(e);
+        const click = p(e);
+        // Shift+click with a remembered point on the same layer paints a
+        // straight line from the last stamp before the new stroke begins.
+        const useLine = e.shift
+            && lastStampedPoint
+            && lastStampedPoint.layerId === layer.id
+            && lastStampedPoint.target === stroke.target;
+        stroke.last = useLine ? { x: lastStampedPoint!.x, y: lastStampedPoint!.y } : click;
         stroke.smoothPoint = stroke.last;
         stroke.leftover = 0;
         stroke.layerId = layer.id;
         stroke.bounds = makeStrokeBounds();
         const r0 = (store.brushSettings.size ?? 1) / 2;
         expandStrokeBounds(stroke.bounds, stroke.last.x, stroke.last.y, r0);
-        // captureLayerRegion reads from layer.canvas; for mask painting we
-        // capture from the mask canvas via a tiny inline equivalent.
         if (stroke.target === 'mask') {
             stroke.before = target.ctx.getImageData(0, 0, target.canvas.width, target.canvas.height);
         } else {
             stroke.before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
         }
+        if (useLine) {
+            // Stamp the straight segment from the remembered point to the
+            // click as part of the same stroke; the rest of the stroke
+            // continues normally from the click point.
+            const color = stroke.target === 'mask'
+                ? maskColorFromPrimary(store.primaryColor)
+                : store.primaryColor;
+            stampStroke(store, target.ctx, stroke.last, click, e.pressure, color);
+            const r = ((store.brushSettings.size ?? 1) * (options.pressureSize ? Math.max(0.1, e.pressure) : 1)) / 2 + 1;
+            expandStrokeBounds(stroke.bounds, click.x, click.y, r);
+            layer.markDirty(null);
+            stroke.last = click;
+            stroke.smoothPoint = click;
+        }
+        lastStampedPoint = { layerId: layer.id, target: stroke.target, x: click.x, y: click.y };
     },
     onPointerMove: (e, ctx) => {
         if (!stroke.last || !stroke.layerId) return;
@@ -141,6 +174,7 @@ export const brushTool: Tool = {
         expandStrokeBounds(stroke.bounds, point.x, point.y, r);
         layer.markDirty(null);
         stroke.last = point;
+        lastStampedPoint = { layerId: layer.id, target: stroke.target, x: point.x, y: point.y };
     },
     onPointerUp: (_e, ctx) => {
         if (stroke.layerId && stroke.before) {

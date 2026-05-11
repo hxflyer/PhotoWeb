@@ -35,9 +35,10 @@ import {
 import { getBrushOptions, setBrushOptions } from '../../tools/brush';
 import { getPencilOptions, setPencilOptions } from '../../tools/pencil';
 import { getMarqueeOptions, setMarqueeOptions } from '../../tools/marquee';
+import { getMoveOptions, setMoveOptions } from '../../tools/move';
 import { getShapeOptions, setShapeOptions } from '../../tools/shapes';
 import { getCustomShapeLibrary, CUSTOM_SHAPE_VIEWBOX } from '../../tools/customShapes';
-import { getCropOptions, setCropOptions, type CropOverlayId } from '../../tools/crop';
+import { getCropOptions, setCropOptions, type CropAspectId, type CropOverlayId } from '../../tools/crop';
 import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
 import type { BlendModeId } from '../../core/blendModes';
 import {
@@ -182,16 +183,38 @@ function ModeDropdown(props?: { value?: BlendModeId; onChange?: (v: BlendModeId)
 
 // ── Tool-specific content ─────────────────────────────────────────────────────
 function MoveOptions() {
+    const [, force] = useState(0);
+    const opts = getMoveOptions();
+    const update = (next: Parameters<typeof setMoveOptions>[0]) => { setMoveOptions(next); force(t => t + 1); };
     return (
         <>
-            {S.label('Auto-Select:')}
-            <select className="opts-input" style={{ width: 70 }}>
-                <option>Layer</option>
-                <option>Group</option>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input
+                    type="checkbox"
+                    checked={opts.autoSelect !== 'off'}
+                    onChange={(e) => update({ autoSelect: e.target.checked ? 'layer' : 'off' })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
+                Auto-Select
+            </label>
+            <select
+                className="opts-input"
+                style={{ width: 70 }}
+                value={opts.autoSelect === 'off' ? 'layer' : opts.autoSelect}
+                disabled={opts.autoSelect === 'off'}
+                onChange={(e) => update({ autoSelect: e.target.value as 'layer' | 'group' })}
+            >
+                <option value="layer">Layer</option>
+                <option value="group">Group</option>
             </select>
             {S.sep()}
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
-                <input type="checkbox" defaultChecked style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                <input
+                    type="checkbox"
+                    checked={opts.showTransformControls}
+                    onChange={(e) => update({ showTransformControls: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
                 Show Transform Controls
             </label>
         </>
@@ -364,25 +387,52 @@ function CropOptions() {
     const update = (next: Parameters<typeof setCropOptions>[0]) => { setCropOptions(next); force(t => t + 1); };
     return (
         <>
-            <select className="opts-input" style={{ width: 80 }} title="Ratio preset">
-                <option>Ratio</option>
-                <option>W×H×Resolution</option>
-                <option>Original Ratio</option>
-                <option>1:1 (Square)</option>
-                <option>4:5 (8:10)</option>
-                <option>5:7</option>
-                <option>2:3 (4:6)</option>
-                <option>3:4 (6:8)</option>
-                <option>4:3</option>
-                <option>16:9</option>
+            <select className="opts-input" style={{ width: 90 }} title="Ratio preset"
+                value={opts.aspect}
+                onChange={e => update({ aspect: e.target.value as CropAspectId })}>
+                <option value="free">Ratio</option>
+                <option value="1:1">1:1 (Square)</option>
+                <option value="5:4">5:4 (8:10)</option>
+                <option value="3:2">3:2 (4:6)</option>
+                <option value="4:3">4:3</option>
+                <option value="16:9">16:9</option>
+                <option value="custom">Custom</option>
             </select>
             {S.sep()}
-            <input type="text" placeholder="W" className="opts-input" style={{ width: 50 }} />
+            <input
+                type="number"
+                placeholder="W"
+                className="opts-input"
+                style={{ width: 50 }}
+                value={opts.aspect === 'custom' ? opts.customRatio.w : ''}
+                onChange={e => {
+                    const w = Math.max(0.0001, parseFloat(e.target.value) || 1);
+                    update({ aspect: 'custom', customRatio: { ...opts.customRatio, w } });
+                }}
+            />
             <span className="opts-label">×</span>
-            <input type="text" placeholder="H" className="opts-input" style={{ width: 50 }} />
+            <input
+                type="number"
+                placeholder="H"
+                className="opts-input"
+                style={{ width: 50 }}
+                value={opts.aspect === 'custom' ? opts.customRatio.h : ''}
+                onChange={e => {
+                    const h = Math.max(0.0001, parseFloat(e.target.value) || 1);
+                    update({ aspect: 'custom', customRatio: { ...opts.customRatio, h } });
+                }}
+            />
             {S.sep()}
-            <button className="opts-btn" title="Swap dimensions"><Repeat2 size={13} /></button>
-            <button className="opts-btn" title="Clear dimensions"><X size={13} /></button>
+            <button
+                className="opts-btn"
+                title="Swap dimensions"
+                onClick={() => update({ customRatio: { w: opts.customRatio.h, h: opts.customRatio.w } })}
+            ><Repeat2 size={13} /></button>
+            <button
+                className="opts-btn"
+                title="Clear dimensions (reset to free ratio)"
+                onClick={() => update({ aspect: 'free', customRatio: { w: 1, h: 1 } })}
+            ><X size={13} /></button>
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Overlay:')}
@@ -1169,6 +1219,25 @@ function PenOptions() {
                     <span className="opts-label">Shape: fills with primary color</span>
                 </>
             )}
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input
+                    type="checkbox"
+                    checked={opts.autoAddDelete}
+                    onChange={e => update({ autoAddDelete: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
+                Auto Add/Delete
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input
+                    type="checkbox"
+                    checked={opts.rubberBand}
+                    onChange={e => update({ rubberBand: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
+                Rubber Band
+            </label>
         </>
     );
 }
@@ -1255,36 +1324,91 @@ function CustomShapePresetPicker() {
 }
 
 function ShapeOptions({ showPresets = false }: { showPresets?: boolean } = {}) {
-    const { primaryColor, openColorPicker } = useEditorStore();
+    const [, force] = useState(0);
+    const opts = getShapeOptions();
+    const update = (next: Parameters<typeof setShapeOptions>[0]) => { setShapeOptions(next); force(t => t + 1); };
+    const fillSwatch = (
+        <label style={{ display: 'inline-block', position: 'relative', cursor: 'pointer' }}>
+            <span style={{
+                display: 'inline-block', width: 20, height: 20,
+                backgroundColor: opts.fill ?? '#fff',
+                backgroundImage: opts.fill === null
+                    ? 'linear-gradient(45deg, transparent 45%, red 47%, red 53%, transparent 55%)'
+                    : undefined,
+                border: '1px solid hsl(var(--border-light))',
+            }} />
+            <input
+                type="color"
+                value={opts.fill ?? '#000000'}
+                onChange={e => update({ fill: e.target.value })}
+                style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                title={opts.fill === null ? 'No fill' : `Fill: ${opts.fill}`}
+            />
+        </label>
+    );
+    const strokeSwatch = (
+        <label style={{ display: 'inline-block', position: 'relative', cursor: 'pointer' }}>
+            <span style={{
+                display: 'inline-block', width: 20, height: 20,
+                backgroundColor: opts.stroke ?? '#fff',
+                backgroundImage: opts.stroke === null
+                    ? 'linear-gradient(45deg, transparent 45%, red 47%, red 53%, transparent 55%)'
+                    : undefined,
+                border: '1px solid hsl(var(--border-light))',
+            }} />
+            <input
+                type="color"
+                value={opts.stroke ?? '#000000'}
+                onChange={e => update({ stroke: e.target.value })}
+                style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                title={opts.stroke === null ? 'No stroke' : `Stroke: ${opts.stroke}`}
+            />
+        </label>
+    );
     return (
         <>
             <div style={{ display: 'flex', gap: 1 }}>
-                {(['Shape', 'Path', 'Pixels'] as const).map(m => (
-                    <button key={m} className={`opts-btn${m === 'Shape' ? ' active' : ''}`}>{m}</button>
+                {(['shape', 'path', 'pixels'] as const).map(m => (
+                    <button
+                        key={m}
+                        className={`opts-btn${opts.mode === m ? ' active' : ''}`}
+                        onClick={() => update({ mode: m })}
+                    >{m === 'shape' ? 'Shape' : m === 'path' ? 'Path' : 'Pixels'}</button>
                 ))}
             </div>
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Fill:')}
-                <div onClick={() => openColorPicker('primary')}
-                    style={{ width: 20, height: 20, backgroundColor: primaryColor, border: '1px solid hsl(var(--border-light))', cursor: 'pointer' }} />
+                {fillSwatch}
+                <button
+                    className="opts-btn"
+                    title={opts.fill === null ? 'Set fill (black)' : 'Clear fill (no color)'}
+                    onClick={() => update({ fill: opts.fill === null ? '#000000' : null })}
+                    style={{ width: 22, height: 22, padding: 0 }}
+                >{opts.fill === null ? '+' : '×'}</button>
             </div>
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Stroke:')}
-                <div style={{ width: 20, height: 20, background: 'transparent', border: '2px solid hsl(var(--text-main))', cursor: 'pointer' }} />
+                {strokeSwatch}
+                <button
+                    className="opts-btn"
+                    title={opts.stroke === null ? 'Set stroke (black)' : 'Clear stroke (no color)'}
+                    onClick={() => update({ stroke: opts.stroke === null ? '#000000' : null })}
+                    style={{ width: 22, height: 22, padding: 0 }}
+                >{opts.stroke === null ? '+' : '×'}</button>
             </div>
-            <input type="number" min={0} max={100} defaultValue={0} className="opts-input" style={{ width: 36 }} />
+            <input
+                type="number"
+                min={0}
+                max={100}
+                value={opts.strokeWidth}
+                onChange={e => update({ strokeWidth: Math.max(0, parseFloat(e.target.value) || 0) })}
+                className="opts-input"
+                style={{ width: 44 }}
+                title="Stroke width (px)"
+            />
             <span className="opts-label">px</span>
-            {S.sep()}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {S.label('W:')}
-                <input type="text" defaultValue="" className="opts-input" style={{ width: 50 }} placeholder="—" />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {S.label('H:')}
-                <input type="text" defaultValue="" className="opts-input" style={{ width: 50 }} placeholder="—" />
-            </div>
             {showPresets && (
                 <>
                     {S.sep()}

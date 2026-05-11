@@ -34,6 +34,63 @@ import { getLayerContentBounds } from '../utils/canvasUtils';
 
 const SNAP_HYSTERESIS = 6;
 
+export type MoveAutoSelectScope = 'off' | 'layer' | 'group';
+
+export interface MoveToolOptions {
+    autoSelect: MoveAutoSelectScope;
+    showTransformControls: boolean;
+}
+
+const moveOptions: MoveToolOptions = { autoSelect: 'off', showTransformControls: false };
+
+export function setMoveOptions(next: Partial<MoveToolOptions>): void {
+    Object.assign(moveOptions, next);
+}
+
+export function getMoveOptions(): MoveToolOptions {
+    return { ...moveOptions };
+}
+
+function pickTopmostLayerAt(layers: Layer[], x: number, y: number): Layer | null {
+    for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (!layer.visible) continue;
+        if (x < 0 || y < 0 || x >= layer.canvas.width || y >= layer.canvas.height) continue;
+        try {
+            const data = layer.ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+            if (data[3] > 0) return layer;
+        } catch {
+            // Cross-origin or uninitialised canvas — skip.
+        }
+    }
+    return null;
+}
+
+function findGroupAncestor(layer: Layer, layers: Layer[]): Layer | null {
+    let cur = layer.parentId ? layers.find(l => l.id === layer.parentId) ?? null : null;
+    while (cur && cur.parentId) {
+        const parent = layers.find(l => l.id === cur!.parentId);
+        if (!parent) break;
+        cur = parent;
+    }
+    return cur;
+}
+
+function constrainAxis(dx: number, dy: number): { dx: number; dy: number } {
+    if (dx === 0 && dy === 0) return { dx, dy };
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+    const angle = Math.atan2(dy, dx);
+    // 8 axes: H / V / 45° diagonals. Snap to the nearest multiple of 45°.
+    const step = Math.PI / 4;
+    const snapped = Math.round(angle / step) * step;
+    const magnitude = Math.max(ax, ay);
+    return {
+        dx: Math.round(Math.cos(snapped) * magnitude),
+        dy: Math.round(Math.sin(snapped) * magnitude),
+    };
+}
+
 function publishActiveSnapTargets(xSnap: SnapTarget | undefined, ySnap: SnapTarget | undefined): void {
     const targets: SnapTarget[] = [];
     if (xSnap) targets.push(xSnap);
@@ -277,9 +334,44 @@ export const moveTool: Tool = {
     cursor: 'move',
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
-        const { layers, activeLayerId, selection } = ctx.getStore();
-        const activeLayer = layers.find(layer => layer.id === activeLayerId);
+        const store = ctx.getStore();
+        const { selection } = store;
+        let { layers, activeLayerId } = store;
+
+        // Auto-Select (or temporary Cmd-click auto-select) picks the topmost
+        // non-transparent layer under the cursor. Cmd/Ctrl forces the lookup
+        // even when the option is off.
+        const wantsAutoSelect = moveOptions.autoSelect !== 'off' || e.meta || e.ctrl;
+        if (wantsAutoSelect) {
+            const hit = pickTopmostLayerAt(layers, e.canvasX, e.canvasY);
+            if (hit) {
+                const target = moveOptions.autoSelect === 'group'
+                    ? (findGroupAncestor(hit, layers) ?? hit)
+                    : hit;
+                if (target.id !== activeLayerId) {
+                    store.setActiveLayer(target.id);
+                    // Re-read store so activeLayer pickup below honors the selection.
+                    const refreshed = ctx.getStore();
+                    layers = refreshed.layers;
+                    activeLayerId = refreshed.activeLayerId;
+                }
+            }
+        }
+
+        let activeLayer = layers.find(layer => layer.id === activeLayerId);
         if (!activeLayer || activeLayer.lockPosition || activeLayer.locks.all) return;
+
+        // Alt-drag duplicates the active layer first, then operates on the
+        // duplicate so the original is preserved.
+        if (e.alt) {
+            store.duplicateLayer(activeLayer.id);
+            const refreshed = ctx.getStore();
+            const newActive = refreshed.layers.find(l => l.id === refreshed.activeLayerId);
+            if (newActive) {
+                activeLayer = newActive;
+                layers = refreshed.layers;
+            }
+        }
 
         const before = activeLayer.ctx.getImageData(0, 0, activeLayer.canvas.width, activeLayer.canvas.height);
         const typeDataBefore = activeLayer.kind === 'type'
@@ -342,6 +434,11 @@ export const moveTool: Tool = {
         if (!drag) return;
         let rawDx = e.canvasX - drag.startCanvasX;
         let rawDy = e.canvasY - drag.startCanvasY;
+        if (e.shift) {
+            const constrained = constrainAxis(rawDx, rawDy);
+            rawDx = constrained.dx;
+            rawDy = constrained.dy;
+        }
         if (drag.snapCandidates.length > 0) {
             const snapped = snapMoveDelta(rawDx, rawDy, drag.snapAnchors, drag.snapCandidates);
             rawDx = snapped.dx;

@@ -6,6 +6,80 @@ Format: one section per pass with date, test-count delta, and a one-paragraph su
 
 ---
 
+## 2026-05-11 (evening) — Batch 7: Photoshop UX parity (research-driven gap fixes)
+
+Tests: **710 / 87 → 748 / 93** (+38, +6 files). Lint: 0 errors. TypeScript clean.
+
+Triggered by user prompt: *"looks like there are some plausibly implemented functions, not fully working, i need you review each tool/function/ui ... compare to our implementations, and correct our code accordingly, start several parallel sub agents to gather information first."*
+
+Five research agents (paint+retouch, selection, vector, type, Move/Transform/Crop+global) compared each photoweb tool/dialog/shortcut against authoritative Photoshop docs (helpx.adobe.com, jkost.com, photoshopessentials, photoshoptrainingchannel). Their consolidated 110-finding gap report lives at [photoweb-photoshop-ux-gap-report.md](photoweb-photoshop-ux-gap-report.md).
+
+### Slice A — Global keyboard shortcuts (`App.tsx`, `Viewport.tsx`) [+8 tests]
+- **Spacebar = temporary Hand tool**: press-and-hold pushes a tool stack and swaps to `hand`; release restores. Suppressed inside editable elements.
+- `Cmd+J` / `Cmd+Shift+J`: Layer via Copy / Cut (falls back to Duplicate Layer when no selection).
+- `Cmd+G` / `Cmd+Shift+G`: Group / Ungroup active layer.
+- `Cmd+E` / `Cmd+Shift+E` / `Cmd+Shift+Alt+E`: Merge Down / Merge Visible / Stamp Visible.
+- `Cmd+1`: zoom to 100%.
+- Migrated `Cmd+Shift+Alt+E` (was photoweb-only Export As) to `Cmd+Shift+Alt+W` to match Photoshop and free the standard Stamp Visible chord.
+
+### Slice B — Move tool: Alt-duplicate, Shift-constrain, Auto-Select (`move.ts`, `OptionsBar.tsx`) [+5 tests]
+- New `moveOptions = { autoSelect, showTransformControls }` module state with `set/getMoveOptions`.
+- `Auto-Select` checkbox + Layer/Group scope dropdown now wired in OptionsBar; click hit-tests visible layer canvases top-down using the alpha channel.
+- **Cmd-click** with Auto-Select off temporarily picks the topmost non-transparent layer for that one drag.
+- **Alt-drag duplicates** the active layer and operates on the duplicate (`duplicateLayer` before drag begins).
+- **Shift-drag constrains** motion to the nearest of H / V / 45° axes (`constrainAxis` snaps the drag delta to a multiple of π/4 around the larger magnitude).
+
+### Slice C — Paint family modifier parity (`brush.ts`, `pencil.ts`, `eraser.ts`, `Viewport.tsx`, `App.tsx`) [+9 tests]
+- **Shift+click** in brush / pencil / eraser stamps a straight line from the last remembered point on the same layer/target before starting the normal stroke. Each tool exposes a `clear*LastPoint()` helper for tests.
+- **Number keys 1–9 / 0** set `brushSettings.opacity` (10%–90% / 100%) when a paint-family tool is active. **Shift+digit** sets `flow`. Photoshop's ~300 ms two-digit window composes consecutive digits (e.g. `2`+`5` → 25%).
+- **Alt held with a paint-family tool** temporarily activates the Eyedropper; releasing Alt restores the paint tool (same stack pattern as Spacebar Hand).
+- **Mouse pressure default 1.0** — `Viewport.buildToolPointerEvent` now reports `pressure = 1` for `mouse`/`touch` pointer types and `native.pressure` for `pen`. Fixes the silent half-size mouse-stroke regression when `pressureSize` is on.
+- Added an `isPaintFamily(tool)` set covering brush/pencil/eraser/clone/healing/dodge/burn/sponge/blur/sharpen/smudge etc.
+
+### Slice D — Dodge / Burn / Sponge history invariant + Alt-swap (`dodgeBurnSponge.ts`) [+5 tests]
+- **Fixed invariant violation**: every tone-tool stroke now captures `before` at pointer-down, accumulates stroke bounds during the drag, and commits a single `createPixelHistoryAction` at pointer-up. Strokes are now properly undoable, matching CLAUDE.md's "every pixel-mutating action goes through history" requirement.
+- **Alt held during a Dodge stroke** temporarily Burns (and vice versa); the swap is per-event, not persisted on the tool's `mode`.
+
+### Slice F — Crop tool: aspect, modifiers, deleteCroppedPixels (`crop.ts`, `OptionsBar.tsx`) [+5 tests]
+- **Aspect-ratio dropdown wired**: `<select>` now binds to `setCropOptions({ aspect })`; presets 1:1 / 5:4 / 3:2 / 4:3 / 16:9 / Custom; W/H inputs drive the custom ratio; Swap / Clear buttons functional.
+- **Shift / Alt modifiers** during corner/side drag: Shift forces a square (or preset aspect when set), Alt grows symmetrically about the rect's center.
+- **`deleteCroppedPixels = false`** now preserves layer pixels outside the new canvas bounds (re-cropping outward reveals them). Defaults changed from `false` → `true` to match Photoshop's modern default.
+
+### Slice G — Type tool: commit + anti-alias (`type.ts`, `TextEditOverlay.tsx`, `CharacterPanel.tsx`) [+6 tests]
+- **Numpad Enter commits** the type edit (main-keyboard Enter still inserts a newline; Cmd+Enter still commits as the secondary shortcut).
+- **Switching tools** during an active type edit already triggered `commitActiveEditingType()` in `toolsSlice.setTool` — added a regression test to lock the behavior.
+- **Anti-alias dropdown wired**: new `TextAntiAlias = 'none' | 'sharp' | 'crisp' | 'strong' | 'smooth'` field on `TextStyle`. `commitTypeLayer` maps each to `ctx.imageSmoothingEnabled` + `ctx.textRendering`. CharacterPanel exposes all 5 modes; the previous placeholder (disabled "Sharp"-only `<select>`) is gone. Default style includes `antiAlias: 'crisp'`.
+- Cleaned up a placeholder "Khmer" language entry (Photoshop ships "English" by default; locale handling is deferred).
+
+### Slice E — Free Transform constraints (`FreeTransformOverlay.tsx`) [+4 tests]
+- **Shift on a corner drag** constrains the aspect ratio (driven by the larger of dx/dy, locking the smaller to maintain the original ratio).
+- **Alt on any handle** grows the bounding box symmetrically about its center — for corners this mirrors both axes; for sides, only the perpendicular axis.
+- **Outside-bbox rotate**: a transparent ring (24 px padding around the bbox) registers `mousedown` as a rotation drag. Inner scale handles render after the ring so they take pointer priority.
+- **Shift while rotating** snaps the resulting angle to multiples of 15°.
+
+### Slice J — Vector option-bar wiring (`OptionsBar.tsx`, `pen.ts`, `pathSelection.ts`) [+8 tests]
+- **Shape Options Bar** Fill / Stroke / Stroke width / Shape-Path-Pixels mode are now wired to `setShapeOptions`. Fill and stroke swatches use a native `<input type="color">` over the visible swatch.
+- **Pen options**: new `autoAddDelete` and `rubberBand` flags (both default `true`). With `autoAddDelete = false` the Pen no longer deletes anchors on click nor inserts on segment-hit. With `rubberBand = false` the live preview from last anchor to cursor is suppressed.
+- **Direct Selection**: `Backspace` / `Delete` removes the currently-selected anchor (and removes the path entirely if it had only one anchor left).
+- **Path Selection**: `Backspace` / `Delete` removes the entire active path.
+
+### Slice H — Refine Edge live preview + Color Range eyedropper (`RefineEdgeDialog.tsx`, `ColorRangeDialog.tsx`, `utils/maskOps.ts`, `utils/refineEdgePreview.ts`) [+6 tests]
+- **Refine Edge live preview**: on dialog open the original selection ops are snapshotted; every slider change re-runs the refine math (shiftEdge → shrink/grow, radius blur, smart-radius gradient-weighted blur, smooth median, contrast remap) via `computeRefinedSelectionOperation` and writes a new mask op to the store directly (bypassing history). Cancel restores the snapshot. OK restores then calls `refineEdge()` so the canonical history entry records a single change.
+- Extracted the shared mask helpers (blur / contrast / median / Sobel gradient) into `src/utils/maskOps.ts` so both `selectionSlice.refineEdge` and the preview path use the same math.
+- **Color Range on-canvas eyedropper**: while the dialog is open, a window-level capture-phase `mousedown` listener intercepts clicks on `[data-photoweb-document]`. The composite is sampled at the click coords; the picked hex updates the swatch and the samples list (no modifiers = replace, Shift = add, Alt = subtract).
+
+### Slice I — Live Gradient handles + Clone Stamp source-ghost (`gradient.ts`, `cloneStamp.ts`) [+7 tests]
+- **Live Gradient**: pointer-up no longer commits history. Instead the layer is snapshotted, the gradient is composited as a preview, and the start/end points stay editable. Subsequent pointer-downs near either endpoint reposition that handle; the layer reverts to the snapshot and recomposites each frame. Click off (away from handles) commits the previous preview as one history entry and starts fresh. `Enter` commits. `Esc` reverts to the snapshot. `onDeactivate` (tool switch) commits.
+- **Clone Stamp ghost**: `renderCloneStampOverlay` now draws the sampled source patch as a translucent disc under the cursor (clipped to the brush footprint) instead of just an icon marker. Works on hover after Alt-sampling (no click needed) so users see what they're about to paint before they paint it.
+
+---
+
+## 2026-05-11 (evening, second pass) — Batch 7 wrap-up summary
+
+Total Batch 7 delta: **710 / 87 → 773 / 97 (+63 tests, +10 files)**. Lint: 0 errors. TypeScript clean. Closed slices A through J of the [Photoshop UX gap report](photoweb-photoshop-ux-gap-report.md) — every P0 finding addressed; some P1 polish items deferred (right-click FT menu, Cmd+Shift+T re-apply, Magic Wand sample size, marquee box-select for paths, Magnetic Lasso, kerning Optical/numeric, Warp Text, etc. — listed in §Slice K of the gap report).
+
+---
+
 ## 2026-05-12 (evening) — Parallel-plan Batch 6: audit-flagged perf + path persistence + UI completeness + adjustments completeness + P2 polish
 
 Tests: **642 / 77 → 701 / 86** (+59, +9 files). Lint: 0 errors. TypeScript clean.

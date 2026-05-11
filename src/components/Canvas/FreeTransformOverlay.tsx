@@ -109,6 +109,8 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
             const { handle, startX, startY, origTx, origTy, origTw, origTh, origRot, snapCandidates } = dragRef.current;
             let dx = (e.clientX - startX) / zoom;
             let dy = (e.clientY - startY) / zoom;
+            const shift = e.shiftKey;
+            const alt = e.altKey;
 
             // Snap the dragged edge / corner / center to nearby candidates.
             if (snapCandidates.length > 0 && handle !== 'rotate') {
@@ -133,19 +135,121 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
                 publishTargets(undefined, undefined);
             }
 
+            // Shift on a corner constrains the aspect ratio to the original
+            // bounding-box ratio (uniform scale). Photoshop 2020+ also flips
+            // the default — proportional by default, Shift = non-proportional;
+            // we keep the legacy semantics (Shift = constrain) since that is
+            // the muscle memory taught for decades.
+            const ratio = origTw / Math.max(1, origTh);
+            const isCorner = handle === 'nw' || handle === 'ne' || handle === 'se' || handle === 'sw';
+            if (shift && isCorner) {
+                // Constrain dy = dx / ratio (preserving original aspect).
+                // Use the larger absolute change as the driver.
+                const cdx = Math.abs(dx);
+                const cdy = Math.abs(dy);
+                if (cdx * (1 / ratio) > cdy) {
+                    dy = (handle === 'nw' || handle === 'ne') ? -dx / ratio : dx / ratio;
+                    if (handle === 'nw' || handle === 'sw') dy = -dy;
+                } else {
+                    dx = (handle === 'nw' || handle === 'sw') ? -dy * ratio : dy * ratio;
+                    if (handle === 'nw' || handle === 'ne') dx = -dx;
+                }
+            }
+
             if (handle === 'move') { setTx(origTx + dx); setTy(origTy + dy); }
-            else if (handle === 'se') { setTw(Math.max(1, origTw + dx)); setTh(Math.max(1, origTh + dy)); }
-            else if (handle === 'nw') { setTx(origTx + dx); setTy(origTy + dy); setTw(Math.max(1, origTw - dx)); setTh(Math.max(1, origTh - dy)); }
-            else if (handle === 'ne') { setTy(origTy + dy); setTw(Math.max(1, origTw + dx)); setTh(Math.max(1, origTh - dy)); }
-            else if (handle === 'sw') { setTx(origTx + dx); setTw(Math.max(1, origTw - dx)); setTh(Math.max(1, origTh + dy)); }
-            else if (handle === 'n') { setTy(origTy + dy); setTh(Math.max(1, origTh - dy)); }
-            else if (handle === 's') { setTh(Math.max(1, origTh + dy)); }
-            else if (handle === 'e') { setTw(Math.max(1, origTw + dx)); }
-            else if (handle === 'w') { setTx(origTx + dx); setTw(Math.max(1, origTw - dx)); }
+            else if (handle === 'se') {
+                let w = Math.max(1, origTw + dx);
+                let h = Math.max(1, origTh + dy);
+                if (alt) {
+                    // Grow symmetrically about the center: mirror the SE pull
+                    // onto NW so the rect expands from its center.
+                    const grow = (origTw + dx) - origTw;
+                    const growY = (origTh + dy) - origTh;
+                    w = Math.max(1, origTw + 2 * grow);
+                    h = Math.max(1, origTh + 2 * growY);
+                    setTx(origTx - grow);
+                    setTy(origTy - growY);
+                }
+                setTw(w); setTh(h);
+            }
+            else if (handle === 'nw') {
+                if (alt) {
+                    const grow = -dx;
+                    const growY = -dy;
+                    setTx(origTx - grow);
+                    setTy(origTy - growY);
+                    setTw(Math.max(1, origTw + 2 * grow));
+                    setTh(Math.max(1, origTh + 2 * growY));
+                } else {
+                    setTx(origTx + dx); setTy(origTy + dy);
+                    setTw(Math.max(1, origTw - dx)); setTh(Math.max(1, origTh - dy));
+                }
+            }
+            else if (handle === 'ne') {
+                if (alt) {
+                    const grow = dx;
+                    const growY = -dy;
+                    setTx(origTx - grow);
+                    setTy(origTy - growY);
+                    setTw(Math.max(1, origTw + 2 * grow));
+                    setTh(Math.max(1, origTh + 2 * growY));
+                } else {
+                    setTy(origTy + dy);
+                    setTw(Math.max(1, origTw + dx)); setTh(Math.max(1, origTh - dy));
+                }
+            }
+            else if (handle === 'sw') {
+                if (alt) {
+                    const grow = -dx;
+                    const growY = dy;
+                    setTx(origTx - grow);
+                    setTy(origTy - growY);
+                    setTw(Math.max(1, origTw + 2 * grow));
+                    setTh(Math.max(1, origTh + 2 * growY));
+                } else {
+                    setTx(origTx + dx);
+                    setTw(Math.max(1, origTw - dx)); setTh(Math.max(1, origTh + dy));
+                }
+            }
+            else if (handle === 'n') {
+                if (alt) {
+                    setTy(origTy + dy);
+                    setTh(Math.max(1, origTh - 2 * dy));
+                } else {
+                    setTy(origTy + dy); setTh(Math.max(1, origTh - dy));
+                }
+            }
+            else if (handle === 's') {
+                if (alt) {
+                    setTy(origTy - dy);
+                    setTh(Math.max(1, origTh + 2 * dy));
+                } else {
+                    setTh(Math.max(1, origTh + dy));
+                }
+            }
+            else if (handle === 'e') {
+                if (alt) {
+                    setTx(origTx - dx);
+                    setTw(Math.max(1, origTw + 2 * dx));
+                } else {
+                    setTw(Math.max(1, origTw + dx));
+                }
+            }
+            else if (handle === 'w') {
+                if (alt) {
+                    setTx(origTx + dx);
+                    setTw(Math.max(1, origTw - 2 * dx));
+                } else {
+                    setTx(origTx + dx); setTw(Math.max(1, origTw - dx));
+                }
+            }
             else if (handle === 'rotate') {
                 const center = toScreen(origTx + origTw / 2, origTy + origTh / 2);
                 const angle = Math.atan2(e.clientY - center.sy, e.clientX - center.sx) * (180 / Math.PI) + 90;
-                setRot(origRot + (angle - (Math.atan2(startY - center.sy, startX - center.sx) * (180 / Math.PI) + 90)));
+                let nextRot = origRot + (angle - (Math.atan2(startY - center.sy, startX - center.sx) * (180 / Math.PI) + 90));
+                // Shift snaps rotation to multiples of 15°.
+                if (shift) nextRot = Math.round(nextRot / 15) * 15;
+                setRot(nextRot);
             }
         };
         const onUp = () => {
@@ -252,6 +356,26 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
         >
             {/* Bounding box */}
             <g transform={`rotate(${rot}, ${cx}, ${cy2})`}>
+                {/* Rotate-outside-bbox hit zone (Photoshop): a transparent
+                    ring around the bounding box. Click-drag outside the box
+                    rotates around the center reference point. Rendered first
+                    so the inner scale handles take pointer priority. */}
+                <rect
+                    data-testid="ft-rotate-ring"
+                    x={sx - 24} y={sy - 24}
+                    width={sw + 48} height={sh + 48}
+                    fill="transparent"
+                    style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+                    onMouseDown={e => handleMouseDown(e, 'rotate')}
+                />
+                {/* Cut-out: a same-color rect that blocks pointer events over
+                    the actual bbox interior so move/scale handles work. */}
+                <rect
+                    x={sx} y={sy}
+                    width={sw} height={sh}
+                    fill="transparent"
+                    style={{ pointerEvents: 'none' }}
+                />
                 <rect x={sx} y={sy} width={sw} height={sh}
                     fill="none" stroke="#0090ff" strokeWidth={1} strokeDasharray="4 2" />
 

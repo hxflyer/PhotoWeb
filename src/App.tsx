@@ -52,6 +52,18 @@ import './App.css';
 
 const START_FREE_TRANSFORM_EVENT = 'photoweb:start-free-transform';
 
+const PAINT_FAMILY_TOOLS = new Set([
+  'brush', 'pencil', 'eraser', 'magic-eraser', 'background-eraser',
+  'clone-stamp', 'pattern-stamp', 'history-brush', 'art-history-brush',
+  'spot-healing', 'healing-brush', 'patch', 'red-eye',
+  'dodge', 'burn', 'sponge', 'blur', 'sharpen', 'smudge',
+  'mixer-brush',
+]);
+
+function isPaintFamily(tool: string): boolean {
+  return PAINT_FAMILY_TOOLS.has(tool);
+}
+
 function App() {
   // Narrow subscription: only fields that affect App's JSX (not color, brushSettings, etc.)
   const { dialogs, hasAutosave, selection, zoom, pan, isNewGuideDialogOpen, isScaleEffectsDialogOpen, isTransformSelectionOpen } = useEditorStore(
@@ -99,6 +111,7 @@ function App() {
   const autoSaveStarted = useRef(false);
   const openFileRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const numberKeyWindow = useRef<{ digits: number; time: number } | null>(null);
 
   useEffect(() => {
     // Re-apply persisted UI scale on every boot so users don't need to open
@@ -224,7 +237,7 @@ function App() {
       }
       if (meta && key === 's' && e.shiftKey && !e.altKey) { e.preventDefault(); setSaveDialogName(gs().documentName); setSaveDialogOpen(true); return; }
       if (meta && key === 's' && e.shiftKey && e.altKey) { e.preventDefault(); doQuickExportPng(); return; }
-      if (meta && key === 'e' && e.shiftKey && e.altKey) { e.preventDefault(); gs().openExportDialog(); return; }
+      if (meta && key === 'w' && e.shiftKey && e.altKey) { e.preventDefault(); gs().openExportDialog(); return; }
 
       if (meta && key === 'r') { e.preventDefault(); const s = gs(); s.setShowRulers(!s.showRulers); return; }
       if (meta && (key === "'" || key === '"')) { e.preventDefault(); const s = gs(); s.setShowGrid(!s.showGrid); return; }
@@ -257,6 +270,47 @@ function App() {
       if (meta && (key === '=' || key === '+')) { e.preventDefault(); gs().setZoom(Math.min(gs().zoom * 1.25, 32)); return; }
       if (meta && key === '-') { e.preventDefault(); gs().setZoom(Math.max(gs().zoom / 1.25, 0.02)); return; }
       if (meta && key === '0') { e.preventDefault(); requestViewportFit(); return; }
+      if (meta && key === '1' && !e.shiftKey && !e.altKey) { e.preventDefault(); gs().setZoom(1); return; }
+
+      if (meta && key === 'j' && !e.altKey) {
+        e.preventDefault();
+        const s = gs();
+        if (e.shiftKey) {
+          if (s.selection.hasSelection) s.layerViaCut();
+          else if (s.activeLayerId) s.duplicateLayer(s.activeLayerId);
+        } else {
+          if (s.selection.hasSelection) s.layerViaCopy();
+          else if (s.activeLayerId) s.duplicateLayer(s.activeLayerId);
+        }
+        return;
+      }
+      if (meta && key === 'g' && !e.altKey) {
+        e.preventDefault();
+        const s = gs();
+        if (e.shiftKey) {
+          const layer = s.layers.find(l => l.id === s.activeLayerId);
+          if (layer && layer.kind === 'group') s.ungroupLayerGroup(layer.id);
+        } else {
+          s.createLayerGroup();
+        }
+        return;
+      }
+      if (meta && key === 'e' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        const s = gs();
+        if (s.activeLayerId) s.mergeLayerDown(s.activeLayerId);
+        return;
+      }
+      if (meta && key === 'e' && e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        gs().mergeVisible();
+        return;
+      }
+      if (meta && key === 'e' && e.shiftKey && e.altKey) {
+        e.preventDefault();
+        gs().stampVisible();
+        return;
+      }
 
       if (!meta && !e.altKey && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(key)) {
         const step = e.shiftKey ? 10 : 1;
@@ -314,6 +368,31 @@ function App() {
         }
       }
 
+      // Number keys: opacity (and Shift+number = flow) for paint/retouch
+      // tools. 1-9 = 10-90%, 0 = 100%. Photoshop has a ~300ms double-digit
+      // window where consecutive digits compose a percentage (e.g. "2"+"5"
+      // → 25%). Only when no meta/alt to avoid stomping Cmd+1, etc.
+      if (!meta && !e.altKey && /^[0-9]$/.test(key) && isPaintFamily(gs().activeTool)) {
+        e.preventDefault();
+        const digit = parseInt(key, 10);
+        const now = performance.now();
+        const within = numberKeyWindow.current && (now - numberKeyWindow.current.time) < 300
+          ? numberKeyWindow.current : null;
+        let percent: number;
+        if (within) {
+          percent = within.digits * 10 + digit;
+          if (percent > 100) percent = digit === 0 ? 100 : digit * 10;
+          numberKeyWindow.current = null;
+        } else {
+          percent = digit === 0 ? 100 : digit * 10;
+          numberKeyWindow.current = { digits: digit, time: now };
+        }
+        const value = Math.max(0, Math.min(1, percent / 100));
+        if (e.shiftKey) gs().setBrushFlow(value);
+        else gs().setBrushOpacity(value);
+        return;
+      }
+
       if (!meta && !e.altKey && key === '[') {
         e.preventDefault();
         const { brushSettings: bs } = gs();
@@ -340,6 +419,65 @@ function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [freeTransform]); // stable: store values read via gs(); transform mode blocks tool shortcuts
+
+  // Spacebar = temporary Hand tool (Photoshop). Press-and-hold switches to
+  // 'hand'; release restores the prior tool. Suppressed inside editable
+  // elements so a literal space keeps typing.
+  useEffect(() => {
+    let priorTool: import('./store/types').ToolId | null = null;
+    const onDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      const s = gs();
+      if (s.activeTool === 'hand') return;
+      e.preventDefault();
+      priorTool = s.activeTool;
+      s.setTool('hand');
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      if (priorTool && gs().activeTool === 'hand') {
+        gs().setTool(priorTool);
+      }
+      priorTool = null;
+    };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
+
+  // Alt/Option held with a paint tool active = temporary Eyedropper. Release
+  // restores the paint tool. We only swap when no drag is in progress to
+  // avoid disrupting an active stroke.
+  useEffect(() => {
+    let priorTool: import('./store/types').ToolId | null = null;
+    const onDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Alt' || e.repeat) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      const s = gs();
+      if (!isPaintFamily(s.activeTool)) return;
+      priorTool = s.activeTool;
+      s.setTool('eyedropper');
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key !== 'Alt') return;
+      if (priorTool && gs().activeTool === 'eyedropper') {
+        gs().setTool(priorTool);
+      }
+      priorTool = null;
+    };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
 
   function startFreeTransform(layerId?: string) {
     const s = useEditorStore.getState();

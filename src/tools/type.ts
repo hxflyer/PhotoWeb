@@ -270,6 +270,7 @@ export const defaultTextStyle: TextStyle = {
     subscript: false,
     underline: false,
     strikethrough: false,
+    antiAlias: 'crisp',
     indentLeft: 0,
     indentRight: 0,
     indentFirst: 0,
@@ -431,6 +432,23 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
     const base = data.style;
     const lineH = base.lineHeight === 0 ? 1.2 : base.lineHeight;
     ctx.save();
+    // Anti-alias rendering hint mapped to Canvas2D capabilities:
+    //   none   — no smoothing (pixelated)
+    //   sharp  — geometric precision, no smoothing
+    //   crisp  — default (smooth)
+    //   strong — optimizeLegibility
+    //   smooth — optimizeQuality
+    const aa = base.antiAlias ?? 'crisp';
+    if (aa === 'none') {
+        ctx.imageSmoothingEnabled = false;
+    } else {
+        ctx.imageSmoothingEnabled = true;
+    }
+    const textCtx = ctx as CanvasRenderingContext2D & { textRendering?: string };
+    if (aa === 'sharp') textCtx.textRendering = 'geometricPrecision';
+    else if (aa === 'strong') textCtx.textRendering = 'optimizeLegibility';
+    else if (aa === 'smooth') textCtx.textRendering = 'optimizeSpeed';
+    else textCtx.textRendering = 'auto';
     ctx.translate(data.transform.x, data.transform.y);
     ctx.rotate(data.transform.rotation);
     ctx.scale(base.scaleX, base.scaleY);

@@ -227,12 +227,21 @@ export function CharacterPanel() {
 
             {/* Language + anti-aliasing strip, matching Photoshop's lower row. */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 90px', gap: 4, alignItems: 'center' }}>
-                <select title="Language" defaultValue="Khmer" disabled style={{ ...inputStyle, opacity: 0.72 }}>
-                    <option value="Khmer">Khmer</option>
+                <select title="Language" defaultValue="English" disabled style={{ ...inputStyle, opacity: 0.72 }}>
+                    <option value="English">English</option>
                 </select>
                 <span style={labelIconStyle} title="Anti-aliasing"><AntiAliasIcon size={18} /></span>
-                <select title="Anti-aliasing method" defaultValue="sharp" disabled style={{ ...inputStyle, opacity: 0.72 }}>
+                <select
+                    title="Anti-aliasing method"
+                    value={s.antiAlias ?? 'crisp'}
+                    onChange={e => update({ antiAlias: e.target.value as TextStyle['antiAlias'] }, 'Edit Anti-Aliasing')}
+                    style={inputStyle}
+                >
+                    <option value="none">None</option>
                     <option value="sharp">Sharp</option>
+                    <option value="crisp">Crisp</option>
+                    <option value="strong">Strong</option>
+                    <option value="smooth">Smooth</option>
                 </select>
             </div>
 

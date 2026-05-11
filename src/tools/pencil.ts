@@ -22,6 +22,10 @@ export function getPencilOptions(): PencilOptions {
 interface State { last: { x: number; y: number } | null; layerId: string | null; before: ImageData | null; bounds: StrokeBounds }
 const state: State = { last: null, layerId: null, before: null, bounds: makeStrokeBounds() };
 
+let lastPencilPoint: { layerId: string; x: number; y: number } | null = null;
+
+export function clearPencilLastPoint(): void { lastPencilPoint = null; }
+
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
 function stamp(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, opacity: number, color: string): void {
@@ -45,7 +49,7 @@ export const pencilTool: Tool = {
         const store = ctx.getStore();
         const layer = store.layers.find(l => l.id === store.activeLayerId);
         if (!layer) return;
-        state.last = p(e);
+        const click = p(e);
         state.layerId = layer.id;
         state.before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
         state.bounds = makeStrokeBounds();
@@ -54,9 +58,26 @@ export const pencilTool: Tool = {
         const opacityFactor = options.pressureOpacity ? Math.max(0.05, e.pressure || 0.5) : 1;
         const size = baseSize * sizeFactor;
         const opacity = baseOpacity * opacityFactor;
-        stamp(layer.ctx, state.last.x, state.last.y, size, opacity, store.primaryColor);
-        expandStrokeBounds(state.bounds, state.last.x, state.last.y, size / 2 + 1);
+        // Shift+click: stamp the segment from the last remembered point to
+        // the click before starting the normal stroke.
+        if (e.shift && lastPencilPoint && lastPencilPoint.layerId === layer.id) {
+            const from = { x: lastPencilPoint.x, y: lastPencilPoint.y };
+            const dist = Math.hypot(click.x - from.x, click.y - from.y);
+            const steps = Math.max(1, Math.ceil(dist / Math.max(1, size * options.spacing)));
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const x = from.x + (click.x - from.x) * t;
+                const y = from.y + (click.y - from.y) * t;
+                stamp(layer.ctx, x, y, size, opacity, store.primaryColor);
+                expandStrokeBounds(state.bounds, x, y, size / 2 + 1);
+            }
+        } else {
+            stamp(layer.ctx, click.x, click.y, size, opacity, store.primaryColor);
+            expandStrokeBounds(state.bounds, click.x, click.y, size / 2 + 1);
+        }
+        state.last = click;
         layer.markDirty(null);
+        lastPencilPoint = { layerId: layer.id, x: click.x, y: click.y };
     },
     onPointerMove: (e, ctx) => {
         if (!state.last || !state.layerId) return;
@@ -80,6 +101,7 @@ export const pencilTool: Tool = {
         }
         layer.markDirty(null);
         state.last = next;
+        lastPencilPoint = { layerId: layer.id, x: next.x, y: next.y };
     },
     onPointerUp: (_e, ctx) => {
         if (state.layerId && state.before) {

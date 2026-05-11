@@ -2,6 +2,15 @@ import type { Tool, ToolPointerEvent } from './Tool';
 import type { EditorStore } from '../store/types';
 import { registerTool } from './registry';
 import { getBrushTip } from './brush';
+import {
+    captureLayerRegion,
+    createPixelHistoryAction,
+    cropImageData,
+    expandStrokeBounds,
+    makeStrokeBounds,
+    strokeBoundsToRect,
+    type StrokeBounds,
+} from '../core/history';
 
 export type ToneRange = 'shadows' | 'midtones' | 'highlights';
 
@@ -27,10 +36,15 @@ export function getDodgeOptions(): ToneToolOptions { return { ...dodge }; }
 export function getBurnOptions(): ToneToolOptions { return { ...burn }; }
 export function getSpongeOptions(): SpongeOptions { return { ...sponge }; }
 
-interface S { last: { x: number; y: number } | null; layerId: string | null }
-const dodgeState: S = { last: null, layerId: null };
-const burnState: S = { last: null, layerId: null };
-const spongeState: S = { last: null, layerId: null };
+interface S {
+    last: { x: number; y: number } | null;
+    layerId: string | null;
+    before: ImageData | null;
+    bounds: StrokeBounds;
+}
+const dodgeState: S = { last: null, layerId: null, before: null, bounds: makeStrokeBounds() };
+const burnState: S = { last: null, layerId: null, before: null, bounds: makeStrokeBounds() };
+const spongeState: S = { last: null, layerId: null, before: null, bounds: makeStrokeBounds() };
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
@@ -115,7 +129,12 @@ function clamp(v: number): number {
     return Math.max(0, Math.min(255, Math.round(v)));
 }
 
-function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions, mode: 'dodge' | 'burn'): Tool {
+function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions, baseMode: 'dodge' | 'burn'): Tool {
+    // Alt held while painting flips the operation (Dodge ⇄ Burn) without
+    // committing the swap — matches Photoshop's "temporary opposite" modifier.
+    const resolveMode = (alt: boolean): 'dodge' | 'burn' => (
+        alt ? (baseMode === 'dodge' ? 'burn' : 'dodge') : baseMode
+    );
     return {
         id,
         label,
@@ -127,8 +146,11 @@ function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions
             if (!layer) return;
             state.last = p(e);
             state.layerId = layer.id;
+            state.before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+            state.bounds = makeStrokeBounds();
             const { size } = store.brushSettings;
-            applyDodgeBurn(layer.ctx, state.last.x, state.last.y, size, opts.exposure, opts.range, mode);
+            applyDodgeBurn(layer.ctx, state.last.x, state.last.y, size, opts.exposure, opts.range, resolveMode(e.alt));
+            expandStrokeBounds(state.bounds, state.last.x, state.last.y, size / 2 + 1);
             layer.markDirty(null);
         },
         onPointerMove: (e, ctx) => {
@@ -138,6 +160,7 @@ function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions
             if (!layer) return;
             const next = p(e);
             const { size, hardness } = store.brushSettings;
+            const mode = resolveMode(e.alt);
             const dist = Math.hypot(next.x - state.last.x, next.y - state.last.y);
             const steps = Math.max(1, Math.ceil(dist / Math.max(1, size * 0.25)));
             for (let i = 1; i <= steps; i++) {
@@ -145,12 +168,28 @@ function makeToneTool(id: string, label: string, state: S, opts: ToneToolOptions
                 const x = state.last.x + (next.x - state.last.x) * t;
                 const y = state.last.y + (next.y - state.last.y) * t;
                 applyDodgeBurn(layer.ctx, x, y, size, opts.exposure, opts.range, mode);
+                expandStrokeBounds(state.bounds, x, y, size / 2 + 1);
             }
             void getBrushTip({ size, hardness, color: '#ffffff' });
             layer.markDirty(null);
             state.last = next;
         },
-        onPointerUp: () => { state.last = null; state.layerId = null; },
+        onPointerUp: (_e, ctx) => {
+            if (state.layerId && state.before) {
+                const store = ctx.getStore();
+                const layer = store.layers.find(l => l.id === state.layerId);
+                if (layer) {
+                    const rect = strokeBoundsToRect(state.bounds, layer.canvas.width, layer.canvas.height)
+                        ?? { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height };
+                    const beforeCropped = cropImageData(state.before, rect.x, rect.y, rect.width, rect.height);
+                    store.commitHistory(createPixelHistoryAction(layer, rect, beforeCropped, label === 'Dodge' ? 'Dodge' : 'Burn'));
+                }
+            }
+            state.last = null;
+            state.layerId = null;
+            state.before = null;
+            state.bounds = makeStrokeBounds();
+        },
     };
 }
 
@@ -162,6 +201,7 @@ function spongeStep(store: EditorStore, x: number, y: number): void {
     if (!layer) return;
     const { size, flow } = store.brushSettings;
     applySponge(layer.ctx, x, y, size, flow, sponge.mode, sponge.vibrance);
+    expandStrokeBounds(spongeState.bounds, x, y, size / 2 + 1);
     layer.markDirty(null);
 }
 
@@ -176,6 +216,8 @@ export const spongeTool: Tool = {
         if (!layer) return;
         spongeState.last = p(e);
         spongeState.layerId = layer.id;
+        spongeState.before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+        spongeState.bounds = makeStrokeBounds();
         spongeStep(store, spongeState.last.x, spongeState.last.y);
     },
     onPointerMove: (e, ctx) => {
@@ -185,7 +227,22 @@ export const spongeTool: Tool = {
         spongeStep(store, next.x, next.y);
         spongeState.last = next;
     },
-    onPointerUp: () => { spongeState.last = null; spongeState.layerId = null; },
+    onPointerUp: (_e, ctx) => {
+        if (spongeState.layerId && spongeState.before) {
+            const store = ctx.getStore();
+            const layer = store.layers.find(l => l.id === spongeState.layerId);
+            if (layer) {
+                const rect = strokeBoundsToRect(spongeState.bounds, layer.canvas.width, layer.canvas.height)
+                    ?? { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height };
+                const beforeCropped = cropImageData(spongeState.before, rect.x, rect.y, rect.width, rect.height);
+                store.commitHistory(createPixelHistoryAction(layer, rect, beforeCropped, 'Sponge'));
+            }
+        }
+        spongeState.last = null;
+        spongeState.layerId = null;
+        spongeState.before = null;
+        spongeState.bounds = makeStrokeBounds();
+    },
 };
 
 registerTool(dodgeTool);

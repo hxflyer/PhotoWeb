@@ -217,6 +217,8 @@ describe('Gradient — selection-aware', () => {
         tool.onPointerDown!(makeToolPointerEvent({ canvasX: 0, canvasY: 0 }), ctx());
         tool.onPointerMove!(makeToolPointerEvent({ canvasX: layer.canvas.width, canvasY: 0 }), ctx());
         tool.onPointerUp!(makeToolPointerEvent({ canvasX: layer.canvas.width, canvasY: 0 }), ctx());
+        // Live Gradient: pointer-up shows a preview; Enter commits.
+        tool.onKeyDown!({ key: 'Enter', shift: false, alt: false, ctrl: false, meta: false, rawEvent: new KeyboardEvent('keydown') }, ctx());
         expect(layerPixelAt(layer, 5, 5).r).toBeGreaterThan(200);
 
         useEditorStore.getState().undo();

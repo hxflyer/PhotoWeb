@@ -84,8 +84,36 @@ export function getGradientPresets(): GradientPreset[] {
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
-interface DragState { start: { x: number; y: number } | null; end: { x: number; y: number } | null; layerId: string | null; shift: boolean }
-const drag: DragState = { start: null, end: null, layerId: null, shift: false };
+interface DragState {
+    start: { x: number; y: number } | null;
+    end: { x: number; y: number } | null;
+    layerId: string | null;
+    shift: boolean;
+    /**
+     * Live Gradient post-release state. When `live` is set the gradient has
+     * already been composited onto the layer once; subsequent drags on either
+     * endpoint reposition the gradient (committing the previous result back
+     * to the snapshot first). Cleared on commit (Enter / tool switch) or
+     * cancel (Esc).
+     */
+    live: boolean;
+    /** Which endpoint is being dragged in live-edit mode. */
+    activeEnd: 'start' | 'end' | null;
+}
+const drag: DragState = { start: null, end: null, layerId: null, shift: false, live: false, activeEnd: null };
+
+const LIVE_HANDLE_RADIUS = 8;
+
+function nearPoint(a: { x: number; y: number }, b: { x: number; y: number }, r: number): boolean {
+    return Math.hypot(a.x - b.x, a.y - b.y) <= r;
+}
+
+function clearLiveState(): void {
+    drag.start = drag.end = null;
+    drag.layerId = null;
+    drag.live = false;
+    drag.activeEnd = null;
+}
 
 function resolveStops(primaryColor: string, secondaryColor: string): GradientStop[] {
     const preset = defaultPresets.find(p => p.id === options.presetId) ?? defaultPresets[0];
@@ -322,62 +350,178 @@ function compositeGradient(
     }
 }
 
+// Last-committed snapshot for live preview: when the user repositions a
+// gradient handle in live mode, we revert the layer to this snapshot before
+// recompositing so successive drags don't stack on each other.
+let liveSnapshot: ImageData | null = null;
+
+function commitLive(ctx: { getStore: () => import('../store/types').EditorStore }): void {
+    // Settle the current live preview as a single history entry.
+    if (!drag.live || !drag.start || !drag.end || !drag.layerId || !liveSnapshot) {
+        clearLiveState();
+        liveSnapshot = null;
+        return;
+    }
+    const store = ctx.getStore();
+    const layer = store.layers.find(l => l.id === drag.layerId);
+    if (!layer) {
+        clearLiveState();
+        liveSnapshot = null;
+        return;
+    }
+    const w = layer.canvas.width;
+    const h = layer.canvas.height;
+    // The layer already shows the live preview. Use the pre-stroke snapshot
+    // as the "before" so undo restores it to the pre-stroke state.
+    store.commitHistory(createPixelHistoryAction(layer, { x: 0, y: 0, width: w, height: h }, liveSnapshot, 'Gradient'));
+    clearLiveState();
+    liveSnapshot = null;
+}
+
+function repaintLive(ctx: { getStore: () => import('../store/types').EditorStore }): void {
+    if (!drag.start || !drag.end || !drag.layerId || !liveSnapshot) return;
+    const store = ctx.getStore();
+    const layer = store.layers.find(l => l.id === drag.layerId);
+    if (!layer) return;
+    const w = layer.canvas.width;
+    const h = layer.canvas.height;
+    const endPt = drag.shift ? constrainAngle(drag.start, drag.end) : drag.end;
+    // Revert to the pre-stroke snapshot, then composite the new gradient.
+    layer.ctx.putImageData(liveSnapshot, 0, 0);
+    const stops = resolveStops(store.primaryColor, store.secondaryColor);
+    const grad = renderGradientCanvas(w, h, options.type, drag.start, endPt, stops, options.dither, options.method);
+    const selectionMask = buildSelectionMask(store.selection, w, h);
+    compositeGradient(layer.ctx, w, h, grad, selectionMask);
+    layer.markDirty(null);
+}
+
 export const gradientTool: Tool = {
     id: 'gradient',
     label: 'Gradient',
     cursor: 'crosshair',
+    onDeactivate: (ctx) => {
+        commitLive(ctx);
+    },
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
         const store = ctx.getStore();
         const layer = store.layers.find(l => l.id === store.activeLayerId);
         if (!layer) return;
-        drag.start = p(e);
-        drag.end = drag.start;
+        const point = p(e);
+        // Live-edit mode: if we have a pending gradient on this layer and the
+        // user clicked near an endpoint, reposition that endpoint without
+        // starting a new gradient.
+        if (drag.live && drag.start && drag.end && drag.layerId === layer.id) {
+            if (nearPoint(point, drag.start, LIVE_HANDLE_RADIUS)) {
+                drag.activeEnd = 'start';
+                drag.shift = e.shift;
+                return;
+            }
+            if (nearPoint(point, drag.end, LIVE_HANDLE_RADIUS)) {
+                drag.activeEnd = 'end';
+                drag.shift = e.shift;
+                return;
+            }
+            // Click somewhere else: commit the live preview, then start a
+            // fresh gradient at the click point.
+            commitLive(ctx);
+        }
+        // Fresh gradient: snapshot the layer pixels so repaintLive can
+        // revert before each composite, and reset drag state.
+        drag.start = point;
+        drag.end = point;
         drag.layerId = layer.id;
         drag.shift = e.shift;
+        drag.live = false;
+        drag.activeEnd = null;
+        liveSnapshot = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
     },
-    onPointerMove: (e) => {
+    onPointerMove: (e, ctx) => {
         if (!drag.start) return;
-        drag.end = p(e);
+        const point = p(e);
         drag.shift = e.shift;
+        if (drag.live && drag.activeEnd) {
+            if (drag.activeEnd === 'start') drag.start = point;
+            else drag.end = point;
+            repaintLive(ctx);
+            return;
+        }
+        drag.end = point;
+        if (drag.live) repaintLive(ctx);
     },
     onPointerUp: (_e, ctx) => {
         if (!drag.start || !drag.end || !drag.layerId) {
-            drag.start = drag.end = null;
+            clearLiveState();
+            liveSnapshot = null;
             return;
         }
-        const store = ctx.getStore();
-        const layer = store.layers.find(l => l.id === drag.layerId);
-        if (!layer) { drag.start = drag.end = null; return; }
-        const w = layer.canvas.width;
-        const h = layer.canvas.height;
-        let endPt = drag.end;
-        if (drag.shift) endPt = constrainAngle(drag.start, drag.end);
-
-        const stops = resolveStops(store.primaryColor, store.secondaryColor);
-        const grad = renderGradientCanvas(w, h, options.type, drag.start, endPt, stops, options.dither, options.method);
-        const selectionMask = buildSelectionMask(store.selection, w, h);
-        const before = captureLayerRegion(layer, { x: 0, y: 0, width: w, height: h });
-        compositeGradient(layer.ctx, w, h, grad, selectionMask);
-        layer.markDirty(null);
-        store.commitHistory(createPixelHistoryAction(layer, { x: 0, y: 0, width: w, height: h }, before, 'Gradient'));
-        drag.start = drag.end = null;
+        // First pointer-up of a fresh gradient: composite once, then enter
+        // live-edit mode (NOT committing history yet — that happens on
+        // Enter, tool switch, or click-off).
+        if (!drag.live) {
+            const store = ctx.getStore();
+            const layer = store.layers.find(l => l.id === drag.layerId);
+            if (!layer) { clearLiveState(); liveSnapshot = null; return; }
+            void store;
+            // First composite already runs through repaintLive's path.
+            repaintLive(ctx);
+            drag.live = true;
+            drag.activeEnd = null;
+            return;
+        }
+        // Subsequent endpoint drags: just clear the active handle.
+        drag.activeEnd = null;
+    },
+    onKeyDown: (e, ctx) => {
+        if (e.key === 'Enter') {
+            e.rawEvent.preventDefault();
+            commitLive(ctx);
+        } else if (e.key === 'Escape') {
+            e.rawEvent.preventDefault();
+            // Revert any live-preview pixels to the snapshot, then clear.
+            if (drag.live && drag.layerId && liveSnapshot) {
+                const layer = ctx.getStore().layers.find(l => l.id === drag.layerId);
+                if (layer) {
+                    layer.ctx.putImageData(liveSnapshot, 0, 0);
+                    layer.markDirty(null);
+                }
+            }
+            clearLiveState();
+            liveSnapshot = null;
+        }
     },
     renderOverlay: (overlay: OverlayRenderContext) => {
         if (!drag.start || !drag.end) return;
         const { ctx, zoom } = overlay;
         const endPt = drag.shift ? constrainAngle(drag.start, drag.end) : drag.end;
+        const lw = 1 / Math.max(0.0001, zoom);
+        const dash = 4 / Math.max(0.0001, zoom);
         ctx.save();
-        ctx.lineWidth = 1 / Math.max(0.0001, zoom);
-        ctx.setLineDash([4 / Math.max(0.0001, zoom), 4 / Math.max(0.0001, zoom)]);
+        ctx.lineWidth = lw;
+        ctx.setLineDash([dash, dash]);
         ctx.strokeStyle = '#000';
         ctx.beginPath();
         ctx.moveTo(drag.start.x, drag.start.y);
         ctx.lineTo(endPt.x, endPt.y);
         ctx.stroke();
         ctx.strokeStyle = '#fff';
-        ctx.lineDashOffset = 4 / Math.max(0.0001, zoom);
+        ctx.lineDashOffset = dash;
         ctx.stroke();
+        ctx.setLineDash([]);
+        // Endpoint handles: white-filled disc with a black outline. Shown
+        // only after pointer-up so the user knows the gradient is editable.
+        if (drag.live) {
+            const r = 5 / Math.max(0.0001, zoom);
+            for (const point of [drag.start, endPt]) {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, r, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.lineWidth = 1 / Math.max(0.0001, zoom);
+                ctx.strokeStyle = '#000';
+                ctx.stroke();
+            }
+        }
         ctx.restore();
     },
 };

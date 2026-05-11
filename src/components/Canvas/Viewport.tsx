@@ -432,6 +432,13 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
     const buildToolPointerEvent = (e: React.MouseEvent): ToolPointerEvent => {
         const coords = getCanvasCoords(e);
         const native = e.nativeEvent as PointerEvent;
+        const pointerType = (native && 'pointerType' in native ? native.pointerType : 'mouse') as 'mouse' | 'pen' | 'touch';
+        // Mouse and touch report a stub pressure (0.5 in many browsers). Only
+        // pen input reports real per-event pressure; for mouse/touch we treat
+        // every event as full pressure so pressureSize doesn't silently halve
+        // brush strokes — matches Photoshop, where mouse = 100% pressure.
+        const rawPressure = native && 'pressure' in native ? native.pressure : 1;
+        const pressure = pointerType === 'pen' ? rawPressure : 1;
         return {
             canvasX: coords.x,
             canvasY: coords.y,
@@ -443,8 +450,8 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             alt: e.altKey,
             meta: e.metaKey,
             ctrl: e.ctrlKey,
-            pressure: native && 'pressure' in native ? native.pressure : 0.5,
-            pointerType: (native && 'pointerType' in native ? native.pointerType : 'mouse') as 'mouse' | 'pen' | 'touch',
+            pressure,
+            pointerType,
             rawEvent: native,
         };
     };

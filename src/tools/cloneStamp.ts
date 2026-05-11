@@ -267,22 +267,59 @@ function renderCloneStampOverlay(overlay: OverlayRenderContext, ctx: ToolContext
     const zoom = Math.max(overlay.zoom, 0.01);
 
     overlay.ctx.save();
-    overlay.ctx.globalAlpha = options.overlayOpacity;
 
+    // Alt-pre-sample state: still picking the source. Show the sample-here
+    // marker so the user knows where the click will set the anchor.
     if (state.isSampling && state.hover) {
+        overlay.ctx.globalAlpha = options.overlayOpacity;
         drawStampMarker(overlay.ctx, state.hover, radius, zoom, true);
         overlay.ctx.restore();
         return;
     }
 
-    if (!state.source || !state.anchor || !state.last) {
+    if (!state.source) {
         overlay.ctx.restore();
         return;
     }
+    // Cursor anchor: prefer the in-stroke `last` position; otherwise track
+    // the hover position so the ghost follows the mouse even before any
+    // pointer-down (Photoshop behavior with Show Overlay on).
+    const cursor = state.last ?? state.hover;
+    if (!cursor) {
+        overlay.ctx.restore();
+        return;
+    }
+    // Use the recorded anchor if the user already started a stroke; otherwise
+    // treat the current cursor as a virtual anchor so the ghost previews
+    // what the next click would clone.
+    const anchor = state.anchor ?? cursor;
     const sourcePoint = {
-        x: state.last.x + state.source.x - state.anchor.x,
-        y: state.last.y + state.source.y - state.anchor.y,
+        x: cursor.x + state.source.x - anchor.x,
+        y: cursor.y + state.source.y - anchor.y,
     };
+
+    // Render a translucent ghost of the sampled source patch directly under
+    // the brush cursor — matches Photoshop's "Show Overlay" behavior.
+    const sourceCanvas = sampleSourceCanvas(store.layers, state.layerId ?? store.activeLayerId ?? '', store.width, store.height);
+    if (sourceCanvas) {
+        overlay.ctx.save();
+        // Clip to the brush footprint.
+        overlay.ctx.beginPath();
+        overlay.ctx.arc(cursor.x, cursor.y, radius, 0, Math.PI * 2);
+        overlay.ctx.clip();
+        overlay.ctx.globalAlpha = options.overlayOpacity;
+        // Translate so the source point lines up under the cursor, then draw
+        // the full merged canvas. The clip + translation gives us a clean
+        // round preview that tracks the mouse.
+        const dx = cursor.x - sourcePoint.x;
+        const dy = cursor.y - sourcePoint.y;
+        overlay.ctx.drawImage(sourceCanvas, dx, dy);
+        overlay.ctx.restore();
+    }
+
+    // Light source-circle outline so the user can still see where the
+    // sample originates.
+    overlay.ctx.globalAlpha = options.overlayOpacity;
     drawStampMarker(overlay.ctx, sourcePoint, radius, zoom, false);
     overlay.ctx.restore();
 }

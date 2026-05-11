@@ -1,11 +1,18 @@
 /**
  * RefineEdgeDialog — Select and Mask workspace controls.
  * Simplified: applies dilate/erode to the selection mask on commit.
+ *
+ * Live preview: snapshots the selection on open, then re-runs the refine
+ * math against the snapshot as sliders change (bypassing history). Cancel
+ * restores the snapshot; OK commits the final result through `refineEdge()`
+ * which records a single history entry.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { rasterizeSelectionOperations } from '../../utils/selectionUtils';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { computeRefinedSelectionOperation } from '../../utils/refineEdgePreview';
+import type { SelectionOperation } from '../../store/types';
 
 interface Props {
     isOpen: boolean;
@@ -27,7 +34,67 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
     const [output, setOutput] = useState<OutputTarget>('selection');
     const dialogRef = useDialogA11y(isOpen, onClose);
 
+    // Live preview: snapshot the original selection on open and reset on close.
+    const originalOpsRef = useRef<SelectionOperation[] | null>(null);
+    useEffect(() => {
+        if (!isOpen) {
+            originalOpsRef.current = null;
+            return;
+        }
+        const state = useEditorStore.getState();
+        originalOpsRef.current = state.selection.operations.map(op => ({ ...op }));
+    }, [isOpen]);
+
+    // Recompute the preview mask whenever any slider changes.
+    useEffect(() => {
+        if (!isOpen || !originalOpsRef.current) return;
+        const state = useEditorStore.getState();
+        const { width, height } = state;
+        const layer = state.layers.find(l => l.id === state.activeLayerId);
+        const layerData = layer ? layer.ctx.getImageData(0, 0, width, height) : null;
+        const refined = computeRefinedSelectionOperation(
+            originalOpsRef.current,
+            { radius, smooth, feather, contrast, shiftEdge, smartRadius },
+            width,
+            height,
+            layerData,
+        );
+        // Bypass history during live preview.
+        useEditorStore.setState(s => ({
+            selection: {
+                ...s.selection,
+                operations: refined ? [refined] : originalOpsRef.current ?? [],
+                hasSelection: refined ? true : (originalOpsRef.current?.length ?? 0) > 0,
+            },
+        }));
+    }, [isOpen, radius, smooth, feather, contrast, shiftEdge, smartRadius]);
+
+    function handleCancel() {
+        // Restore the pre-dialog selection.
+        if (originalOpsRef.current) {
+            useEditorStore.setState(s => ({
+                selection: {
+                    ...s.selection,
+                    operations: originalOpsRef.current!,
+                    hasSelection: originalOpsRef.current!.length > 0,
+                },
+            }));
+        }
+        onClose();
+    }
+
     function handleApply() {
+        // Restore the original selection so refineEdge records a single
+        // history entry (otherwise the preview state would be the "before").
+        if (originalOpsRef.current) {
+            useEditorStore.setState(s => ({
+                selection: {
+                    ...s.selection,
+                    operations: originalOpsRef.current!,
+                    hasSelection: originalOpsRef.current!.length > 0,
+                },
+            }));
+        }
         // Always refine the selection first so the output reflects the refined edges.
         refineEdge({ radius, smooth, feather, contrast, shiftEdge, smartRadius });
 
@@ -182,7 +249,7 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                    <button onClick={onClose} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid #555', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+                    <button onClick={handleCancel} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid #555', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
                     <button
                         onClick={handleApply}
                         style={{ padding: '4px 12px', background: '#0090ff', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '12px' }}
