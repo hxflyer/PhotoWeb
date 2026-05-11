@@ -765,6 +765,14 @@ Status key:
   - Dependencies: `STAB-01`
   - Implementation notes: `documentSlice` exposes `MAX_DOC_PIXELS` (60 M) and `SOFT_DOC_PIXELS` (~36 M = 60% of max). `guardDocumentSize` is invoked by `newDocument`, `openImageAsDocument`, `resizeImage`, and `resizeCanvas`. `newDocument` / `openImageAsDocument` now return `boolean` so callers can skip viewportFit when refused. Resize ops snapshot every layer canvas before the executeDocumentCommand and roll back on alloc throw, with a `'save'`-channel error toast.
 
+## Batch A - Quick Wins (dialog/panel polish)
+
+- [x] `BATCH-A-01` Remove dead `Dialogs/TestDialog.tsx`
+  - Priority: `P3`
+  - Function description: Delete the unused TestDialog placeholder; no importers reference it.
+  - Acceptance criteria: file removed; TS still clean; test asserts file no longer exists.
+  - Required tests: `src/test/batchAQuickWins.test.tsx` — TestDialog removal.
+
 ## Deferred By Scope
 
 - [>] `AI-*` Generative AI, Neural Filters, Firefly, subject detection, object removal, automatic background removal
