@@ -1,5 +1,6 @@
 import { registerFilter } from './registry';
 import type { FilterApplyContext } from './Filter';
+import { SliderRow } from '../components/Dialogs/SliderRow';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -128,12 +129,15 @@ registerFilter<GaussianBlurParams>({
     renderUI(params, onChange) {
         const p = params as GaussianBlurParams;
         return (
-            <>
-                <label style={{ fontSize: '12px' }}>Radius: {p.radius}px</label>
-                <input type="range" min={0} max={100} value={p.radius}
-                    onChange={e => onChange({ ...p, radius: Number(e.target.value) })}
-                    style={{ width: '100%' }} />
-            </>
+            <SliderRow
+                label="Radius"
+                value={p.radius}
+                min={0}
+                max={250}
+                step={0.1}
+                suffix="px"
+                onChange={v => onChange({ ...p, radius: v })}
+            />
         );
     },
 });
@@ -156,12 +160,15 @@ registerFilter<BoxBlurParams>({
     renderUI(params, onChange) {
         const p = params as BoxBlurParams;
         return (
-            <>
-                <label style={{ fontSize: '12px' }}>Radius: {p.radius}px</label>
-                <input type="range" min={0} max={50} value={p.radius}
-                    onChange={e => onChange({ ...p, radius: Number(e.target.value) })}
-                    style={{ width: '100%' }} />
-            </>
+            <SliderRow
+                label="Radius"
+                value={p.radius}
+                min={0}
+                max={200}
+                step={1}
+                suffix="px"
+                onChange={v => onChange({ ...p, radius: v })}
+            />
         );
     },
 });
@@ -205,20 +212,10 @@ registerFilter<MotionBlurParams>({
     renderUI(params, onChange) {
         const p = params as MotionBlurParams;
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                    <label style={{ fontSize: '12px' }}>Distance: {p.distance}px</label>
-                    <input type="range" min={1} max={200} value={p.distance}
-                        onChange={e => onChange({ ...p, distance: Number(e.target.value) })}
-                        style={{ width: '100%' }} />
-                </div>
-                <div>
-                    <label style={{ fontSize: '12px' }}>Angle: {p.angle}°</label>
-                    <input type="range" min={-180} max={180} value={p.angle}
-                        onChange={e => onChange({ ...p, angle: Number(e.target.value) })}
-                        style={{ width: '100%' }} />
-                </div>
-            </div>
+            <>
+                <SliderRow label="Distance" value={p.distance} min={1} max={400} step={1} suffix="px" onChange={v => onChange({ ...p, distance: v })} />
+                <SliderRow label="Angle" value={p.angle} min={-180} max={180} step={1} suffix="°" onChange={v => onChange({ ...p, angle: v })} />
+            </>
         );
     },
 });
@@ -279,20 +276,10 @@ registerFilter<SurfaceBlurParams>({
     renderUI(params, onChange) {
         const p = params as SurfaceBlurParams;
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                    <label style={{ fontSize: '12px' }}>Radius: {p.radius}px</label>
-                    <input type="range" min={1} max={50} value={p.radius}
-                        onChange={e => onChange({ ...p, radius: Number(e.target.value) })}
-                        style={{ width: '100%' }} />
-                </div>
-                <div>
-                    <label style={{ fontSize: '12px' }}>Threshold: {p.threshold}</label>
-                    <input type="range" min={1} max={255} value={p.threshold}
-                        onChange={e => onChange({ ...p, threshold: Number(e.target.value) })}
-                        style={{ width: '100%' }} />
-                </div>
-            </div>
+            <>
+                <SliderRow label="Radius" value={p.radius} min={1} max={100} step={1} suffix="px" onChange={v => onChange({ ...p, radius: v })} />
+                <SliderRow label="Threshold" value={p.threshold} min={1} max={255} step={1} suffix="levels" onChange={v => onChange({ ...p, threshold: v })} />
+            </>
         );
     },
 });

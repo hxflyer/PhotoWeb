@@ -904,6 +904,13 @@ Status key:
   - Required tests: `src/test/curvesTogglesBatchE.test.tsx`.
   - Implementation notes: `CurveDisplayOptions` is the new prop bag for `CurveEditor`. Display state lives on AdjustmentDialog via `useState`; hover state propagates via `onHoverChange`.
 
+- [x] `BATCH-E-08` FilterDialog visual parity
+  - Priority: `P1`
+  - Function description: `FilterDialog.tsx` now uses the same gradient header, right-side OK / Cancel / Reset column, Preview checkbox + Opt+P shortcut, and dark preview tile as `AdjustmentDialog.tsx`. `SliderRow.tsx` is the shared label + range + numeric-input row that every filter's `renderUI` is migrated onto (`blurFilters.tsx` is the first consumer; Gaussian, Box, Motion, and Surface Blur all render through it).
+  - Acceptance criteria: OK / Cancel / Reset / Preview checkbox render; Alt+P toggles preview; Reset restores defaults; Gaussian Blur's renderUI exposes a `slider-row-radius` testId.
+  - Required tests: `src/test/filterDialogVisualBatchE.test.tsx`.
+  - Implementation notes: SliderRow lives at `src/components/Dialogs/SliderRow.tsx` and is exported with a fixed three-column grid (label / range / number+suffix). Filters not yet migrated still render through their old inline range inputs but will inherit the gradient header automatically.
+
 - [x] `BATCH-E-07` Auto Options sub-dialog
   - Priority: `P1`
   - Function description: `src/components/Dialogs/AutoOptionsDialog.tsx` opens from the Auto button area of Levels / Curves / Brightness-Contrast. Renders the four enhancement modes (Find Dark & Light Colors / Enhance Per Channel Contrast / Enhance Monochromatic Contrast / Enhance Brightness and Contrast) as radios, a Snap Neutral Midtones checkbox, three target color swatches (Shadows / Midtones / Highlights), and shadow / highlight clip percent fields. `src/utils/autoOptions.ts` holds `AutoEnhancementMode`, `AutoOptions`, `loadAutoOptions`, `saveAutoOptions`, and `autoOptionsToAdjustmentId` — the latter dispatches Auto to the existing `auto-tone / auto-contrast / auto-color` registry entries.
