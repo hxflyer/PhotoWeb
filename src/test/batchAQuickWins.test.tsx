@@ -7,6 +7,7 @@ import { render, fireEvent, cleanup } from '@testing-library/react';
 import { ColorPickerDialog } from '../components/Dialogs/ColorPickerDialog';
 import { ScaleEffectsDialog } from '../components/Dialogs/ScaleEffectsDialog';
 import { InputNumberDialog } from '../components/Dialogs/InputNumberDialog';
+import { DefringeDialog } from '../components/Dialogs/DefringeDialog';
 import { runScript } from './simulator';
 
 describe('Batch A — TestDialog removal', () => {
@@ -147,6 +148,25 @@ describe('Batch A — InputNumberDialog OK label + suffix/step/decimals', () => 
             />
         );
         expect(getByText('px')).toBeTruthy();
+    });
+
+    it('Defringe accepts up to 64 px and Enter confirms', () => {
+        let committed = 0;
+        const { getByTestId } = render(
+            <DefringeDialog
+                isOpen
+                onClose={() => { /* noop */ }}
+                onConfirm={(v) => { committed = v; }}
+            />
+        );
+        const slider = getByTestId('defringe-width-slider') as HTMLInputElement;
+        expect(slider.max).toBe('64');
+        const numInput = getByTestId('defringe-width-input') as HTMLInputElement;
+        fireEvent.change(numInput, { target: { value: '48' } });
+        // Press Enter on the dialog card.
+        const card = getByTestId('defringe-dialog');
+        fireEvent.keyDown(card, { key: 'Enter' });
+        expect(committed).toBe(48);
     });
 
     it('rounds to the given decimals on confirm', async () => {

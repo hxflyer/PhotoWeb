@@ -35,6 +35,12 @@ export function DefringeDialog({ isOpen, onClose, onConfirm }: Props) {
                 aria-labelledby="defringe-title"
                 tabIndex={-1}
                 data-testid="defringe-dialog"
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleConfirm();
+                    }
+                }}
                 style={{
                     background: '#2a2a2a',
                     border: '1px solid #444',
@@ -52,7 +58,7 @@ export function DefringeDialog({ isOpen, onClose, onConfirm }: Props) {
                     <input
                         type="range"
                         min={1}
-                        max={10}
+                        max={64}
                         value={width}
                         onChange={e => setWidth(Number(e.target.value))}
                         style={{ flex: 1 }}
@@ -61,9 +67,10 @@ export function DefringeDialog({ isOpen, onClose, onConfirm }: Props) {
                     <input
                         type="number"
                         min={1}
-                        max={10}
+                        max={64}
                         value={width}
-                        onChange={e => setWidth(Math.max(1, Math.min(10, Number(e.target.value))))}
+                        onChange={e => setWidth(Math.max(1, Math.min(64, Number(e.target.value))))}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); } }}
                         data-testid="defringe-width-input"
                         style={{ width: 48, background: '#333', border: '1px solid #555', borderRadius: 3, color: 'white', padding: '2px 6px', fontSize: 11 }}
                     />
