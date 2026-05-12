@@ -12,6 +12,7 @@ import { CanvasSizeDialog } from '../components/Dialogs/CanvasSizeDialog';
 import { ImageSizeDialog } from '../components/Dialogs/ImageSizeDialog';
 import { ExportDialog } from '../components/Dialogs/ExportDialog';
 import { NavigatorPanel } from '../components/Panels/NavigatorPanel';
+import { ParagraphPanel } from '../components/Panels/ParagraphPanel';
 import { useEditorStore } from '../store/editorStore';
 import { buildColorRangeMask } from '../tools/colorRange';
 import { runScript } from './simulator';
@@ -344,6 +345,19 @@ describe('Batch A — NavigatorPanel proxy pan tracking', () => {
         // viewW/2 - docPxX*zoom = 400 - 200 = 200 ; viewH/2 - docPxY*zoom = 300 - 150 = 150.
         expect(Math.round(pan.x)).toBeGreaterThan(150);
         expect(Math.round(pan.y)).toBeGreaterThan(100);
+    });
+});
+
+describe('Batch A — ParagraphPanel distinct justify icons', () => {
+    it('renders four distinct justify buttons with unique icons', () => {
+        const { getByTestId } = render(<ParagraphPanel />);
+        const buttons = ['last-left', 'last-center', 'last-right', 'all'].map(
+            id => getByTestId(`paragraph-${id}`)
+        );
+        // Each button must contain an <img> with a unique src.
+        const srcs = buttons.map(b => (b.querySelector('img') as HTMLImageElement | null)?.getAttribute('src') ?? '');
+        for (const s of srcs) expect(s.length).toBeGreaterThan(0);
+        expect(new Set(srcs).size).toBe(4);
     });
 });
 

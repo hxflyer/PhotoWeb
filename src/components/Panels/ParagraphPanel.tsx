@@ -7,6 +7,10 @@ import { subscribeTypeTool, getTypeVersion, getEditingStyle, updateEditingStyle,
 import { applyCharacterPanelEdit, commitCoalescedTypeEdit } from '../../tools/typeCommands';
 import { useEditorStore } from '../../store/editorStore';
 import type { TextStyle } from '../Canvas/TextEditOverlay';
+import justifyLastLeftIcon from '../../assets/icons/paragraph-justify-last-left.svg';
+import justifyLastCenterIcon from '../../assets/icons/paragraph-justify-last-center.svg';
+import justifyLastRightIcon from '../../assets/icons/paragraph-justify-last-right.svg';
+import justifyAllIcon from '../../assets/icons/paragraph-justify-all.svg';
 
 const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -35,11 +39,11 @@ const ALIGN_BTNS: { id: TextStyle['textAlign']; glyph: string; title: string }[]
     { id: 'right',   glyph: '≡⫶', title: 'Right align' },
 ];
 
-const JUSTIFY_BTNS: { id: 'last-left' | 'last-center' | 'last-right' | 'all'; glyph: string; title: string }[] = [
-    { id: 'last-left',   glyph: '☰', title: 'Justify last left' },
-    { id: 'last-center', glyph: '☰', title: 'Justify last center' },
-    { id: 'last-right',  glyph: '☰', title: 'Justify last right' },
-    { id: 'all',         glyph: '☰', title: 'Justify all' },
+const JUSTIFY_BTNS: { id: 'last-left' | 'last-center' | 'last-right' | 'all'; icon: string; title: string }[] = [
+    { id: 'last-left',   icon: justifyLastLeftIcon,   title: 'Justify last left' },
+    { id: 'last-center', icon: justifyLastCenterIcon, title: 'Justify last center' },
+    { id: 'last-right',  icon: justifyLastRightIcon,  title: 'Justify last right' },
+    { id: 'all',         icon: justifyAllIcon,        title: 'Justify all' },
 ];
 
 function NumField({ value, onChange, onCommit, width = 60 }: { value: number; onChange: (v: number) => void; onCommit?: () => void; width?: number }) {
@@ -92,9 +96,13 @@ export function ParagraphPanel() {
                     <button
                         key={b.id}
                         title={b.title}
+                        aria-label={b.title}
+                        data-testid={`paragraph-${b.id}`}
                         style={toggleStyle(s.textAlign === 'justify')}
                         onClick={() => { update({ textAlign: 'justify' }, 'Edit Text Alignment'); commitEdit(); }}
-                    >{b.glyph}</button>
+                    >
+                        <img src={b.icon} alt="" width={14} height={14} style={{ filter: s.textAlign === 'justify' ? 'invert(1) brightness(2)' : 'none' }} />
+                    </button>
                 ))}
             </div>
 

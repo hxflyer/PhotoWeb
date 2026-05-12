@@ -19,6 +19,8 @@ import {
     colorRangeMaskFromPreset,
     type ColorRangePresetId,
 } from '../tools/colorRangePresets';
+import { computeRefinedSelectionOperation } from '../utils/refineEdgePreview';
+import { rasterizeSelectionOperations } from '../utils/selectionUtils';
 
 ensureStubsRegistered();
 
@@ -294,6 +296,52 @@ describe('Batch B Item 4 — Localized Color Clusters', () => {
         expect(localised.data[2]).toBe(255);
         expect(localised.data[3]).toBe(0);
         expect(localised.data[4]).toBe(0);
+    });
+
+    it('feather slider visibly softens the refined alpha in the preview pipeline', () => {
+        const ops = [{ mode: 'add' as const, type: 'rect' as const, path: [{ x: 10, y: 10 }, { x: 30, y: 30 }] }];
+        const noFeather = computeRefinedSelectionOperation(ops, { radius: 0, smooth: 0, feather: 0, contrast: 0, shiftEdge: 0, smartRadius: false }, 40, 40, null);
+        const withFeather = computeRefinedSelectionOperation(ops, { radius: 0, smooth: 0, feather: 6, contrast: 0, shiftEdge: 0, smartRadius: false }, 40, 40, null);
+        expect(noFeather).not.toBeNull();
+        expect(withFeather).not.toBeNull();
+        const baseline = noFeather!.mask!.data;
+        const softened = withFeather!.mask!.data;
+        // Pixel just outside the rect (9,20) should be 0 without feather but
+        // > 0 with feather.
+        const idx = 9 * 40 + 20;
+        expect(baseline[idx]).toBe(0);
+        expect(softened[idx]).toBeGreaterThan(0);
+    });
+
+    it('Remember Settings persists the last-used Refine Edge sliders across opens', () => {
+        installDocWithSelectedLayer();
+        const { container, rerender } = render(<RefineEdgeDialog isOpen onClose={() => {}} />);
+        const sliders = container.querySelectorAll('input[type="range"]');
+        fireEvent.change(sliders[0], { target: { value: '18' } });
+        const remember = document.querySelector('[data-testid="refine-edge-remember"]') as HTMLInputElement;
+        fireEvent.click(remember);
+        const ok = document.querySelector('[data-testid="refine-edge-ok"]') as HTMLButtonElement;
+        fireEvent.click(ok);
+        const prefs = useEditorStore.getState().selectionDialogPrefs.refineEdge;
+        expect(prefs.remember).toBe(true);
+        expect(prefs.radius).toBe(18);
+        rerender(<RefineEdgeDialog isOpen={false} onClose={() => {}} />);
+        installDocWithSelectedLayer();
+        rerender(<RefineEdgeDialog isOpen onClose={() => {}} />);
+        const reopened = container.querySelectorAll('input[type="range"]');
+        expect((reopened[0] as HTMLInputElement).value).toBe('18');
+    });
+
+    it('the live-preview feather slider visibly softens the dialog selection mask', () => {
+        installDocWithSelectedLayer();
+        const { container } = render(<RefineEdgeDialog isOpen onClose={() => {}} />);
+        const sliders = container.querySelectorAll('input[type="range"]');
+        fireEvent.change(sliders[2], { target: { value: '6' } });
+        const state = useEditorStore.getState();
+        const mask = rasterizeSelectionOperations(state.selection.operations, state.width, state.height);
+        const edgeIdx = 9 * state.width + 20;
+        expect(mask[edgeIdx]).toBeGreaterThan(0);
+        expect(mask[edgeIdx]).toBeLessThan(255);
     });
 
     it('Dialog reveals the Range slider when Localized Color Clusters is enabled', () => {

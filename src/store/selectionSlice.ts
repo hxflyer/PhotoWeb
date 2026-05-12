@@ -503,6 +503,7 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
                 }
             }
             if (opts.smooth > 0) mask = smoothMask(mask, width, height, opts.smooth);
+            if (opts.feather > 0) mask = blurMask(mask, width, height, Math.round(opts.feather));
             if (opts.contrast > 0) mask = applyContrast(mask, opts.contrast);
             const refined: SelectionOperation = {
                 mode: 'add',

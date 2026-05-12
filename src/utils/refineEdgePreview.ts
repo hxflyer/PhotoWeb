@@ -42,6 +42,13 @@ export function computeRefinedSelectionOperation(
         }
     }
     if (opts.smooth > 0) mask = smoothMaskMedian(mask, width, height, opts.smooth);
+    if (opts.feather > 0) {
+        // Feather is the visible softening at the selection edge. Apply a
+        // gaussian-style blur to the alpha so the live preview reflects what
+        // the eventual mask will look like, not just the global slice
+        // `feather` value (which only applies on `addLayerMaskFromSelection`).
+        mask = blurMask(mask, width, height, Math.round(opts.feather));
+    }
     if (opts.contrast > 0) mask = applyMaskContrast(mask, opts.contrast);
     return {
         mode: 'add',
