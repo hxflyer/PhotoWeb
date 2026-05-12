@@ -11,6 +11,12 @@ export interface GradientStop {
     position: number;
     color: string;
     opacity: number;
+    /**
+     * Midpoint between this stop and the next, expressed as a fraction (0..1)
+     * of the gap. Default 0.5 means a linear ramp. See
+     * `GradientColorStop.midpointToNext` in `src/store/types.ts`.
+     */
+    midpointToNext?: number;
 }
 
 export interface GradientPreset {
@@ -173,7 +179,13 @@ function sampleStops(stops: GradientStop[], t: number, method: GradientMethod): 
         }
     }
     const span = hi.position - lo.position || 1;
-    const k = (t - lo.position) / span;
+    const kRaw = (t - lo.position) / span;
+    // Honor Photoshop's midpoint diamond — remap kRaw so the 50% transition
+    // happens at lo.midpointToNext (default 0.5 = linear).
+    const m = Math.max(0.05, Math.min(0.95, lo.midpointToNext ?? 0.5));
+    const k = Math.abs(m - 0.5) < 1e-4
+        ? kRaw
+        : (kRaw <= m ? (kRaw / m) * 0.5 : 0.5 + ((kRaw - m) / (1 - m)) * 0.5);
     const parse = (c: string) => {
         const r = parseInt(c.slice(1, 3), 16);
         const g = parseInt(c.slice(3, 5), 16);

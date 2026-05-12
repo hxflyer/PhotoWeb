@@ -396,11 +396,20 @@ export interface PatternPreset {
 export interface GradientColorStop {
     position: number;
     color: string;
+    /**
+     * Midpoint between this stop and the next, expressed as a fraction (0..1)
+     * of the gap. Default 0.5 means a linear ramp; values < 0.5 push the
+     * transition toward this stop, values > 0.5 push it toward the next stop.
+     * The last stop's value is ignored.
+     */
+    midpointToNext?: number;
 }
 
 export interface GradientOpacityStop {
     position: number;
     opacity: number;
+    /** See `GradientColorStop.midpointToNext`. */
+    midpointToNext?: number;
 }
 
 export interface GradientPresetEntry {

@@ -961,6 +961,7 @@ function GradientOptions() {
             opacity: result.opacityStops.length > 0
                 ? interpolateOpacityAt(result.opacityStops, cs.position)
                 : 1,
+            midpointToNext: cs.midpointToNext,
         }));
         setGradientOptions({ stops: merged, smoothness: result.smoothness });
         force(t => t + 1);

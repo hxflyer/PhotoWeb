@@ -36,6 +36,21 @@ function sortStops<T extends { position: number }>(stops: T[]): T[] {
     return [...stops].sort((a, b) => a.position - b.position);
 }
 
+/**
+ * Re-map a 0..1 fraction so the gradient's midpoint (Photoshop's diamond
+ * marker between two stops) controls where the 50% transition lies between
+ * the two endpoints. midpoint = 0.5 → linear. midpoint < 0.5 pushes the
+ * transition toward the low stop; midpoint > 0.5 pushes it toward the high
+ * stop.
+ */
+function applyMidpoint(k: number, midpoint?: number): number {
+    const m = Math.max(0.05, Math.min(0.95, midpoint ?? 0.5));
+    if (Math.abs(m - 0.5) < 1e-4) return k;
+    // Piecewise linear remap: 0..m maps to 0..0.5, m..1 maps to 0.5..1.
+    if (k <= m) return (k / m) * 0.5;
+    return 0.5 + ((k - m) / (1 - m)) * 0.5;
+}
+
 function sampleColor(stops: GradientColorStop[], t: number): { r: number; g: number; b: number } {
     if (stops.length === 0) return { r: 0, g: 0, b: 0 };
     const sorted = sortStops(stops);
@@ -48,7 +63,8 @@ function sampleColor(stops: GradientColorStop[], t: number): { r: number; g: num
         }
     }
     const span = hi.position - lo.position || 1;
-    const k = (t - lo.position) / span;
+    const kRaw = (t - lo.position) / span;
+    const k = applyMidpoint(kRaw, lo.midpointToNext);
     const a = parseHex(lo.color);
     const b = parseHex(hi.color);
     return {
@@ -70,7 +86,8 @@ function sampleOpacity(stops: GradientOpacityStop[], t: number): number {
         }
     }
     const span = hi.position - lo.position || 1;
-    const k = (t - lo.position) / span;
+    const kRaw = (t - lo.position) / span;
+    const k = applyMidpoint(kRaw, lo.midpointToNext);
     return lo.opacity + (hi.opacity - lo.opacity) * k;
 }
 
@@ -134,7 +151,7 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
     const stripRef = useRef<HTMLCanvasElement | null>(null);
     const dialogRef = useDialogA11y(true, onClose);
 
-    const dragRef = useRef<{ kind: 'color' | 'opacity'; index: number; pointerId: number } | null>(null);
+    const dragRef = useRef<{ kind: 'color' | 'opacity' | 'color-mid' | 'opacity-mid'; index: number; pointerId: number } | null>(null);
 
     const gradientPresets = useEditorStore(s => s.gradientPresets);
     const saveGradientPreset = useEditorStore(s => s.saveGradientPreset);
@@ -202,6 +219,12 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
         (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     };
 
+    const startMidpointDrag = (kind: 'color-mid' | 'opacity-mid', index: number) => (e: React.PointerEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        dragRef.current = { kind, index, pointerId: e.pointerId };
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    };
+
     const onPegMove = (e: React.PointerEvent<HTMLDivElement>) => {
         const drag = dragRef.current;
         if (!drag) return;
@@ -210,8 +233,30 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
         const pos = rowToPosition(e.clientX, row);
         if (drag.kind === 'color') {
             setColorStops(prev => prev.map((s, i) => i === drag.index ? { ...s, position: pos } : s));
-        } else {
+        } else if (drag.kind === 'opacity') {
             setOpacityStops(prev => prev.map((s, i) => i === drag.index ? { ...s, position: pos } : s));
+        } else if (drag.kind === 'color-mid') {
+            // Adjust midpointToNext of color stop at drag.index based on pointer
+            // position relative to the gap between that stop and the next.
+            setColorStops(prev => {
+                const sorted = sortStops(prev);
+                const lo = sorted[drag.index];
+                const hi = sorted[drag.index + 1];
+                if (!lo || !hi) return prev;
+                const span = hi.position - lo.position || 1;
+                const m = Math.max(0.05, Math.min(0.95, (pos - lo.position) / span));
+                return prev.map(s => s === lo ? { ...s, midpointToNext: m } : s);
+            });
+        } else if (drag.kind === 'opacity-mid') {
+            setOpacityStops(prev => {
+                const sorted = sortStops(prev);
+                const lo = sorted[drag.index];
+                const hi = sorted[drag.index + 1];
+                if (!lo || !hi) return prev;
+                const span = hi.position - lo.position || 1;
+                const m = Math.max(0.05, Math.min(0.95, (pos - lo.position) / span));
+                return prev.map(s => s === lo ? { ...s, midpointToNext: m } : s);
+            });
         }
     };
 
@@ -349,6 +394,31 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
                             onClick={handleOpacityRowClick}
                             style={{ position: 'relative', width: STRIP_WIDTH, height: 18, background: 'hsl(var(--bg-input))', border: '1px solid hsl(var(--border-light))', borderRadius: 2, cursor: 'crosshair' }}
                         >
+                            {sortedOpacityStops.slice(0, -1).map((s, i) => {
+                                const next = sortedOpacityStops[i + 1];
+                                const mid = Math.max(0.05, Math.min(0.95, s.midpointToNext ?? 0.5));
+                                const pos = s.position + (next.position - s.position) * mid;
+                                return (
+                                    <div
+                                        key={`op-mid-${i}`}
+                                        data-peg="opacity-mid"
+                                        data-testid={`gradient-opacity-midpoint-${i}`}
+                                        onPointerDown={startMidpointDrag('opacity-mid', i)}
+                                        onPointerMove={onPegMove}
+                                        onPointerUp={onPegUp}
+                                        style={{
+                                            position: 'absolute',
+                                            left: `calc(${pos * 100}% - 4px)`,
+                                            top: 5,
+                                            width: 8, height: 8,
+                                            background: '#ccc',
+                                            transform: 'rotate(45deg)',
+                                            border: '1px solid #444',
+                                            cursor: 'ew-resize',
+                                        }}
+                                    />
+                                );
+                            })}
                             {opacityStops.map((s, i) => (
                                 <div
                                     key={`op-${i}`}
@@ -390,6 +460,31 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
                             onClick={handleColorRowClick}
                             style={{ position: 'relative', width: STRIP_WIDTH, height: 18, background: 'hsl(var(--bg-input))', border: '1px solid hsl(var(--border-light))', borderRadius: 2, cursor: 'crosshair' }}
                         >
+                            {sortedColorStops.slice(0, -1).map((s, i) => {
+                                const next = sortedColorStops[i + 1];
+                                const mid = Math.max(0.05, Math.min(0.95, s.midpointToNext ?? 0.5));
+                                const pos = s.position + (next.position - s.position) * mid;
+                                return (
+                                    <div
+                                        key={`cs-mid-${i}`}
+                                        data-peg="color-mid"
+                                        data-testid={`gradient-color-midpoint-${i}`}
+                                        onPointerDown={startMidpointDrag('color-mid', i)}
+                                        onPointerMove={onPegMove}
+                                        onPointerUp={onPegUp}
+                                        style={{
+                                            position: 'absolute',
+                                            left: `calc(${pos * 100}% - 4px)`,
+                                            top: 5,
+                                            width: 8, height: 8,
+                                            background: '#ccc',
+                                            transform: 'rotate(45deg)',
+                                            border: '1px solid #444',
+                                            cursor: 'ew-resize',
+                                        }}
+                                    />
+                                );
+                            })}
                             {colorStops.map((s, i) => (
                                 <div
                                     key={`cs-${i}`}

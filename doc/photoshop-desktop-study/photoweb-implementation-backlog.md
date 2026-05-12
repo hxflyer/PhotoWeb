@@ -857,7 +857,13 @@ Status key:
   - Required tests: `src/test/strokePathToolBatchC.test.tsx`.
   - Implementation notes: `samplePath` flattens cubic Bezier segments into a polyline with cumulative arc-length; the walker calls per-tool stamp primitives at `defaultSpacingFor(toolId) * baseSize`. Dodge/Burn/Sponge use a tone-and-saturation kernel that mirrors `src/tools/dodgeBurnSponge.ts`. Clone Stamp falls back to a brush stamp using the selected color because no live source point is available from the dialog.
 
-- [ ] `BATCH-C-03` Gradient Editor: midpoint diamonds
+- [x] `BATCH-C-03` Gradient Editor: midpoint diamonds
+  - Priority: `P1`
+  - Function description: Render Photoshop's midpoint diamond markers between adjacent gradient stops on both the color and opacity rows; dragging a diamond shifts the transition midpoint between the two stops. Store as `midpointToNext` (0..1, default 0.5) on `GradientColorStop` / `GradientOpacityStop` / `GradientStop`.
+  - Acceptance criteria: each adjacent stop pair shows a diamond; dragging horizontally writes `midpointToNext`; the editor preview strip and the rendered gradient honor the midpoint when sampling color/opacity; existing presets without `midpointToNext` continue to render as straight linear (0.5).
+  - Required tests: `src/test/gradientMidpointBatchC.test.tsx`.
+  - Implementation notes: Added `midpointToNext?` to gradient stop interfaces in `src/store/types.ts` and `src/tools/gradient.ts`. `sampleColor` / `sampleOpacity` in `GradientEditorDialog.tsx` and `sampleStops` in `gradient.ts` route through a piecewise linear remap so the 50% transition lands at the midpoint. Drag tracking added to `dragRef` with new `color-mid` / `opacity-mid` kinds. `OptionsBar.onEditorConfirm` plumbs `midpointToNext` through to `setGradientOptions.stops`.
+
 - [ ] `BATCH-C-04` Gradient Editor: Smoothness applied
 - [ ] `BATCH-C-05` Replace native color inputs with openColorPicker
 
