@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import { ColorPickerDialog } from '../components/Dialogs/ColorPickerDialog';
 import { ScaleEffectsDialog } from '../components/Dialogs/ScaleEffectsDialog';
+import { InputNumberDialog } from '../components/Dialogs/InputNumberDialog';
 import { runScript } from './simulator';
 
 describe('Batch A — TestDialog removal', () => {
@@ -115,5 +116,56 @@ describe('Batch A — ScaleEffectsDialog a11y + Preview + min 1%', () => {
         ]);
         const preview = getByTestId('scale-effects-preview') as HTMLInputElement;
         expect(preview.checked).toBe(false);
+    });
+});
+
+describe('Batch A — InputNumberDialog OK label + suffix/step/decimals', () => {
+    it('renders the confirm button as "OK" (not "Confirm")', () => {
+        const { getByTestId } = render(
+            <InputNumberDialog
+                isOpen
+                title="Feather"
+                label="Radius"
+                initialValue={5}
+                onClose={() => { /* noop */ }}
+                onConfirm={() => { /* noop */ }}
+            />
+        );
+        expect(getByTestId('input-number-ok').textContent).toBe('OK');
+    });
+
+    it('renders the suffix when provided', () => {
+        const { getByText } = render(
+            <InputNumberDialog
+                isOpen
+                title="Feather"
+                label="Radius"
+                initialValue={5}
+                suffix="px"
+                onClose={() => { /* noop */ }}
+                onConfirm={() => { /* noop */ }}
+            />
+        );
+        expect(getByText('px')).toBeTruthy();
+    });
+
+    it('rounds to the given decimals on confirm', async () => {
+        let committed = 0;
+        const { getByTestId, container } = render(
+            <InputNumberDialog
+                isOpen
+                title="Scale"
+                label="Value"
+                initialValue={1.2345}
+                step={0.01}
+                decimals={2}
+                onClose={() => { /* noop */ }}
+                onConfirm={(v) => { committed = v; }}
+            />
+        );
+        const input = container.querySelector('input[type="number"]') as HTMLInputElement;
+        fireEvent.change(input, { target: { value: '1.2345' } });
+        fireEvent.click(getByTestId('input-number-ok'));
+        expect(committed).toBe(1.23);
     });
 });

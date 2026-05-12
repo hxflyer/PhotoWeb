@@ -11,9 +11,15 @@ interface InputNumberDialogProps {
     initialValue: number;
     min?: number;
     max?: number;
+    suffix?: string;
+    step?: number;
+    decimals?: number;
 }
 
-export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, initialValue, min = 0, max = 100 }: InputNumberDialogProps) {
+export function InputNumberDialog({
+    isOpen, onClose, onConfirm, title, label, initialValue,
+    min = 0, max = 100, suffix, step, decimals,
+}: InputNumberDialogProps) {
     const [value, setValue] = useState(initialValue);
     const dialogRef = useDialogA11y(isOpen, onClose);
 
@@ -23,8 +29,14 @@ export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, in
 
     if (!isOpen) return null;
 
+    const round = (v: number) => {
+        if (decimals === undefined) return v;
+        const f = Math.pow(10, decimals);
+        return Math.round(v * f) / f;
+    };
+
     const handleSubmit = () => {
-        onConfirm(value);
+        onConfirm(round(value));
         onClose();
     };
 
@@ -85,24 +97,30 @@ export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, in
                 <div style={{ padding: '24px', color: 'hsl(var(--text-muted))', fontSize: '14px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <label style={{ fontSize: '12px', fontWeight: 500 }}>{label}</label>
-                        <input
-                            type="number"
-                            value={value}
-                            min={min}
-                            max={max}
-                            onChange={(e) => setValue(Number(e.target.value))}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                            autoFocus
-                            style={{
-                                background: 'hsl(var(--bg-input))',
-                                border: '1px solid hsl(var(--border-light))',
-                                color: 'hsl(var(--text-main))',
-                                padding: '8px',
-                                borderRadius: '4px',
-                                width: '100%',
-                                boxSizing: 'border-box'
-                            }}
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <input
+                                type="number"
+                                value={value}
+                                min={min}
+                                max={max}
+                                step={step}
+                                onChange={(e) => setValue(Number(e.target.value))}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                                autoFocus
+                                style={{
+                                    background: 'hsl(var(--bg-input))',
+                                    border: '1px solid hsl(var(--border-light))',
+                                    color: 'hsl(var(--text-main))',
+                                    padding: '8px',
+                                    borderRadius: '4px',
+                                    flex: 1,
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                            {suffix && (
+                                <span style={{ fontSize: '12px', color: 'hsl(var(--text-muted))' }}>{suffix}</span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -124,7 +142,7 @@ export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, in
                         cursor: 'pointer',
                         fontSize: '12px'
                     }}>Cancel</button>
-                    <button onClick={handleSubmit} style={{
+                    <button data-testid="input-number-ok" onClick={handleSubmit} style={{
                         padding: '6px 12px',
                         backgroundColor: 'hsl(var(--accent-primary))',
                         color: 'white',
@@ -133,7 +151,7 @@ export function InputNumberDialog({ isOpen, onClose, onConfirm, title, label, in
                         cursor: 'pointer',
                         fontSize: '12px',
                         fontWeight: 500
-                    }}>Confirm</button>
+                    }}>OK</button>
                 </div>
             </div>
         </div>
