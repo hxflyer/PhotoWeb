@@ -823,7 +823,17 @@ Status key:
     - `src/test/batchDDocumentDialogs.test.tsx` — Filename input renders; default is document name; custom filename appears on the download anchor; File Size uses real `toBlob` byte length.
   - Implementation notes: `src/components/Dialogs/ExportDialog.tsx`. Filename strips a trailing extension before appending the format extension (`.jpg` for JPEG). The size effect runs once on every relevant prop change but debounces via `setTimeout(250)` + request-id ref so only the freshest call's blob updates state.
 
-- [ ] `BATCH-D-05` ShortcutsDialog single registry + missing Image/Edit/Layer/Select keys
+- [x] `BATCH-D-05` ShortcutsDialog single registry + missing Image/Edit/Layer/Select keys
+  - Priority: `P1`
+  - Function description: Replace the hard-coded `SHORTCUT_GROUPS` literal inside `ShortcutsDialog` with a single typed `SHORTCUTS` registry in `src/core/shortcuts.ts`. Rebuild the dialog from the registry. Add missing entries that are actually wired: ⌘⌥I Image Size, ⌘⌥C Canvas Size, ⌘J Duplicate Layer, ⌘E Merge Down, ⌘D Deselect, ⌘⇧D Reselect, ⌘H Hide Edges, plus Layer/Image groups previously absent.
+  - Acceptance criteria:
+    - `SHORTCUTS` array exposes `{group,label,keys,action}` entries.  `Implemented`
+    - ShortcutsDialog renders from the registry.  `Implemented`
+    - Every entry corresponds to an actually-wired binding in App.tsx (no ghosts: Cut/Copy/Paste absent because they aren't wired).  `Implemented`
+    - ⌘⌥I and ⌘⌥C are wired in App.tsx (they were not before) and open the matching dialogs.  `Implemented`
+  - Required tests:
+    - `src/test/batchDDocumentDialogs.test.tsx` — registry shape, ⌘⌥I/⌘⌥C present, ⌘J/⌘E/⌘D present, Image group renders the ⌘⌥I row, no Cut/Copy/Paste ghosts, store action opens dialog.
+  - Implementation notes: `src/core/shortcuts.ts` (registry + `SHORTCUT_GROUP_ORDER` + `shortcutsByGroup`). `ShortcutsDialog` re-exports `SHORTCUTS` for backward-compat imports. `App.tsx` gains two new key handlers gated on `meta && key === 'i' && altKey` and `meta && key === 'c' && altKey`, and the existing `⌘I` Inverse handler now requires `!altKey` to avoid stealing ⌘⌥I.
 
 ## Batch F - Panels and Layer Styles
 

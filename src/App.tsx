@@ -283,7 +283,9 @@ function App() {
         s.setSelectionOperations([{ mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: s.width, y: s.height }] }]);
         return;
       }
-      if (meta && key === 'i' && !e.shiftKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
+      if (meta && key === 'i' && e.altKey && !e.shiftKey) { e.preventDefault(); gs().openImageSizeDialog(); return; }
+      if (meta && key === 'c' && e.altKey && !e.shiftKey) { e.preventDefault(); gs().openCanvasSizeDialog(); return; }
+      if (meta && key === 'i' && !e.shiftKey && !e.altKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
 
       if (meta && key === '/') { e.preventDefault(); setShortcutsOpen(true); return; }
 
