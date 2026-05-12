@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { getBrushTip } from '../../tools/brush';
 import type { BrushPreset } from '../../store/types';
+import { NewBrushPresetDialog } from '../Dialogs/NewBrushPresetDialog';
 
 interface ContextMenuState {
     presetId: string;
@@ -45,6 +46,7 @@ export function BrushPresetsPanel() {
     const [menu, setMenu] = useState<ContextMenuState | null>(null);
     const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
     const [dragIdx, setDragIdx] = useState<number | null>(null);
+    const [newPresetOpen, setNewPresetOpen] = useState(false);
 
     useEffect(() => {
         if (!menu) return;
@@ -54,8 +56,7 @@ export function BrushPresetsPanel() {
     }, [menu]);
 
     const onAddPreset = () => {
-        const name = window.prompt('New Preset name', 'New Brush Preset');
-        if (name) saveBrushPreset(name);
+        setNewPresetOpen(true);
     };
 
     const beginRename = (preset: BrushPreset) => {
@@ -252,6 +253,14 @@ export function BrushPresetsPanel() {
                     })()}
                 </div>
             )}
+            <NewBrushPresetDialog
+                isOpen={newPresetOpen}
+                onCancel={() => setNewPresetOpen(false)}
+                onCommit={({ name }) => {
+                    saveBrushPreset(name);
+                    setNewPresetOpen(false);
+                }}
+            />
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { decodePatternPreset, getPatternTile } from '../../store/toolsSlice';
 import type { PatternPreset } from '../../store/types';
+import { DefinePatternDialog } from '../Dialogs/DefinePatternDialog';
 
 interface ContextMenuState {
     presetId: string;
@@ -56,6 +57,7 @@ export function PatternPresetsPanel() {
     const renamePatternPreset = useEditorStore(s => s.renamePatternPreset);
     const [menu, setMenu] = useState<ContextMenuState | null>(null);
     const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+    const [definePatternOpen, setDefinePatternOpen] = useState(false);
 
     useEffect(() => {
         if (!menu) return;
@@ -65,8 +67,7 @@ export function PatternPresetsPanel() {
     }, [menu]);
 
     const onDefinePattern = () => {
-        const name = window.prompt('Pattern name', 'New Pattern');
-        if (name) captureActiveAsPattern(name);
+        setDefinePatternOpen(true);
     };
 
     const beginRename = (preset: PatternPreset) => {
@@ -249,6 +250,14 @@ export function PatternPresetsPanel() {
                     })()}
                 </div>
             )}
+            <DefinePatternDialog
+                isOpen={definePatternOpen}
+                onCancel={() => setDefinePatternOpen(false)}
+                onCommit={({ name }) => {
+                    captureActiveAsPattern(name);
+                    setDefinePatternOpen(false);
+                }}
+            />
         </div>
     );
 }
