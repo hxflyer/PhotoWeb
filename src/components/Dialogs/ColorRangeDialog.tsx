@@ -80,6 +80,7 @@ export function ColorRangeDialog() {
     const [color, setColor] = useState(primaryColor);
     const [fuzziness, setFuzziness] = useState(40);
     const [samples, setSamples] = useState<ColorRangeSample[]>([{ color: primaryColor, mode: 'add' }]);
+    const [invert, setInvert] = useState(false);
     const dialogRef = useDialogA11y(isOpen, close);
     const previewRef = useRef<HTMLCanvasElement>(null);
 
@@ -89,6 +90,7 @@ export function ColorRangeDialog() {
             setColor(primaryColor);
             setFuzziness(40);
             setSamples([{ color: primaryColor, mode: 'add' }]);
+            setInvert(false);
         }
     }, [isOpen, primaryColor]);
 
@@ -148,7 +150,7 @@ export function ColorRangeDialog() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         const image = compositeForPreview();
         if (!image) return;
-        const mask = buildColorRangeMask(image, { samples, fuzziness });
+        const mask = buildColorRangeMask(image, { samples, fuzziness, invert });
         const maskImage = ctx.createImageData(image.width, image.height);
         for (let i = 0; i < mask.data.length; i++) {
             const v = mask.data[i];
@@ -170,7 +172,7 @@ export function ColorRangeDialog() {
         const dy = Math.round((canvas.height - dh) / 2);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(tmp, dx, dy, dw, dh);
-    }, [isOpen, samples, fuzziness]);
+    }, [isOpen, samples, fuzziness, invert]);
 
     if (!isOpen) return null;
 
@@ -206,7 +208,7 @@ export function ColorRangeDialog() {
     }
 
     function apply() {
-        applyColorRangeSelectionWithMode(useEditorStore.getState(), { samples, fuzziness }, mode);
+        applyColorRangeSelectionWithMode(useEditorStore.getState(), { samples, fuzziness, invert }, mode);
         close();
     }
 
@@ -297,6 +299,15 @@ export function ColorRangeDialog() {
                             <button style={btn} onClick={() => addSample('sub')} data-testid="color-range-sub-sample">Subtract Sample</button>
                             <button style={btn} onClick={() => setSamples([{ color, mode: 'add' }])}>Reset Samples</button>
                         </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12, cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={invert}
+                                onChange={e => setInvert(e.target.checked)}
+                                data-testid="color-range-invert"
+                            />
+                            Invert
+                        </label>
                         <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.7)' }}>{summary}</div>
                     </div>
 

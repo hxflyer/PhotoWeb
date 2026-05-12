@@ -79,8 +79,10 @@ export function LoadSelectionDialog() {
     const saved = useEditorStore(s => s.savedSelections);
     const hasExisting = useEditorStore(s => s.selection.hasSelection);
     const loadSelection = useEditorStore.getState().loadSelection;
+    const toggleInvert = useEditorStore.getState().toggleInvertSelection;
     const [picked, setPicked] = useState<string>(saved[0]?.name ?? '');
     const [mode, setMode] = useState<'replace' | 'add' | 'sub' | 'intersect'>('replace');
+    const [invert, setInvert] = useState(false);
     const dialogRef = useDialogA11y(isOpen, close);
 
     if (!isOpen) return null;
@@ -88,6 +90,7 @@ export function LoadSelectionDialog() {
     function commit() {
         if (!picked) return;
         loadSelection(picked, mode);
+        if (invert) toggleInvert();
         close();
     }
 
@@ -124,6 +127,15 @@ export function LoadSelectionDialog() {
                                 </label>
                             ))}
                         </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginBottom: 12, cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={invert}
+                                onChange={e => setInvert(e.target.checked)}
+                                data-testid="load-selection-invert"
+                            />
+                            Invert
+                        </label>
                     </>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

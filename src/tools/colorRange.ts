@@ -14,6 +14,7 @@ export interface ColorRangeSample {
 export interface ColorRangeOptions {
     samples: ColorRangeSample[];
     fuzziness: number;
+    invert?: boolean;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -72,6 +73,17 @@ export function buildColorRangeMask(
         if (!inAdd) continue;
         const inSub = subSamples.some(sample => matchesSample(r, g, b, sample, options.fuzziness));
         data[i] = inSub ? 0 : 255;
+    }
+    if (options.invert) {
+        // Photoshop "Invert" only flips pixels that belong to opaque layers.
+        // Transparent areas (alpha=0) stay outside the selection so we do not
+        // create selection geometry over the empty document background.
+        for (let i = 0; i < data.length; i++) {
+            const pixel = i * 4;
+            const alpha = image.data[pixel + 3];
+            if (alpha === 0) continue;
+            data[i] = 255 - data[i];
+        }
     }
     return { data, width: image.width, height: image.height };
 }

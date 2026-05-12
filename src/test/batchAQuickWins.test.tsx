@@ -8,6 +8,7 @@ import { ColorPickerDialog } from '../components/Dialogs/ColorPickerDialog';
 import { ScaleEffectsDialog } from '../components/Dialogs/ScaleEffectsDialog';
 import { InputNumberDialog } from '../components/Dialogs/InputNumberDialog';
 import { DefringeDialog } from '../components/Dialogs/DefringeDialog';
+import { buildColorRangeMask } from '../tools/colorRange';
 import { runScript } from './simulator';
 
 describe('Batch A — TestDialog removal', () => {
@@ -169,7 +170,7 @@ describe('Batch A — InputNumberDialog OK label + suffix/step/decimals', () => 
         expect(committed).toBe(48);
     });
 
-    it('rounds to the given decimals on confirm', async () => {
+    it('rounds to the given decimals on confirm', () => {
         let committed = 0;
         const { getByTestId, container } = render(
             <InputNumberDialog
@@ -187,5 +188,37 @@ describe('Batch A — InputNumberDialog OK label + suffix/step/decimals', () => 
         fireEvent.change(input, { target: { value: '1.2345' } });
         fireEvent.click(getByTestId('input-number-ok'));
         expect(committed).toBe(1.23);
+    });
+});
+
+describe('Batch A — ColorRange Invert', () => {
+    it('inverts the produced mask over opaque regions only', () => {
+        const w = 4;
+        const h = 1;
+        const image = new ImageData(w, h);
+        // pixel 0: red opaque, pixel 1: blue opaque, pixel 2: red opaque,
+        // pixel 3: transparent.
+        const set = (i: number, r: number, g: number, b: number, a: number) => {
+            const k = i * 4;
+            image.data[k] = r; image.data[k + 1] = g; image.data[k + 2] = b; image.data[k + 3] = a;
+        };
+        set(0, 255, 0, 0, 255);
+        set(1, 0, 0, 255, 255);
+        set(2, 255, 0, 0, 255);
+        set(3, 0, 0, 0, 0);
+
+        const base = buildColorRangeMask(image, {
+            samples: [{ color: '#ff0000', mode: 'add' }],
+            fuzziness: 10,
+        });
+        expect([...base.data]).toEqual([255, 0, 255, 0]);
+
+        const inverted = buildColorRangeMask(image, {
+            samples: [{ color: '#ff0000', mode: 'add' }],
+            fuzziness: 10,
+            invert: true,
+        });
+        // Reds become 0, blues become 255, transparent stays 0.
+        expect([...inverted.data]).toEqual([0, 255, 0, 0]);
     });
 });
