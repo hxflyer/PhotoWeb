@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { LayerColorTag } from '../../core/Layer';
 import type { Layer } from '../../core/Layer';
 import { blendModes as v1BlendModes } from '../../core/blendModes';
+import { PanelFlyout, type PanelFlyoutItem } from './PanelFlyout';
 
 const COLOR_TAGS: { id: LayerColorTag; color: string }[] = [
     { id: 'none', color: 'transparent' },
@@ -301,8 +302,33 @@ export function LayersPanel() {
         setDropHint(null);
     };
 
+    const flyoutItems: PanelFlyoutItem[] = [
+        { label: 'New Layer', onClick: () => addLayer() },
+        { label: 'Duplicate Layer', onClick: () => activeLayerId && layerViaCopy(), disabled: !activeLayerId },
+        { label: 'Delete Layer', onClick: () => activeLayerId && removeLayer(activeLayerId), disabled: !activeLayerId },
+        { separator: true, label: '' },
+        { label: 'New Group', onClick: () => (selectedLayerIds.length > 1 ? groupLayers(selectedLayerIds) : createLayerGroup()) },
+        { label: 'Ungroup Layers', onClick: () => activeLayerId && ungroupLayerGroup(activeLayerId), disabled: !activeLayerId || layers.find(l => l.id === activeLayerId)?.kind !== 'group' },
+        { separator: true, label: '' },
+        { label: 'Merge Down', onClick: () => activeLayerId && mergeLayerDown(activeLayerId), disabled: !activeLayerId },
+        { label: 'Merge Visible', onClick: () => mergeVisible() },
+        { label: 'Stamp Visible', onClick: () => stampVisible() },
+        { label: 'Flatten Image', onClick: () => flattenImage() },
+    ];
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'hsl(var(--bg-panel))' }}>
+
+            {/* ── Panel header (title + flyout) ── */}
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '4px 8px',
+                borderBottom: '1px solid hsl(var(--border-light))',
+                backgroundColor: 'hsl(var(--bg-header))',
+            }}>
+                <span style={{ fontSize: 11, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Layers</span>
+                <PanelFlyout items={flyoutItems} label="Layers panel menu" testId="layers-panel-flyout" />
+            </div>
 
             {/* ── Blend mode + Opacity row ── */}
             <div style={{

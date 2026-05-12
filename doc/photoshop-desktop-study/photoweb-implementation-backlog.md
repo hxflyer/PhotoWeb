@@ -801,6 +801,13 @@ Status key:
   - Required tests: `src/test/maskPropertiesButtons.test.tsx`.
   - Implementation notes: All store actions (`invertLayerMask`, `applyLayerMask`, `removeLayerMask`, `setLayerMaskEnabled`, `openRefineEdgeDialog`, `openColorRangeDialog`) already existed; this slice is pure wiring through the PropertiesPanel MaskSection.
 
+- [x] `BATCH-F-02` Universal panel flyout component
+  - Priority: `P1`
+  - Function description: Add a reusable `PanelFlyout` triple-bar component (`src/components/Panels/PanelFlyout.tsx`) that each panel can render in its header. Items support disabled, separator, checkmark, and sub-menu. LayersPanel gets the first wiring: New Layer, Duplicate Layer, Delete Layer, New Group, Ungroup, Merge Down, Merge Visible, Stamp Visible, Flatten Image.
+  - Acceptance criteria: clicking the trigger opens the menu; clicking an item runs its `onClick` and closes the menu; disabled items render but do not run; LayersPanel exposes the canonical Photoshop entries; "New Group" via the flyout dispatches the group action.
+  - Required tests: `src/test/panelFlyoutBatchF.test.tsx`.
+  - Implementation notes: Single shared component intended to be reused across all panels. LayersPanel is the first consumer; remaining panels can adopt incrementally without API changes.
+
 ## Batch C - Color / Gradient / Path Dialogs
 
 - [x] `BATCH-C-01` Fill Path: Mode + Preserve Transparency
