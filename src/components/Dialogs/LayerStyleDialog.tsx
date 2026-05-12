@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
-import type { Layer, LayerEffect, LayerEffectKind } from '../../core/Layer';
+import type { Layer, LayerEffect, LayerEffectKind, BlendIfChannelRange, KnockoutMode } from '../../core/Layer';
 import { EffectEntry } from '../Panels/PropertiesPanel';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 
@@ -132,7 +132,13 @@ function findEffectByKind(layer: Layer | undefined, kind: LayerEffectKind): { ef
 }
 
 function BlendingOptionsTab({ layer }: { layer: Layer }) {
-    const { setLayerOpacity, setLayerFill, setLayerBlendMode } = useEditorStore();
+    const {
+        setLayerOpacity, setLayerFill, setLayerBlendMode,
+        setLayerKnockout, setLayerBlendingFlag,
+        setLayerBlendIfChannel, setLayerBlendIfRanges,
+    } = useEditorStore();
+    const channel = layer.blendIf.channel;
+    const channelRanges = layer.blendIf[channel];
     return (
         <div>
             <div style={labelStyle}>General Blending</div>
@@ -171,8 +177,167 @@ function BlendingOptionsTab({ layer }: { layer: Layer }) {
                 />
                 <span style={{ width: 40, textAlign: 'right' }}>{Math.round(layer.fill * 100)}%</span>
             </div>
-            <div style={{ ...rowStyle, color: 'hsl(var(--text-muted))', fontStyle: 'italic', marginTop: 10 }}>
-                <span>Knockout, Blend If, and channel filter sliders are pending under BATCH-F-05.</span>
+            <div style={rowStyle}>
+                <span style={{ width: 100 }}>Knockout</span>
+                <select
+                    data-testid="layer-style-knockout"
+                    value={layer.knockout}
+                    onChange={e => setLayerKnockout(layer.id, e.target.value as KnockoutMode)}
+                    style={{ ...inputStyle, flex: 1 }}
+                >
+                    <option value="none">None</option>
+                    <option value="shallow">Shallow</option>
+                    <option value="deep">Deep</option>
+                </select>
+            </div>
+            <div style={rowStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        type="checkbox"
+                        data-testid="layer-style-blend-interior-as-group"
+                        checked={layer.blendInteriorEffectsAsGroup}
+                        onChange={e => setLayerBlendingFlag(layer.id, 'blendInteriorEffectsAsGroup', e.target.checked)}
+                    />
+                    Blend Interior Effects as Group
+                </label>
+            </div>
+            <div style={rowStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        type="checkbox"
+                        data-testid="layer-style-blend-clipped-as-group"
+                        checked={layer.blendClippedLayersAsGroup}
+                        onChange={e => setLayerBlendingFlag(layer.id, 'blendClippedLayersAsGroup', e.target.checked)}
+                    />
+                    Blend Clipped Layers as Group
+                </label>
+            </div>
+            <div style={rowStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        type="checkbox"
+                        data-testid="layer-style-transparency-shapes"
+                        checked={layer.transparencyShapesLayer}
+                        onChange={e => setLayerBlendingFlag(layer.id, 'transparencyShapesLayer', e.target.checked)}
+                    />
+                    Transparency Shapes Layer
+                </label>
+            </div>
+            <div style={rowStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        type="checkbox"
+                        data-testid="layer-style-layer-mask-hides"
+                        checked={layer.layerMaskHidesEffects}
+                        onChange={e => setLayerBlendingFlag(layer.id, 'layerMaskHidesEffects', e.target.checked)}
+                    />
+                    Layer Mask Hides Effects
+                </label>
+            </div>
+            <div style={rowStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        type="checkbox"
+                        data-testid="layer-style-vector-mask-hides"
+                        checked={layer.vectorMaskHidesEffects}
+                        onChange={e => setLayerBlendingFlag(layer.id, 'vectorMaskHidesEffects', e.target.checked)}
+                    />
+                    Vector Mask Hides Effects
+                </label>
+            </div>
+
+            <div style={labelStyle}>Blend If</div>
+            <div style={rowStyle}>
+                <span style={{ width: 100 }}>Channel</span>
+                <select
+                    data-testid="layer-style-blend-if-channel"
+                    value={channel}
+                    onChange={e => setLayerBlendIfChannel(layer.id, e.target.value as 'gray' | 'r' | 'g' | 'b')}
+                    style={{ ...inputStyle, flex: 1 }}
+                >
+                    <option value="gray">Gray</option>
+                    <option value="r">Red</option>
+                    <option value="g">Green</option>
+                    <option value="b">Blue</option>
+                </select>
+            </div>
+            <BlendIfSliders
+                label="This Layer"
+                range={channelRanges.thisLayer}
+                onChange={(r) => setLayerBlendIfRanges(layer.id, channel, 'thisLayer', r)}
+                testidPrefix="layer-style-blend-if-this"
+            />
+            <BlendIfSliders
+                label="Underlying Layer"
+                range={channelRanges.underlyingLayer}
+                onChange={(r) => setLayerBlendIfRanges(layer.id, channel, 'underlyingLayer', r)}
+                testidPrefix="layer-style-blend-if-under"
+            />
+        </div>
+    );
+}
+
+function BlendIfSliders({ label, range, onChange, testidPrefix }: {
+    label: string;
+    range: BlendIfChannelRange;
+    onChange: (r: BlendIfChannelRange) => void;
+    testidPrefix: string;
+}) {
+    const update = (patch: Partial<BlendIfChannelRange>) => {
+        const next = { ...range, ...patch };
+        // Keep ordering valid: low <= lowMax <= highMin <= high.
+        next.low = Math.max(0, Math.min(255, next.low));
+        next.lowMax = Math.max(next.low, Math.min(255, next.lowMax));
+        next.high = Math.max(0, Math.min(255, next.high));
+        next.highMin = Math.max(next.lowMax, Math.min(next.high, next.highMin));
+        onChange(next);
+    };
+    return (
+        <div style={{ marginBottom: 8 }}>
+            <div style={{ ...rowStyle, color: 'hsl(var(--text-muted))', fontSize: 10 }}>{label}</div>
+            <div style={rowStyle}>
+                <span style={{ width: 100 }}>low</span>
+                <input
+                    type="range" min={0} max={255}
+                    data-testid={`${testidPrefix}-low`}
+                    value={range.low}
+                    onChange={e => update({ low: +e.target.value })}
+                    style={{ flex: 1 }}
+                />
+                <span style={{ width: 40, textAlign: 'right' }}>{range.low}</span>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 100 }}>low max</span>
+                <input
+                    type="range" min={0} max={255}
+                    data-testid={`${testidPrefix}-low-max`}
+                    value={range.lowMax}
+                    onChange={e => update({ lowMax: +e.target.value })}
+                    style={{ flex: 1 }}
+                />
+                <span style={{ width: 40, textAlign: 'right' }}>{range.lowMax}</span>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 100 }}>high min</span>
+                <input
+                    type="range" min={0} max={255}
+                    data-testid={`${testidPrefix}-high-min`}
+                    value={range.highMin}
+                    onChange={e => update({ highMin: +e.target.value })}
+                    style={{ flex: 1 }}
+                />
+                <span style={{ width: 40, textAlign: 'right' }}>{range.highMin}</span>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 100 }}>high</span>
+                <input
+                    type="range" min={0} max={255}
+                    data-testid={`${testidPrefix}-high`}
+                    value={range.high}
+                    onChange={e => update({ high: +e.target.value })}
+                    style={{ flex: 1 }}
+                />
+                <span style={{ width: 40, textAlign: 'right' }}>{range.high}</span>
             </div>
         </div>
     );

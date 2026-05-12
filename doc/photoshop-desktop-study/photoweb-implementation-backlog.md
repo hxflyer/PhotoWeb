@@ -867,6 +867,13 @@ Status key:
   - Required tests: `src/test/presetDialogsBatchF.test.tsx`.
   - Implementation notes: SwatchesPanel does not currently invoke `window.prompt` (it uses a silent "+" button on the current primary color) — extending it to a NewSwatchDialog would require adding a name field to the swatch model and is deferred.
 
+- [x] `BATCH-F-08` Blending Options modal section (Advanced Blending + Blend If)
+  - Priority: `P1`
+  - Function description: Build out the first tab of `LayerStyleDialog.tsx`. General Blending wires through Blend Mode + Opacity. Advanced Blending exposes Fill Opacity (Photoshop semantic: layer pixels attenuated but NOT effects — compositor updated to draw layer with `fill` alpha and effects at full alpha), Knockout (None / Shallow / Deep), Blend Interior Effects as Group, Blend Clipped Layers as Group, Transparency Shapes Layer, Layer Mask Hides Effects, Vector Mask Hides Effects. Blend If exposes a Channel selector (Gray / R / G / B) and four split sliders per side (This Layer + Underlying Layer): low / lowMax / highMin / high. The compositor's new `applyBlendIf` helper masks the layer's alpha by the matching channel of both `thisLayer` and the underlying composite.
+  - Acceptance criteria: Layer model exposes the new flags with Photoshop defaults; setting Fill Opacity to 0 hides the layer body but keeps Stroke + other effects visible; Blend If thisLayer ranges {low:200, lowMax:200, highMin:255, high:255} hide pixels with luma < 200 and reveal pixels above 200; the dialog renders all controls including the 4-stop Blend If sliders.
+  - Required tests: `src/test/blendingOptionsBatchF.test.tsx`.
+  - Implementation notes: `BlendIfChannelRange`, `BlendIf`, and `defaultBlendIf()` are exported from `core/Layer.ts`. Compositor uses the running frame buffer as `bottom` for the Underlying Layer side. The four-stop sliders are bare native ranges; the future Alt-drag split UX can be layered on without changing the data model.
+
 - [x] `BATCH-F-07` Stroke effect: gradient + pattern fill type
   - Priority: `P1`
   - Function description: Extend `src/effects/stroke.ts` with a `fillType` enum (Color / Gradient / Pattern). Color path keeps the original solid-fill semantics. Gradient stores `{ colorStops, opacityStops, type, angle, scale }` on the effect and the renderer paints a gradient canvas (linear / radial / angle / reflected / diamond) clipped to the stroke ring. Pattern stores `{ patternId, scale, link }` and the renderer uses the existing `getPatternTile` helper to populate the ring via `createPattern('repeat')`. PropertiesPanel exposes the Fill Type dropdown plus a gradient editor (reusing `GradientEditorDialog`) or pattern picker depending on the active fill type.

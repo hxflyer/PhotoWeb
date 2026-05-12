@@ -260,6 +260,10 @@ export interface LayersSlice {
     setLayerOpacity: (id: string, opacity: number) => void;
     setLayerFill: (id: string, fill: number) => void;
     setLayerBlendMode: (id: string, mode: GlobalCompositeOperation) => void;
+    setLayerKnockout: (id: string, mode: import('../core/Layer').KnockoutMode) => void;
+    setLayerBlendingFlag: (id: string, flag: 'blendInteriorEffectsAsGroup' | 'blendClippedLayersAsGroup' | 'transparencyShapesLayer' | 'layerMaskHidesEffects' | 'vectorMaskHidesEffects', value: boolean) => void;
+    setLayerBlendIfRanges: (id: string, channel: 'gray' | 'r' | 'g' | 'b', side: 'thisLayer' | 'underlyingLayer', range: import('../core/Layer').BlendIfChannelRange) => void;
+    setLayerBlendIfChannel: (id: string, channel: 'gray' | 'r' | 'g' | 'b') => void;
     mergeLayerDown: (id: string) => void;
     mergeVisible: () => void;
     stampVisible: () => void;

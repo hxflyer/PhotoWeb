@@ -1,7 +1,7 @@
 import type { CompositeRequest, Compositor, DirtyRect } from './Compositor';
 import { getAdjustment } from '../adjustments';
 import { getEffect } from '../effects';
-import type { Layer } from '../core/Layer';
+import type { Layer, BlendIf, BlendIfChannelRange } from '../core/Layer';
 
 interface LayerWithAdjustment {
     adjustment?: { id: string; params: Record<string, unknown> };
@@ -186,9 +186,15 @@ export class Canvas2DCompositor implements Compositor {
             this.applyAdjustmentToTarget(target, meta.adjustment, layer.opacity);
             return;
         }
-        const sourceCanvas = layer.mask && layer.mask.enabled
+        const rawSource = layer.mask && layer.mask.enabled
             ? this.applyMask(layer.canvas, layer.mask.canvas, { density: layer.mask.density, feather: layer.mask.feather })
             : layer.canvas;
+        // Blend If reshapes the layer's alpha against either its own pixels
+        // (thisLayer) or the underlying composite (underlyingLayer). The
+        // result is applied as an extra mask on the layer's source canvas so
+        // every downstream pass (effects, opacity, blend mode) reads the
+        // Blend-If-aware silhouette.
+        const sourceCanvas = applyBlendIf(rawSource, layer.blendIf, ctx.canvas);
 
         const enabledEffects = layer.effects?.filter(e => e.enabled) ?? [];
         if (enabledEffects.length === 0) {
@@ -201,7 +207,10 @@ export class Canvas2DCompositor implements Compositor {
         // With effects, composite into a per-layer scratch buffer so we can
         // place underlay effects (drop shadow, outer glow) below the layer
         // and overlay effects (stroke, color overlay) above without affecting
-        // the layer below in the document.
+        // the layer below in the document. Fill Opacity attenuates the layer
+        // pixels themselves but NOT the effects, so we draw the layer with
+        // `fill` alpha and the effects at full alpha. Opacity (the outer
+        // multiplier) attenuates everything uniformly at the final draw.
         const scratch = document.createElement('canvas');
         scratch.width = ctx.canvas.width;
         scratch.height = ctx.canvas.height;
@@ -224,8 +233,8 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        // 2) The layer itself.
-        sctx.globalAlpha = 1;
+        // 2) The layer itself — attenuated by Fill Opacity only.
+        sctx.globalAlpha = layer.fill;
         sctx.globalCompositeOperation = 'source-over';
         sctx.drawImage(sourceCanvas, 0, 0);
 
@@ -241,7 +250,7 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        ctx.globalAlpha = layer.opacity * layer.fill;
+        ctx.globalAlpha = layer.opacity;
         ctx.globalCompositeOperation = layer.blendMode;
         ctx.drawImage(scratch, 0, 0);
     }
@@ -449,4 +458,90 @@ export class Canvas2DCompositor implements Compositor {
         }
         ctx.restore();
     }
+}
+
+// --- Blend If implementation ---------------------------------------------
+// Photoshop's "Blend If" sliders mask a layer's pixels by either the layer's
+// own channel values ("This Layer") or the underlying composite's channel
+// values ("Underlying Layer"). Two split-triangle ranges produce a smooth
+// attenuation: pixels with channel value < low fade to 0, between low/lowMax
+// ramp from 0..1, between lowMax/highMin stay at 1, and between highMin/high
+// ramp back down to 0 (values > high are 0).
+//
+// This implementation pre-composes "the layer below" into an underlay buffer
+// before each layer renders. We approximate that by reading the running
+// composite canvas (`bottom`) for the Underlying-Layer side.
+function rangeWeight(value: number, r: BlendIfChannelRange): number {
+    // The triangle pair fully blocks pixels where value < low or value > high
+    // ONLY when the low/lowMax (or highMin/high) pair has a real ramp. A pair
+    // at the channel boundary (low = lowMax = 0 OR highMin = high = 255)
+    // means "no falloff on that side" → pixels at the boundary stay visible.
+    if (value < r.low) return 0;
+    if (value > r.high) return 0;
+    if (value < r.lowMax) {
+        const span = r.lowMax - r.low;
+        if (span <= 0) return 1; // no low ramp — boundary value passes
+        return (value - r.low) / span;
+    }
+    if (value > r.highMin) {
+        const span = r.high - r.highMin;
+        if (span <= 0) return 1; // no high ramp — boundary value passes
+        return 1 - (value - r.highMin) / span;
+    }
+    return 1;
+}
+
+function isIdentityRange(r: BlendIfChannelRange): boolean {
+    return r.low === 0 && r.lowMax === 0 && r.highMin === 255 && r.high === 255;
+}
+
+function applyBlendIf(
+    source: HTMLCanvasElement,
+    blendIf: BlendIf | undefined,
+    bottom: HTMLCanvasElement,
+): HTMLCanvasElement {
+    if (!blendIf) return source;
+    const channel = blendIf.channel;
+    const ranges = blendIf[channel];
+    if (isIdentityRange(ranges.thisLayer) && isIdentityRange(ranges.underlyingLayer)) {
+        return source;
+    }
+    const sCtx = source.getContext('2d');
+    const bCtx = bottom.getContext('2d');
+    if (!sCtx || !bCtx) return source;
+    const out = document.createElement('canvas');
+    out.width = source.width; out.height = source.height;
+    const oCtx = out.getContext('2d');
+    if (!oCtx) return source;
+    const sImg = sCtx.getImageData(0, 0, source.width, source.height);
+    const bImg = bCtx.getImageData(0, 0, Math.min(bottom.width, source.width), Math.min(bottom.height, source.height));
+    const oImg = oCtx.createImageData(source.width, source.height);
+    const channelOffset = channel === 'r' ? 0 : channel === 'g' ? 1 : channel === 'b' ? 2 : -1;
+    for (let i = 0; i < sImg.data.length; i += 4) {
+        const sr = sImg.data[i];
+        const sg = sImg.data[i + 1];
+        const sb = sImg.data[i + 2];
+        const sa = sImg.data[i + 3];
+        const sVal = channelOffset === -1
+            ? Math.round(sr * 0.299 + sg * 0.587 + sb * 0.114)
+            : sImg.data[i + channelOffset];
+        let bVal = 0;
+        if (i < bImg.data.length) {
+            const br = bImg.data[i];
+            const bg = bImg.data[i + 1];
+            const bb = bImg.data[i + 2];
+            bVal = channelOffset === -1
+                ? Math.round(br * 0.299 + bg * 0.587 + bb * 0.114)
+                : bImg.data[i + channelOffset];
+        }
+        const wThis = rangeWeight(sVal, ranges.thisLayer);
+        const wUnder = rangeWeight(bVal, ranges.underlyingLayer);
+        const w = wThis * wUnder;
+        oImg.data[i] = sr;
+        oImg.data[i + 1] = sg;
+        oImg.data[i + 2] = sb;
+        oImg.data[i + 3] = Math.round(sa * w);
+    }
+    oCtx.putImageData(oImg, 0, 0);
+    return out;
 }

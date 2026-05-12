@@ -686,6 +686,57 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         })),
     }),
 
+    setLayerKnockout: (id, mode) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Layer Knockout',
+        affectedIds: [id], layerId: id,
+        run: () => set((state) => ({
+            layers: state.layers.map(l => {
+                if (l.id === id) { l.knockout = mode; l.markDirty(null); }
+                return l;
+            }),
+        })),
+    }),
+
+    setLayerBlendingFlag: (id, flag, value) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: `Layer ${flag}`,
+        affectedIds: [id], layerId: id,
+        run: () => set((state) => ({
+            layers: state.layers.map(l => {
+                if (l.id === id) { l[flag] = value; l.markDirty(null); }
+                return l;
+            }),
+        })),
+    }),
+
+    setLayerBlendIfChannel: (id, channel) => set((state) => ({
+        layers: state.layers.map(l => {
+            if (l.id === id) {
+                l.blendIf = { ...l.blendIf, channel };
+                l.markDirty(null);
+            }
+            return l;
+        }),
+    })),
+
+    setLayerBlendIfRanges: (id, channel, side, range) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Blend If',
+        affectedIds: [id], layerId: id,
+        run: () => set((state) => ({
+            layers: state.layers.map(l => {
+                if (l.id === id) {
+                    const next = { ...l.blendIf };
+                    next[channel] = { ...next[channel], [side]: { ...range } };
+                    l.blendIf = next;
+                    l.markDirty(null);
+                }
+                return l;
+            }),
+        })),
+    }),
+
     soloLayer: (id) => get().executeDocumentCommand({
         kind: 'layer-property',
         label: 'Solo Layer',

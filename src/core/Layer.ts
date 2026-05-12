@@ -46,6 +46,45 @@ export interface LayerLocks {
 
 export type LayerColorTag = 'none' | 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'violet' | 'gray';
 
+export type KnockoutMode = 'none' | 'shallow' | 'deep';
+
+// Photoshop's Blend If split sliders: each channel stores 4 stops representing
+// the start of the falloff (low), the end of the low falloff (lowMax), the
+// start of the high falloff (highMin), and the end (high). Values are 0..255.
+// A triangle that has not been alt-split has lowMax==low and highMin==high.
+export interface BlendIfChannelRange {
+    low: number;
+    lowMax: number;
+    highMin: number;
+    high: number;
+}
+
+export interface BlendIfRanges {
+    thisLayer: BlendIfChannelRange;
+    underlyingLayer: BlendIfChannelRange;
+}
+
+export interface BlendIf {
+    channel: 'gray' | 'r' | 'g' | 'b';
+    gray: BlendIfRanges;
+    r: BlendIfRanges;
+    g: BlendIfRanges;
+    b: BlendIfRanges;
+}
+
+export const defaultBlendIfRanges = (): BlendIfRanges => ({
+    thisLayer: { low: 0, lowMax: 0, highMin: 255, high: 255 },
+    underlyingLayer: { low: 0, lowMax: 0, highMin: 255, high: 255 },
+});
+
+export const defaultBlendIf = (): BlendIf => ({
+    channel: 'gray',
+    gray: defaultBlendIfRanges(),
+    r: defaultBlendIfRanges(),
+    g: defaultBlendIfRanges(),
+    b: defaultBlendIfRanges(),
+});
+
 export interface DirtyRect {
     x: number;
     y: number;
@@ -96,6 +135,14 @@ export class Layer {
     dirtyRect: DirtyRect | null = null;
     parentId: string | null = null;
     expanded: boolean = true;
+    // Advanced Blending flags (Photoshop's "Layer Style ▸ Blending Options").
+    knockout: KnockoutMode = 'none';
+    blendInteriorEffectsAsGroup: boolean = false;
+    blendClippedLayersAsGroup: boolean = true;
+    transparencyShapesLayer: boolean = true;
+    layerMaskHidesEffects: boolean = false;
+    vectorMaskHidesEffects: boolean = false;
+    blendIf: BlendIf = defaultBlendIf();
     // Type-layer source-of-truth — present when kind === 'type'. Lets us re-edit
     // the layer's text + style without losing data after rasterization.
     // Stored as `unknown` here to avoid a circular type import; the type tool casts.
