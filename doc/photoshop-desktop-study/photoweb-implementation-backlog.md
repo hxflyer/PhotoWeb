@@ -373,12 +373,14 @@ Status key:
   - Function description: Expose existing saved selection store through dialogs/menu commands.
   - Acceptance criteria:
     - Save Selection asks for a name.  `Implemented`
-    - Load Selection lists saved names.  `Implemented`
+    - Save Selection Operation radios (New / Replace / Add to / Subtract from / Intersect with Channel) update an existing channel.  `Implemented`
+    - Load Selection lists saved names and offers New / Add / Subtract / Intersect with Selection.  `Implemented`
     - Saved selections survive during current document session.  `Implemented`
   - Required tests:
     - `src/test/selection.test.ts` already exercises `saveSelection`/`loadSelection` round-trip on the slice.
+    - `src/test/selectionDialogBatchB.test.tsx` asserts the new Save Selection operation radios and the renamed "New Selection" label in Load Selection.
   - Dependencies: `None`
-  - Implementation notes: `SaveSelectionDialog` and `LoadSelectionDialog` in `src/components/Dialogs/SelectionDialogs.tsx`. `Select > Save Selection…` and `Select > Load Selection…` menu items wired. Persists in-memory for the session via `savedSelections` in the slice; cross-session save lives with `.pwbdoc` (document-bound).
+  - Implementation notes: `SaveSelectionDialog` and `LoadSelectionDialog` in `src/components/Dialogs/SelectionDialogs.tsx`. Save Selection now takes a `mode: SaveSelectionMode` (`new` / `replace` / `add` / `sub` / `intersect`) that combines the current selection with the named channel. The Replace radio in Load Selection is labeled "New Selection" per Photoshop wording. `Select > Save Selection…` and `Select > Load Selection…` menu items wired. Persists in-memory for the session via `savedSelections` in the slice; cross-session save lives with `.pwbdoc` (document-bound).
 
 ## P0 - Retouch Tools
 
@@ -901,6 +903,13 @@ Status key:
   - Acceptance criteria: all five toggles + Grid + Clipping render; grid toggle alternates labels; readout placeholder is visible until hover.
   - Required tests: `src/test/curvesTogglesBatchE.test.tsx`.
   - Implementation notes: `CurveDisplayOptions` is the new prop bag for `CurveEditor`. Display state lives on AdjustmentDialog via `useState`; hover state propagates via `onHoverChange`.
+
+- [x] `BATCH-E-06` Hue/Saturation Range dropdown + per-color editing
+  - Priority: `P1`
+  - Function description: `hueSaturation` in `src/adjustments/colorAdjustments.ts` gains a `range` field (master / reds / yellows / greens / cyans / blues / magentas). When a non-Master range is selected, hue/sat/lightness shifts only affect pixels whose hue falls within a 120° window around the range center, with feathered transitions at the window edges (30° core, 30° feather on each side). AdjustmentDialog adds a Range dropdown above Hue.
+  - Acceptance criteria: Range=Reds + Hue+180 shifts red pixels significantly but leaves blue pixels mostly unchanged; Range=Blues + Saturation=-100 desaturates blue pixels only; empty params default to Master and preserve the existing master behaviour.
+  - Required tests: `src/test/hueSatRangeBatchE.test.ts`.
+  - Implementation notes: `HUE_SAT_CENTERS` table holds the six chromatic hue centers; `hueWindowWeight(hueDeg, center)` returns 1 inside the 60° core (±30°) and linearly fades to 0 at ±90°. Total weight is multiplied by `Math.min(1, s*2)` so desaturated pixels are not affected.
 
 ## Batch C - Color / Gradient / Path Dialogs
 

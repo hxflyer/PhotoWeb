@@ -5,6 +5,7 @@ import './marquee';
 import './lasso';
 import './magicWand';
 import './quickSelection';
+import './magneticLasso';
 import './brush';
 import './pencil';
 import './eraser';

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import type { SaveSelectionMode } from '../../store/types';
 
 const overlay: React.CSSProperties = {
     position: 'fixed', inset: 0,
@@ -42,16 +43,28 @@ export function SaveSelectionDialog() {
     const isOpen = useEditorStore(s => s.dialogs.isSaveSelectionDialogOpen);
     const close = useEditorStore.getState().closeSaveSelectionDialog;
     const saveSelection = useEditorStore.getState().saveSelection;
+    const saved = useEditorStore(s => s.savedSelections);
     const [name, setName] = useState('Selection');
+    const [mode, setMode] = useState<SaveSelectionMode>('new');
     const dialogRef = useDialogA11y(isOpen, close);
 
     if (!isOpen) return null;
 
+    const exists = saved.some(s => s.name === name.trim());
+
     function commit() {
         if (!name.trim()) return;
-        saveSelection(name.trim());
+        saveSelection(name.trim(), mode);
         close();
     }
+
+    const saveModes: { id: SaveSelectionMode; label: string }[] = [
+        { id: 'new', label: 'New Channel' },
+        { id: 'replace', label: 'Replace Channel' },
+        { id: 'add', label: 'Add to Channel' },
+        { id: 'sub', label: 'Subtract from Channel' },
+        { id: 'intersect', label: 'Intersect with Channel' },
+    ];
 
     return (
         <div style={overlay} onClick={close}>
@@ -63,6 +76,25 @@ export function SaveSelectionDialog() {
                         onChange={e => setName(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') close(); }}
                         style={inputStyle} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, opacity: 0.7 }}>Operation</label>
+                    {saveModes.map(m => {
+                        const disabled = (m.id === 'add' || m.id === 'sub' || m.id === 'intersect' || m.id === 'replace') && !exists;
+                        return (
+                            <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, opacity: disabled ? 0.5 : 1 }}>
+                                <input
+                                    type="radio"
+                                    name="saveSelectionMode"
+                                    checked={mode === m.id}
+                                    disabled={disabled}
+                                    onChange={() => setMode(m.id)}
+                                    data-testid={`save-selection-mode-${m.id}`}
+                                />
+                                {m.label}
+                            </label>
+                        );
+                    })}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                     <button onClick={close} style={btn}>Cancel</button>
@@ -95,7 +127,7 @@ export function LoadSelectionDialog() {
     }
 
     const modes: { id: typeof mode; label: string }[] = [
-        { id: 'replace', label: 'Replace Selection' },
+        { id: 'replace', label: 'New Selection' },
         { id: 'add', label: 'Add to Selection' },
         { id: 'sub', label: 'Subtract from Selection' },
         { id: 'intersect', label: 'Intersect with Selection' },

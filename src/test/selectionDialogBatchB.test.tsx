@@ -2,6 +2,8 @@
  * Batch B — selection-dialog completion tests.
  * Items 1+2: Select-and-Mask View Mode preview and Output To destinations.
  * Items 3+4: Color Range Select preset dropdown and Localized Color Clusters.
+ * Item 5  : Refine Edge live-preview feather + Remember Settings.
+ * Item 6  : Save Selection Operation radios + Load Selection wording.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
@@ -10,6 +12,7 @@ import { ensureStubsRegistered } from '../tools/stubs';
 import { Layer } from '../core/Layer';
 import { RefineEdgeDialog } from '../components/Dialogs/RefineEdgeDialog';
 import { ColorRangeDialog } from '../components/Dialogs/ColorRangeDialog';
+import { SaveSelectionDialog, LoadSelectionDialog } from '../components/Dialogs/SelectionDialogs';
 import {
     renderSelectAndMaskToImageData,
     type SelectAndMaskViewMode,
@@ -361,5 +364,76 @@ describe('Batch B Item 4 — Localized Color Clusters', () => {
         fireEvent.click(cb);
         const slider = document.querySelector('[data-testid="color-range-range-slider"]') as HTMLInputElement;
         expect(slider).toBeTruthy();
+    });
+});
+
+// -------------------------------------------------------------------------
+// Item 6: Save Selection mode radios + Load Selection wording
+// -------------------------------------------------------------------------
+
+describe('Batch B Item 6 — Save Selection Operation radios + Load wording', () => {
+    it('Save Selection in Add mode unions the new selection with the existing channel', () => {
+        installDocWithSelectedLayer();
+        useEditorStore.getState().saveSelection('A');
+        useEditorStore.getState().setSelectionOperations([
+            { mode: 'add', type: 'rect', path: [{ x: 20, y: 20 }, { x: 38, y: 38 }] },
+        ]);
+        useEditorStore.getState().saveSelection('A', 'add');
+        const saved = useEditorStore.getState().savedSelections.find(s => s.name === 'A');
+        expect(saved).toBeTruthy();
+        const op = saved!.ops[0];
+        expect(op.mask).toBeTruthy();
+        const m = op.mask!.data;
+        const w = op.mask!.width;
+        // (15,15) was in the original 10..30 rect; (35,35) in the appended 20..38 rect.
+        expect(m[15 * w + 15]).toBeGreaterThan(127);
+        expect(m[35 * w + 35]).toBeGreaterThan(127);
+    });
+
+    it('Save Selection in Subtract mode removes the new region from the stored channel', () => {
+        installDocWithSelectedLayer();
+        useEditorStore.getState().saveSelection('B');
+        // Subtract the right half of the original rect.
+        useEditorStore.getState().setSelectionOperations([
+            { mode: 'add', type: 'rect', path: [{ x: 20, y: 10 }, { x: 30, y: 30 }] },
+        ]);
+        useEditorStore.getState().saveSelection('B', 'sub');
+        const saved = useEditorStore.getState().savedSelections.find(s => s.name === 'B')!;
+        const op = saved.ops[0];
+        expect(op.mask).toBeTruthy();
+        const m = op.mask!.data;
+        const w = op.mask!.width;
+        // (15,20) was in the original rect, not in the subtracted rect -> still selected.
+        expect(m[20 * w + 15]).toBeGreaterThan(127);
+        // (25,20) was in both rects -> now subtracted.
+        expect(m[20 * w + 25]).toBe(0);
+    });
+
+    it('Save Selection dialog renders Operation radios with Photoshop labels', () => {
+        useEditorStore.setState(s => ({
+            ...s,
+            dialogs: { ...s.dialogs, isSaveSelectionDialogOpen: true },
+        }));
+        render(<SaveSelectionDialog />);
+        const radios = document.querySelectorAll('[data-testid^="save-selection-mode-"]');
+        const ids = Array.from(radios).map(r => r.getAttribute('data-testid'));
+        expect(ids).toEqual(expect.arrayContaining([
+            'save-selection-mode-new',
+            'save-selection-mode-replace',
+            'save-selection-mode-add',
+            'save-selection-mode-sub',
+            'save-selection-mode-intersect',
+        ]));
+    });
+
+    it('Load Selection dialog calls the Replace radio "New Selection"', () => {
+        useEditorStore.setState(s => ({
+            ...s,
+            dialogs: { ...s.dialogs, isLoadSelectionDialogOpen: true },
+            savedSelections: [{ name: 'A', ops: [{ mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: 10, y: 10 }] }] }],
+        }));
+        render(<LoadSelectionDialog />);
+        expect(document.body.textContent).toContain('New Selection');
+        expect(document.body.textContent).not.toContain('Replace Selection');
     });
 });
