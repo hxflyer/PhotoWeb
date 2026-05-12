@@ -43,26 +43,36 @@ export function NavigatorPanel() {
             }
         }
         ctx.globalAlpha = 1;
-        // Viewport rectangle: where the user is currently looking, in mini-canvas
-        // space. Photoshop draws this as a red rectangle (the "proxy" overlay).
-        const viewW = window.innerWidth;
-        const viewH = window.innerHeight;
-        // Map viewport's covered area back to document pixels.
-        const halfDocW = (viewW / 2 - pan.x) / Math.max(zoom, 0.001);
-        const halfDocH = (viewH / 2 - pan.y) / Math.max(zoom, 0.001);
-        void halfDocW; void halfDocH;
-        // Simplified: assume the visible region is centered around the document
-        // origin offset by pan/zoom. The proxy rectangle shows the full doc when
-        // zoom <= 1 and shrinks as zoom grows.
-        const rectScale = 1 / Math.max(zoom, 0.001);
-        const rectW = Math.min(docW, docW * rectScale);
-        const rectH = Math.min(docH, docH * rectScale);
-        const rectX = docX + docW / 2 - rectW / 2;
-        const rectY = docY + docH / 2 - rectH / 2;
+        // Viewport rectangle: derive the visible document-pixel window from the
+        // actual on-screen position of the [data-photoweb-document] element so
+        // the proxy tracks pan.x / pan.y verbatim, then map back to mini-canvas
+        // coordinates. Photoshop draws this as a red rectangle ("proxy overlay").
+        const docEl = document.querySelector('[data-photoweb-document]') as HTMLElement | null;
+        const parentEl = docEl?.parentElement as HTMLElement | null;
+        let visLeft = 0, visTop = 0, visRight = width, visBottom = height;
+        if (docEl && parentEl) {
+            const docRect = docEl.getBoundingClientRect();
+            const containerRect = parentEl.getBoundingClientRect();
+            const z = Math.max(zoom, 0.001);
+            // Document-pixel coords visible inside the viewport container.
+            visLeft = (containerRect.left - docRect.left) / z;
+            visTop = (containerRect.top - docRect.top) / z;
+            visRight = (containerRect.right - docRect.left) / z;
+            visBottom = (containerRect.bottom - docRect.top) / z;
+        }
+        const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+        const cl = clamp(visLeft, 0, width);
+        const ct = clamp(visTop, 0, height);
+        const cr = clamp(visRight, 0, width);
+        const cb = clamp(visBottom, 0, height);
+        const rectX = docX + (cl / width) * docW;
+        const rectY = docY + (ct / height) * docH;
+        const rectW = Math.max(1, ((cr - cl) / width) * docW);
+        const rectH = Math.max(1, ((cb - ct) / height) * docH);
         ctx.strokeStyle = '#ff3b30';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(rectX, rectY, rectW, rectH);
-    }, [docX, docY, docW, docH, layers, pan.x, pan.y, zoom]);
+    }, [docX, docY, docW, docH, layers, pan.x, pan.y, zoom, width, height]);
 
     useEffect(() => {
         draw();
