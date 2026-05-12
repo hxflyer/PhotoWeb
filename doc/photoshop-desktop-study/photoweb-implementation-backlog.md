@@ -817,7 +817,13 @@ Status key:
   - Required tests: `src/test/fillPathBlendBatchC.test.tsx` — filling a yellow layer through a rect path with Multiply produces (255,0,0) red; Preserve Transparency only paints where alpha > 0.
   - Implementation notes: `fillActivePath` now accepts `mode` and `preserveTransparency`. Native blend modes set `globalCompositeOperation`; custom modes (dissolve/linear-burn/linear-dodge) route through `applyBlendModeToImageData`. With Preserve Transparency on, fills draw through `source-atop` (or alpha-mask the per-pixel blend output).
 
-- [ ] `BATCH-C-02` Stroke Path: tool dropdown + Simulate Pressure
+- [x] `BATCH-C-02` Stroke Path: tool dropdown + Simulate Pressure
+  - Priority: `P1`
+  - Function description: Replace the flat Canvas2D stroke with a tool-driven path walker. Tool dropdown lists Brush / Pencil / Eraser / Clone Stamp / Dodge / Burn / Sponge; the chosen tool's per-stamp primitive is called along the path at the tool's spacing. Simulate Pressure tapers the stamp size 0→1→0 along the path length.
+  - Acceptance criteria: choosing Eraser removes pixels along the path; choosing Brush paints the chosen color along the path; Simulate Pressure narrows the stroke at the endpoints; legacy callers without `toolId` still render the flat Canvas2D stroke.
+  - Required tests: `src/test/strokePathToolBatchC.test.tsx`.
+  - Implementation notes: `samplePath` flattens cubic Bezier segments into a polyline with cumulative arc-length; the walker calls per-tool stamp primitives at `defaultSpacingFor(toolId) * baseSize`. Dodge/Burn/Sponge use a tone-and-saturation kernel that mirrors `src/tools/dodgeBurnSponge.ts`. Clone Stamp falls back to a brush stamp using the selected color because no live source point is available from the dialog.
+
 - [ ] `BATCH-C-03` Gradient Editor: midpoint diamonds
 - [ ] `BATCH-C-04` Gradient Editor: Smoothness applied
 - [ ] `BATCH-C-05` Replace native color inputs with openColorPicker

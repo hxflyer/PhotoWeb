@@ -1,12 +1,22 @@
 import { useState } from 'react';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { useEditorStore } from '../../store/editorStore';
-import { strokeActivePath } from '../../tools/pathPaint';
+import { strokeActivePath, type StrokePathToolId } from '../../tools/pathPaint';
 
 interface Props {
     open: boolean;
     onClose: () => void;
 }
+
+const TOOL_OPTIONS: { id: StrokePathToolId; label: string }[] = [
+    { id: 'brush', label: 'Brush' },
+    { id: 'pencil', label: 'Pencil' },
+    { id: 'eraser', label: 'Eraser' },
+    { id: 'clone-stamp', label: 'Clone Stamp' },
+    { id: 'dodge', label: 'Dodge' },
+    { id: 'burn', label: 'Burn' },
+    { id: 'sponge', label: 'Sponge' },
+];
 
 export function StrokePathDialog({ open, onClose }: Props) {
     if (!open) return null;
@@ -18,9 +28,17 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
     const [size, setSize] = useState(() => Math.max(1, Math.round(useEditorStore.getState().brushSettings.size)));
     const [color, setColor] = useState(() => useEditorStore.getState().primaryColor);
     const [opacity, setOpacity] = useState(100);
+    const [tool, setTool] = useState<StrokePathToolId>('brush');
+    const [simulatePressure, setSimulatePressure] = useState(false);
 
     const handleOk = () => {
-        strokeActivePath({ size, color, opacity: Math.max(0, Math.min(1, opacity / 100)) });
+        strokeActivePath({
+            size,
+            color,
+            opacity: Math.max(0, Math.min(1, opacity / 100)),
+            toolId: tool,
+            simulatePressure,
+        });
         onClose();
     };
 
@@ -39,7 +57,7 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
                     border: '1px solid #444',
                     borderRadius: 6,
                     padding: 16,
-                    minWidth: 280,
+                    minWidth: 320,
                     color: 'white',
                     fontSize: 12,
                     boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
@@ -47,7 +65,18 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
             >
                 <div id="stroke-path-title" style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Stroke Path</div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span style={{ width: 80, fontSize: 11 }}>Size (px)</span>
+                    <span style={{ width: 100, fontSize: 11 }}>Tool</span>
+                    <select
+                        value={tool}
+                        onChange={e => setTool(e.target.value as StrokePathToolId)}
+                        data-testid="stroke-path-tool-select"
+                        style={{ flex: 1, background: '#333', border: '1px solid #555', borderRadius: 3, color: 'white', padding: '4px 8px', fontSize: 12 }}
+                    >
+                        {TOOL_OPTIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </select>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ width: 100, fontSize: 11 }}>Size (px)</span>
                     <input
                         type="number"
                         min={1}
@@ -59,7 +88,7 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
                     />
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span style={{ width: 80, fontSize: 11 }}>Color</span>
+                    <span style={{ width: 100, fontSize: 11 }}>Color</span>
                     <input
                         type="color"
                         value={color}
@@ -68,8 +97,8 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
                         style={{ width: 40, height: 24, padding: 0, border: '1px solid #555', borderRadius: 3, background: '#333' }}
                     />
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                    <span style={{ width: 80, fontSize: 11 }}>Opacity (%)</span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ width: 100, fontSize: 11 }}>Opacity (%)</span>
                     <input
                         type="number"
                         min={0}
@@ -78,6 +107,15 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
                         onChange={e => setOpacity(Math.max(0, Math.min(100, Number(e.target.value))))}
                         data-testid="stroke-path-opacity-input"
                         style={{ flex: 1, background: '#333', border: '1px solid #555', borderRadius: 3, color: 'white', padding: '4px 8px', fontSize: 12 }}
+                    />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <span style={{ width: 100, fontSize: 11 }}>Simulate Pressure</span>
+                    <input
+                        type="checkbox"
+                        checked={simulatePressure}
+                        onChange={e => setSimulatePressure(e.target.checked)}
+                        data-testid="stroke-path-simulate-pressure"
                     />
                 </label>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
