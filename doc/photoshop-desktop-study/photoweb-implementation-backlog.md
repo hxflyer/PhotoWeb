@@ -782,6 +782,20 @@ Status key:
   - Required tests: `src/test/maskPropertiesButtons.test.tsx`.
   - Implementation notes: All store actions (`invertLayerMask`, `applyLayerMask`, `removeLayerMask`, `setLayerMaskEnabled`, `openRefineEdgeDialog`, `openColorRangeDialog`) already existed; this slice is pure wiring through the PropertiesPanel MaskSection.
 
+## Batch C - Color / Gradient / Path Dialogs
+
+- [x] `BATCH-C-01` Fill Path: Mode + Preserve Transparency
+  - Priority: `P1`
+  - Function description: Add the blend Mode dropdown and Preserve Transparency checkbox to the Fill Path dialog so it matches Photoshop's Fill Path… chrome. When Preserve Transparency is on, the fill is masked to the layer's existing alpha.
+  - Acceptance criteria: Mode dropdown lists every blend mode in `src/core/blendModes.ts`; choosing Multiply produces the correct per-pixel multiplied output on a coloured layer; Preserve Transparency leaves transparent pixels untouched.
+  - Required tests: `src/test/fillPathBlendBatchC.test.tsx` — filling a yellow layer through a rect path with Multiply produces (255,0,0) red; Preserve Transparency only paints where alpha > 0.
+  - Implementation notes: `fillActivePath` now accepts `mode` and `preserveTransparency`. Native blend modes set `globalCompositeOperation`; custom modes (dissolve/linear-burn/linear-dodge) route through `applyBlendModeToImageData`. With Preserve Transparency on, fills draw through `source-atop` (or alpha-mask the per-pixel blend output).
+
+- [ ] `BATCH-C-02` Stroke Path: tool dropdown + Simulate Pressure
+- [ ] `BATCH-C-03` Gradient Editor: midpoint diamonds
+- [ ] `BATCH-C-04` Gradient Editor: Smoothness applied
+- [ ] `BATCH-C-05` Replace native color inputs with openColorPicker
+
 ## Deferred By Scope
 
 - [>] `AI-*` Generative AI, Neural Filters, Firefly, subject detection, object removal, automatic background removal

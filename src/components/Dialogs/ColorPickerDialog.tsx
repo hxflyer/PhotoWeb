@@ -131,6 +131,15 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
     const hueDragging = useRef(false);
     const dialogRef = useDialogA11y(isOpen, onClose);
 
+    function normalizeHexInput(raw: string): string | null {
+        const trimmed = raw.trim().replace(/^#/, '');
+        if (/^[0-9a-fA-F]{3}$/.test(trimmed)) {
+            return trimmed[0] + trimmed[0] + trimmed[1] + trimmed[1] + trimmed[2] + trimmed[2];
+        }
+        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed.toLowerCase();
+        return null;
+    }
+
     // Sync from initialColor when dialog opens.
     useEffect(() => {
         if (isOpen) {
@@ -222,6 +231,13 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
                 aria-labelledby="color-picker-title"
                 tabIndex={-1}
                 data-testid="color-picker-dialog"
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        onConfirm('#' + newHex);
+                        onClose();
+                    }
+                }}
                 style={{
                     background: 'hsl(var(--bg-panel))',
                     border: '1px solid hsl(var(--border-light))',
@@ -312,10 +328,27 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
                                     width: 50, height: 38, background: '#' + newHex,
                                     border: '1px solid hsl(var(--border-light))',
                                 }} />
-                                <div title="Current color" style={{
-                                    width: 50, height: 38, background: initialColor,
-                                    border: '1px solid hsl(var(--border-light))',
-                                }} />
+                                <div
+                                    title="Click to revert to current color"
+                                    role="button"
+                                    tabIndex={0}
+                                    data-testid="color-picker-current-swatch"
+                                    onClick={() => {
+                                        const [r, g, b] = hexToRgb(initialColor);
+                                        updateFromRgb(r, g, b);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            const [r, g, b] = hexToRgb(initialColor);
+                                            updateFromRgb(r, g, b);
+                                        }
+                                    }}
+                                    style={{
+                                        width: 50, height: 38, background: initialColor,
+                                        border: '1px solid hsl(var(--border-light))',
+                                        cursor: 'pointer',
+                                    }}
+                                />
                                 <span style={{ fontSize: 11, color: 'hsl(var(--text-muted))' }}>current</span>
                             </div>
                             {/* Status icons (warning + web-safe) */}
@@ -422,12 +455,18 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
                     <input
                         type="text"
                         value={hexInput}
+                        data-testid="color-picker-hex-input"
                         onChange={e => {
                             setHexInput(e.target.value);
-                            if (/^[0-9a-fA-F]{6}$/.test(e.target.value)) {
-                                const [r, g, b] = hexToRgb('#' + e.target.value);
+                            const normalized = normalizeHexInput(e.target.value);
+                            if (normalized) {
+                                const [r, g, b] = hexToRgb('#' + normalized);
                                 updateFromRgb(r, g, b);
                             }
+                        }}
+                        onBlur={() => {
+                            const normalized = normalizeHexInput(hexInput);
+                            if (normalized) setHexInput(normalized);
                         }}
                         style={{
                             width: 80, fontSize: 11, padding: '2px 4px',
