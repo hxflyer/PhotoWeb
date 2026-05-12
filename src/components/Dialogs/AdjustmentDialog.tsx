@@ -6,6 +6,7 @@ import type { SelectionState } from '../../store/types';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { useDialogEyedropper } from '../../hooks/useDialogEyedropper';
 import { useEditorStore } from '../../store/editorStore';
+import { PresetDropdown } from './PresetDropdown';
 
 interface AdjustmentDialogProps {
     isOpen: boolean;
@@ -511,6 +512,16 @@ export function AdjustmentDialog({
         return mergedParams;
     };
     const currentCurve = normalizeCurve(mergedParams[curveChannel]);
+    const SUPPORTS_PRESETS = new Set(['levels', 'curves', 'exposure', 'black-and-white', 'channel-mixer', 'selective-color', 'hue-saturation']);
+    const presetDropdown = SUPPORTS_PRESETS.has(adjustmentId) ? (
+        <PresetDropdown
+            kind="adjustment"
+            id={adjustmentId}
+            currentParams={mergedParams}
+            defaultParams={adjustment?.defaultParams ?? {}}
+            onApply={(next) => setParams(next)}
+        />
+    ) : null;
     const controls = (() => {
         switch (adjustmentId) {
             case 'brightness-contrast':
@@ -832,6 +843,7 @@ export function AdjustmentDialog({
                         fontSize: 15,
                         fontWeight: 600,
                     }}>
+                        {presetDropdown}
                         {controls}
                     </div>
                     <div style={{ flex: '0 0 150px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'stretch' }}>

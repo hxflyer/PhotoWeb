@@ -759,4 +759,5 @@ export type EditorStore =
     & PanelsSlice
     & HistorySlice
     & ToastsSlice
-    & RequirementsSlice;
+    & RequirementsSlice
+    & import('./presetsSlice').PresetsSlice;

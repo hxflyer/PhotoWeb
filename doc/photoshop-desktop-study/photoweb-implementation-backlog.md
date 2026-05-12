@@ -852,6 +852,13 @@ Status key:
   - Required tests: `src/test/eyedropperHookBatchE.test.tsx` — idle state, activate, cancel, sampleAt bounds, viewport click sample.
   - Implementation notes: AdjustmentDialog renders `EyedropperButton` rows inside each adjustment's controls. Levels Black-Point writes `inputBlack`; Gray writes `gamma` solved from `pow(normalized, 1/gamma) = 0.5`; White writes `inputWhite`. Curves eyedroppers update channel endpoint/midpoint of the active channel's curve points. Exposure eyedroppers shift `offset` / `gamma` / `exposure`. Hue/Sat + B&W eyedroppers map hue to one of the six chromatic ranges.
 
+- [x] `BATCH-E-03` Adjustment / filter preset infrastructure
+  - Priority: `P1`
+  - Function description: `src/store/presetsSlice.ts` adds `savePreset / deletePreset / renamePreset / listPresets / clearAllPresets` and a `presetStore: { adjustment: {...}, filter: {...} }` shape persisted to localStorage at `photoweb:adjustmentFilterPresets:v1`. `src/components/Dialogs/PresetDropdown.tsx` renders the shared dropdown with Default / saved presets / Save Preset… / Delete Preset / Reset to Default. Wired into Levels, Curves, Exposure, B&W, Channel Mixer, Selective Color, Hue/Sat in `AdjustmentDialog.tsx`.
+  - Acceptance criteria: presets list empty by default; savePreset persists params; saving the same name replaces; delete removes; rename updates name only; adjustment + filter presets are isolated by kind; reload from localStorage works.
+  - Required tests: `src/test/presetsSliceBatchE.test.ts` covers list, save, save-replace, delete, kind isolation, rename, localStorage round-trip.
+  - Implementation notes: PresetDropdown takes `kind`, `id`, `currentParams`, `defaultParams`, `onApply`. The dialog passes `mergedParams` and `adjustment.defaultParams`. Special option values (`__save__`, `__delete__`, `__reset__`, `__default__`) are handled inline.
+
 ## Batch C - Color / Gradient / Path Dialogs
 
 - [x] `BATCH-C-01` Fill Path: Mode + Preserve Transparency
