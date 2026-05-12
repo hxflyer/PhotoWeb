@@ -66,6 +66,15 @@ function isPaintFamily(tool: string): boolean {
   return PAINT_FAMILY_TOOLS.has(tool);
 }
 
+const SCREEN_MODES = ['photoweb-standard', 'photoweb-full-with-menu', 'photoweb-full'] as const;
+let screenModeIndex = 0;
+function cycleScreenMode(dir: 1 | -1): void {
+  const body = document.body;
+  for (const m of SCREEN_MODES) body.classList.remove(m);
+  screenModeIndex = (screenModeIndex + dir + SCREEN_MODES.length) % SCREEN_MODES.length;
+  body.classList.add(SCREEN_MODES[screenModeIndex]);
+}
+
 function App() {
   // Narrow subscription: only fields that affect App's JSX (not color, brushSettings, etc.)
   const { dialogs, hasAutosave, selection, zoom, pan, isNewGuideDialogOpen, isScaleEffectsDialogOpen, isTransformSelectionOpen } = useEditorStore(
@@ -353,10 +362,21 @@ function App() {
       if (!meta && !e.shiftKey && !e.altKey && key === 'x') { e.preventDefault(); gs().swapColors(); return; }
       if (!meta && !e.shiftKey && !e.altKey && key === 'd') { e.preventDefault(); gs().resetColors(); return; }
 
+      // F cycles screen modes (Standard / Full Screen With Menu / Full Screen).
+      // Shift+F cycles backward. Toggle a class on <body> that the global
+      // stylesheet uses to hide chrome.
+      if (!meta && !e.altKey && key === 'f') {
+        e.preventDefault();
+        cycleScreenMode(e.shiftKey ? -1 : 1);
+        return;
+      }
+
       if (!meta && !e.altKey) {
         // Photoshop-style tool groups: tapping the letter activates the first
-        // tool in the group; Shift+letter cycles through siblings.
-        type TID = import('./store/types').ToolId;
+        // tool in the group; Shift+letter cycles through siblings. Type asserted
+        // to string[] so newly-registered tools (magnetic-lasso, pattern-stamp)
+        // can participate without requiring a ToolId union update.
+        type TID = string;
         const toolGroups: Record<string, TID[]> = {
           v: ['move'],
           b: ['brush', 'pencil'],
@@ -365,7 +385,7 @@ function App() {
           i: ['eyedropper'],
           j: ['spot-healing', 'healing-brush', 'patch', 'red-eye'],
           m: ['marquee-rect', 'marquee-ellipse'],
-          l: ['lasso', 'lasso-poly'],
+          l: ['lasso', 'lasso-poly', 'magnetic-lasso'],
           w: ['quick-selection', 'magic-wand'],
           c: ['crop'],
           t: ['type-horizontal', 'type-vertical'],
@@ -374,7 +394,7 @@ function App() {
           u: ['shape-rectangle', 'shape-rounded-rectangle', 'shape-ellipse', 'shape-polygon', 'shape-line', 'shape-custom'],
           h: ['hand'],
           z: ['zoom'],
-          s: ['clone-stamp'],
+          s: ['clone-stamp', 'pattern-stamp'],
           o: ['dodge', 'burn', 'sponge'],
         };
         const group = toolGroups[key];
@@ -385,7 +405,7 @@ function App() {
           const next = e.shiftKey
               ? group[(idx + 1) % group.length]
               : (idx >= 0 ? group[idx] : group[0]);
-          gs().setTool(next);
+          gs().setTool(next as import('./store/types').ToolId);
           return;
         }
       }
