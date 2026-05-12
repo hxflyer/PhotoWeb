@@ -31,6 +31,7 @@ export function FadeDialog({ isOpen, snapshot, onConfirm, onClose }: FadeDialogP
 
     useEffect(() => {
         if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setOpacity(100);
             setBlendMode('normal');
             setPreviewEnabled(true);

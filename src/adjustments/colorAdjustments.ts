@@ -73,7 +73,7 @@ export interface HueSaturationParams extends Record<string, unknown> {
     saturation: number;
     lightness: number;
     colorize: boolean;
-    range: HueSaturationRange;
+    range?: HueSaturationRange;
 }
 const hueSaturationDefaults: HueSaturationParams = { hue: 0, saturation: 0, lightness: 0, colorize: false, range: 'master' };
 

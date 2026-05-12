@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hueSaturation } from '../adjustments/colorAdjustments';
+import { hueSaturation, type HueSaturationParams } from '../adjustments/colorAdjustments';
 
 function makeImage(pixels: number[][]): ImageData {
     const arr = new Uint8ClampedArray(pixels.length * 4);
@@ -58,7 +58,7 @@ describe('Batch E — Hue/Saturation range', () => {
     it('Empty params default to Master and preserve the existing master behavior', () => {
         const src = makeImage([[128, 64, 200]]);
         const out = hueSaturation.apply(
-            {},
+            {} as HueSaturationParams,
             { image: src, width: src.width, height: src.height, selectionMask: null, dirtyRect: null }
         );
         // Hue 0 sat 0 light 0 master => unchanged.

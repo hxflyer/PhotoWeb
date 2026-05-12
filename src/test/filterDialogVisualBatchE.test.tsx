@@ -63,7 +63,7 @@ describe('Batch E — FilterDialog visual parity', () => {
         fireEvent.click(getByTestId('filter-confirm'));
         expect(confirmedParams).not.toBeNull();
         // Default radius for blur-gaussian is 2.
-        expect((confirmedParams as { radius: number }).radius).toBe(2);
+        expect((confirmedParams as unknown as { radius: number }).radius).toBe(2);
     });
 
     it('Gaussian Blur filter renderUI uses the shared SliderRow with numeric input', () => {
