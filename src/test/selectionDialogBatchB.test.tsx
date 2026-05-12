@@ -1,6 +1,7 @@
 /**
  * Batch B — selection-dialog completion tests.
  * Items 1+2: Select-and-Mask View Mode preview and Output To destinations.
+ * Items 3+4: Color Range Select preset dropdown and Localized Color Clusters.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
@@ -8,10 +9,16 @@ import { useEditorStore } from '../store/editorStore';
 import { ensureStubsRegistered } from '../tools/stubs';
 import { Layer } from '../core/Layer';
 import { RefineEdgeDialog } from '../components/Dialogs/RefineEdgeDialog';
+import { ColorRangeDialog } from '../components/Dialogs/ColorRangeDialog';
 import {
     renderSelectAndMaskToImageData,
     type SelectAndMaskViewMode,
 } from '../utils/selectAndMaskCompositor';
+import { buildColorRangeMask } from '../tools/colorRange';
+import {
+    colorRangeMaskFromPreset,
+    type ColorRangePresetId,
+} from '../tools/colorRangePresets';
 
 ensureStubsRegistered();
 
@@ -177,5 +184,134 @@ describe('Batch B Item 2 — Refine Edge Output To destinations', () => {
         useEditorStore.getState().undo();
         const afterUndo = useEditorStore.getState();
         expect(afterUndo.layers.length).toBe(layersAfter - 1);
+    });
+});
+
+// -------------------------------------------------------------------------
+// Item 3: Color Range Select preset dropdown
+// -------------------------------------------------------------------------
+
+describe('Batch B Item 3 — Color Range Select preset dropdown', () => {
+    it('Reds preset selects saturated red and rejects pure green', () => {
+        const img = new ImageData(3, 1);
+        img.data.set([255, 0, 0, 255], 0);
+        img.data.set([0, 255, 0, 255], 4);
+        img.data.set([128, 128, 128, 255], 8);
+        const mask = colorRangeMaskFromPreset(img, 'reds');
+        expect(mask.data[0]).toBe(255);
+        expect(mask.data[1]).toBe(0);
+        expect(mask.data[2]).toBe(0); // gray (no saturation) excluded
+    });
+
+    it('Highlights preset selects the brightest pixels', () => {
+        const img = new ImageData(3, 1);
+        img.data.set([255, 255, 255, 255], 0);
+        img.data.set([128, 128, 128, 255], 4);
+        img.data.set([0, 0, 0, 255], 8);
+        const mask = colorRangeMaskFromPreset(img, 'highlights');
+        expect(mask.data[0]).toBe(255);
+        expect(mask.data[2]).toBe(0);
+    });
+
+    it('Shadows preset selects the darkest pixels', () => {
+        const img = new ImageData(3, 1);
+        img.data.set([255, 255, 255, 255], 0);
+        img.data.set([128, 128, 128, 255], 4);
+        img.data.set([20, 20, 20, 255], 8);
+        const mask = colorRangeMaskFromPreset(img, 'shadows');
+        expect(mask.data[0]).toBe(0);
+        expect(mask.data[2]).toBe(255);
+    });
+
+    it('Skin Tones preset selects a typical light skin pixel', () => {
+        const img = new ImageData(2, 1);
+        img.data.set([224, 172, 105, 255], 0); // typical light skin
+        img.data.set([0, 0, 255, 255], 4);     // saturated blue
+        const mask = colorRangeMaskFromPreset(img, 'skin-tones');
+        expect(mask.data[0]).toBe(255);
+        expect(mask.data[1]).toBe(0);
+    });
+
+    it('Dialog Select dropdown exposes the named presets', () => {
+        useEditorStore.setState(s => ({
+            ...s,
+            width: 4,
+            height: 1,
+            layers: [],
+            activeLayerId: null,
+            dialogs: { ...s.dialogs, isColorRangeDialogOpen: true },
+        }));
+        render(<ColorRangeDialog />);
+        const presetSelect = document.querySelector('[data-testid="color-range-preset"]') as HTMLSelectElement;
+        expect(presetSelect).toBeTruthy();
+        const opts = Array.from(presetSelect.options).map(o => o.value);
+        const expected: ColorRangePresetId[] = [
+            'sampled', 'reds', 'yellows', 'greens', 'cyans', 'blues', 'magentas',
+            'highlights', 'midtones', 'shadows', 'skin-tones',
+        ];
+        for (const id of expected) expect(opts).toContain(id);
+    });
+
+    it('buildColorRangeMask honors the preset and ignores the sample list', () => {
+        const img = new ImageData(2, 1);
+        img.data.set([255, 255, 255, 255], 0);
+        img.data.set([0, 0, 0, 255], 4);
+        const mask = buildColorRangeMask(img, {
+            samples: [{ color: '#ff0000', mode: 'add' }],
+            fuzziness: 0,
+            preset: 'highlights',
+        });
+        expect(mask.data[0]).toBe(255);
+        expect(mask.data[1]).toBe(0);
+    });
+});
+
+// -------------------------------------------------------------------------
+// Item 4: Localized Color Clusters + Range slider
+// -------------------------------------------------------------------------
+
+describe('Batch B Item 4 — Localized Color Clusters', () => {
+    it('buildColorRangeMask without range matches every pixel, regardless of distance', () => {
+        const image = new ImageData(5, 1);
+        for (let i = 0; i < 5; i++) image.data.set([255, 0, 0, 255], i * 4);
+        const unlimited = buildColorRangeMask(image, {
+            samples: [{ color: '#ff0000', mode: 'add', x: 0, y: 0 }],
+            fuzziness: 0,
+        });
+        expect([...unlimited.data]).toEqual([255, 255, 255, 255, 255]);
+    });
+
+    it('Range gate restricts matches to pixels within range px of the sampled origin', () => {
+        const image = new ImageData(5, 1);
+        for (let i = 0; i < 5; i++) image.data.set([255, 0, 0, 255], i * 4);
+        const localised = buildColorRangeMask(image, {
+            samples: [{ color: '#ff0000', mode: 'add', x: 0, y: 0 }],
+            fuzziness: 0,
+            range: 2,
+        });
+        expect(localised.data[0]).toBe(255);
+        expect(localised.data[1]).toBe(255);
+        expect(localised.data[2]).toBe(255);
+        expect(localised.data[3]).toBe(0);
+        expect(localised.data[4]).toBe(0);
+    });
+
+    it('Dialog reveals the Range slider when Localized Color Clusters is enabled', () => {
+        useEditorStore.setState(s => ({
+            ...s,
+            width: 4,
+            height: 1,
+            layers: [],
+            activeLayerId: null,
+            dialogs: { ...s.dialogs, isColorRangeDialogOpen: true },
+        }));
+        render(<ColorRangeDialog />);
+        // Range slider should NOT be present yet.
+        expect(document.querySelector('[data-testid="color-range-range-slider"]')).toBeNull();
+        const cb = document.querySelector('[data-testid="color-range-localized"]') as HTMLInputElement;
+        expect(cb).toBeTruthy();
+        fireEvent.click(cb);
+        const slider = document.querySelector('[data-testid="color-range-range-slider"]') as HTMLInputElement;
+        expect(slider).toBeTruthy();
     });
 });

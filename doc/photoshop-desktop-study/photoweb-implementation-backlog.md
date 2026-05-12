@@ -297,7 +297,7 @@ Status key:
     - `src/test/selection.test.ts`: sample red area, assert selected mask.
     - UI test for fuzziness affecting selection size.
   - Dependencies: `HIST-03`
-  - Implementation notes: `src/tools/colorRange.ts` composites visible layers, builds a color-distance mask from add/subtract samples, and writes it as a selection operation. `ColorRangeDialog` exposes sample color, fuzziness, Add Sample, Subtract Sample, and Replace controls; `Select > Color Range…` opens the dialog.
+  - Implementation notes: `src/tools/colorRange.ts` composites visible layers, builds a color-distance mask from add/subtract samples, and writes it as a selection operation. `ColorRangeDialog` exposes the Select preset dropdown (Sampled Colors / Reds / Yellows / Greens / Cyans / Blues / Magentas / Highlights / Midtones / Shadows / Skin Tones via `src/tools/colorRangePresets.ts`), sample color, fuzziness, Localized Color Clusters checkbox + Range slider, Invert, Add Sample, Subtract Sample, and Replace controls; `Select > Color Range…` opens the dialog. Detect Faces and Out-of-Gamut are intentionally out of scope per CLAUDE.md §4.
 
 - [x] `SEL-02` Select and Mask refinement upgrade
   - Priority: `P0`

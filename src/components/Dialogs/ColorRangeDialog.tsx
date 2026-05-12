@@ -6,6 +6,7 @@ import {
     type ColorRangeMode,
     type ColorRangeSample,
 } from '../../tools/colorRange';
+import { COLOR_RANGE_PRESETS, type ColorRangePresetId } from '../../tools/colorRangePresets';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 const overlay: React.CSSProperties = {
@@ -81,6 +82,9 @@ export function ColorRangeDialog() {
     const [fuzziness, setFuzziness] = useState(40);
     const [samples, setSamples] = useState<ColorRangeSample[]>([{ color: primaryColor, mode: 'add' }]);
     const [invert, setInvert] = useState(false);
+    const [preset, setPreset] = useState<ColorRangePresetId>('sampled');
+    const [localized, setLocalized] = useState(false);
+    const [rangePx, setRangePx] = useState(100);
     const dialogRef = useDialogA11y(isOpen, close);
     const previewRef = useRef<HTMLCanvasElement>(null);
 
@@ -91,6 +95,9 @@ export function ColorRangeDialog() {
             setFuzziness(40);
             setSamples([{ color: primaryColor, mode: 'add' }]);
             setInvert(false);
+            setPreset('sampled');
+            setLocalized(false);
+            setRangePx(100);
         }
     }, [isOpen, primaryColor]);
 
@@ -120,11 +127,11 @@ export function ColorRangeDialog() {
             ev.stopPropagation();
             setColor(hex);
             if (ev.shiftKey && !ev.altKey) {
-                setSamples(prev => [...prev, { color: hex, mode: 'add' }]);
+                setSamples(prev => [...prev, { color: hex, mode: 'add', x, y }]);
             } else if (ev.altKey && !ev.shiftKey) {
-                setSamples(prev => [...prev, { color: hex, mode: 'sub' }]);
+                setSamples(prev => [...prev, { color: hex, mode: 'sub', x, y }]);
             } else {
-                setSamples([{ color: hex, mode: 'add' }]);
+                setSamples([{ color: hex, mode: 'add', x, y }]);
             }
         };
         // Capture phase so we intercept before the Viewport sees the click.
@@ -150,7 +157,13 @@ export function ColorRangeDialog() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         const image = compositeForPreview();
         if (!image) return;
-        const mask = buildColorRangeMask(image, { samples, fuzziness, invert });
+        const mask = buildColorRangeMask(image, {
+            samples,
+            fuzziness,
+            invert,
+            preset,
+            range: localized ? rangePx : undefined,
+        });
         const maskImage = ctx.createImageData(image.width, image.height);
         for (let i = 0; i < mask.data.length; i++) {
             const v = mask.data[i];
@@ -172,7 +185,7 @@ export function ColorRangeDialog() {
         const dy = Math.round((canvas.height - dh) / 2);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(tmp, dx, dy, dw, dh);
-    }, [isOpen, samples, fuzziness, invert]);
+    }, [isOpen, samples, fuzziness, invert, preset, localized, rangePx]);
 
     if (!isOpen) return null;
 
@@ -208,7 +221,13 @@ export function ColorRangeDialog() {
     }
 
     function apply() {
-        applyColorRangeSelectionWithMode(useEditorStore.getState(), { samples, fuzziness, invert }, mode);
+        applyColorRangeSelectionWithMode(useEditorStore.getState(), {
+            samples,
+            fuzziness,
+            invert,
+            preset,
+            range: localized ? rangePx : undefined,
+        }, mode);
         close();
     }
 
@@ -227,6 +246,20 @@ export function ColorRangeDialog() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
                     <div>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+                            <span style={{ opacity: 0.75, width: 60 }}>Select</span>
+                            <select
+                                value={preset}
+                                onChange={e => setPreset(e.target.value as ColorRangePresetId)}
+                                data-testid="color-range-preset"
+                                style={{ ...input, flex: 1 }}
+                            >
+                                {COLOR_RANGE_PRESETS.map(p => (
+                                    <option key={p.id} value={p.id} style={{ background: '#333' }}>{p.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }} role="radiogroup" aria-label="Color Range Mode">
                             <span style={{ opacity: 0.75, width: 60 }}>Mode</span>
                             {(['replace', 'add', 'sub', 'intersect'] as ColorRangeMode[]).map(m => (
@@ -285,6 +318,42 @@ export function ColorRangeDialog() {
                                 />
                             </div>
                         </div>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12, cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={localized}
+                                onChange={e => setLocalized(e.target.checked)}
+                                data-testid="color-range-localized"
+                            />
+                            Localized Color Clusters
+                        </label>
+                        {localized && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 10, alignItems: 'center', marginTop: 6 }}>
+                                <label style={{ opacity: 0.75 }} htmlFor="color-range-range">Range</label>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <input
+                                        id="color-range-range"
+                                        type="range"
+                                        min={1}
+                                        max={1000}
+                                        value={rangePx}
+                                        onChange={e => setRangePx(Number(e.target.value))}
+                                        style={{ flex: 1 }}
+                                        data-testid="color-range-range-slider"
+                                    />
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={1000}
+                                        value={rangePx}
+                                        onChange={e => setRangePx(Math.max(1, Math.min(1000, Number(e.target.value))))}
+                                        style={{ ...input, width: 64 }}
+                                        data-testid="color-range-range-input"
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                             <button

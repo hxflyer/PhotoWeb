@@ -1,6 +1,10 @@
 import type { Layer } from '../core/Layer';
 import type { EditorStore, SelectionMaskData, SelectionOperation } from '../store/types';
 import { rasterizeSelectionOperations } from '../utils/selectionUtils';
+import {
+    colorRangeMaskFromPreset,
+    type ColorRangePresetId,
+} from './colorRangePresets';
 
 export type ColorRangeMode = 'replace' | 'add' | 'sub' | 'intersect';
 
@@ -9,13 +13,26 @@ export type ColorRangeSampleMode = 'add' | 'sub';
 export interface ColorRangeSample {
     color: string;
     mode: ColorRangeSampleMode;
+    /** Optional canvas-space anchor for Localized Color Clusters. */
+    x?: number;
+    y?: number;
 }
 
 export interface ColorRangeOptions {
     samples: ColorRangeSample[];
     fuzziness: number;
     invert?: boolean;
+    /** Built-in Photoshop preset; defaults to 'sampled'. */
+    preset?: ColorRangePresetId;
+    /**
+     * Localized Color Clusters range, in pixels. When set, only pixels within
+     * this distance of a sample's `x` / `y` count toward the mask. Undefined
+     * means unbounded (Photoshop default).
+     */
+    range?: number;
 }
+
+export type { ColorRangePresetId };
 
 function hexToRgb(hex: string): [number, number, number] {
     const clean = hex.replace('#', '').trim();
@@ -57,10 +74,33 @@ export function buildColorRangeMask(
     image: ImageData,
     options: ColorRangeOptions,
 ): SelectionMaskData {
-    const addSamples = options.samples.filter(sample => sample.mode === 'add').map(sample => hexToRgb(sample.color));
-    const subSamples = options.samples.filter(sample => sample.mode === 'sub').map(sample => hexToRgb(sample.color));
+    // Built-in preset (Reds, Yellows, Highlights, Skin Tones, etc.) — when the
+    // preset is anything other than 'sampled' the sampled-color list is
+    // ignored and the preset's per-pixel rule produces the mask.
+    if (options.preset && options.preset !== 'sampled') {
+        const mask = colorRangeMaskFromPreset(image, options.preset);
+        if (options.invert) {
+            for (let i = 0; i < mask.data.length; i++) {
+                if (image.data[i * 4 + 3] === 0) continue;
+                mask.data[i] = 255 - mask.data[i];
+            }
+        }
+        return mask;
+    }
+
+    const addSamples = options.samples.filter(sample => sample.mode === 'add');
+    const subSamples = options.samples.filter(sample => sample.mode === 'sub');
+    const addRgb = addSamples.map(sample => hexToRgb(sample.color));
+    const subRgb = subSamples.map(sample => hexToRgb(sample.color));
     const data = new Uint8ClampedArray(image.width * image.height);
-    if (addSamples.length === 0) return { data, width: image.width, height: image.height };
+    if (addRgb.length === 0) return { data, width: image.width, height: image.height };
+
+    const range = options.range;
+    const rangeSquared = range !== undefined ? range * range : Infinity;
+    const addAnchors: Array<{ x: number; y: number } | null> = addSamples.map(s =>
+        s.x !== undefined && s.y !== undefined ? { x: s.x, y: s.y } : null);
+
+    const width = image.width;
 
     for (let i = 0; i < data.length; i++) {
         const pixel = i * 4;
@@ -69,15 +109,25 @@ export function buildColorRangeMask(
         const r = image.data[pixel];
         const g = image.data[pixel + 1];
         const b = image.data[pixel + 2];
-        const inAdd = addSamples.some(sample => matchesSample(r, g, b, sample, options.fuzziness));
-        if (!inAdd) continue;
-        const inSub = subSamples.some(sample => matchesSample(r, g, b, sample, options.fuzziness));
+        const px = i % width;
+        const py = (i / width) | 0;
+        let matched = false;
+        for (let sIdx = 0; sIdx < addRgb.length; sIdx++) {
+            if (!matchesSample(r, g, b, addRgb[sIdx], options.fuzziness)) continue;
+            const anchor = addAnchors[sIdx];
+            if (range !== undefined && anchor) {
+                const dx = px - anchor.x;
+                const dy = py - anchor.y;
+                if (dx * dx + dy * dy > rangeSquared) continue;
+            }
+            matched = true;
+            break;
+        }
+        if (!matched) continue;
+        const inSub = subRgb.some(sample => matchesSample(r, g, b, sample, options.fuzziness));
         data[i] = inSub ? 0 : 255;
     }
     if (options.invert) {
-        // Photoshop "Invert" only flips pixels that belong to opaque layers.
-        // Transparent areas (alpha=0) stay outside the selection so we do not
-        // create selection geometry over the empty document background.
         for (let i = 0; i < data.length; i++) {
             const pixel = i * 4;
             const alpha = image.data[pixel + 3];
