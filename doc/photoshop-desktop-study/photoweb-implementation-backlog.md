@@ -867,6 +867,13 @@ Status key:
   - Required tests: `src/test/presetDialogsBatchF.test.tsx`.
   - Implementation notes: SwatchesPanel does not currently invoke `window.prompt` (it uses a silent "+" button on the current primary color) — extending it to a NewSwatchDialog would require adding a name field to the swatch model and is deferred.
 
+- [x] `BATCH-F-06` Drop / Inner Shadow + Outer / Inner Glow option parity
+  - Priority: `P1`
+  - Function description: Bring `src/effects/dropShadow.ts`, `innerShadow.ts`, `outerGlow.ts`, `innerGlow.ts` up to Photoshop's option set. Drop Shadow + Inner Shadow: Contour selector + Anti-aliased + Noise + Use Global Light (Drop Shadow + Inner Shadow share the document `globalLight`) + Knockout (Drop Shadow only). Outer Glow + Inner Glow: Contour + Anti-aliased + Noise + Technique (Softer / Precise) + Range + Jitter + Color Source toggle (Solid / Gradient) — when Gradient, store stops on the effect and reuse `GradientEditorDialog`. Inner Glow additionally: Source toggle (Center / Edge).
+  - Acceptance criteria: Drop Shadow with Noise=0.5 produces non-uniform shadow alpha; knockout=on erases the layer silhouette from the shadow; Outer Glow with colorSource=gradient renders gradient-colored glow; Inner Glow source=center brightens the silhouette interior; useGlobalLight propagates from the document `setGlobalLight`.
+  - Required tests: `src/test/shadowGlowBatchF.test.ts`.
+  - Implementation notes: `applyContourAndNoise` is exported from `dropShadow.ts` and reused by `innerShadow.ts` for the alpha reshape step. Glow effects build a private gradient sampler that does color + opacity stop interpolation.
+
 - [x] `BATCH-F-05` Bevel & Emboss completeness
   - Priority: `P1`
   - Function description: Extend `src/effects/bevelEmboss.ts` with Technique (Smooth / Chisel Hard / Chisel Soft), Gloss Contour selector (Linear / Half Round / Cone / Cone Inverted / Gaussian / Ring / Sawtooth), Use Global Light toggle, Contour sub-section (contour curve + range slider + anti-aliased toggle), Texture sub-section (pattern picker + scale + depth + invert + link with layer). Wires through `EffectRenderContext.globalLight` and a new `DocumentSlice.globalLight: { angle, altitude }` that any effect with `useGlobalLight` reads at apply-time. PropertiesPanel `EffectEntry` adds dedicated editors for Technique, Gloss Contour, Texture, and globally-shared angle/altitude sliders.

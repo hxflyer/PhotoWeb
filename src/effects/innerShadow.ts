@@ -1,5 +1,7 @@
 import type { Effect, EffectRenderContext, EffectRenderResult } from './Effect';
 import { registerEffect } from './registry';
+import { applyContourAndNoise } from './dropShadow';
+import type { ContourName } from './bevelEmboss';
 
 interface InnerShadowParams {
     color: string;
@@ -9,6 +11,10 @@ interface InnerShadowParams {
     choke: number;       // 0..1 — sharpens the inner edge (analogous to spread)
     size: number;        // blur radius px
     blendMode: GlobalCompositeOperation;
+    useGlobalLight: boolean;
+    contour: ContourName;
+    contourAntiAliased: boolean;
+    noise: number;       // 0..1
 }
 
 const defaultParams: InnerShadowParams = {
@@ -19,6 +25,10 @@ const defaultParams: InnerShadowParams = {
     choke: 0,
     size: 8,
     blendMode: 'multiply',
+    useGlobalLight: true,
+    contour: 'linear',
+    contourAntiAliased: true,
+    noise: 0,
 };
 
 export const innerShadowEffect: Effect = {
@@ -54,7 +64,10 @@ export const innerShadowEffect: Effect = {
         // Offset the inverted silhouette and blur it. The choke parameter
         // intensifies the opaque core by stamping the silhouette multiple
         // times before the blur, sharpening the resulting edge.
-        const rad = (p.angle * Math.PI) / 180;
+        const effAngle = p.useGlobalLight && context.globalLight
+            ? context.globalLight.angle
+            : p.angle;
+        const rad = (effAngle * Math.PI) / 180;
         const dx = Math.cos(rad) * p.distance;
         const dy = Math.sin(rad) * p.distance;
         const chokePasses = 1 + Math.round(Math.max(0, Math.min(1, p.choke)) * 8);
@@ -82,6 +95,9 @@ export const innerShadowEffect: Effect = {
         sctx.fillRect(0, 0, w, h);
         sctx.globalCompositeOperation = 'source-over';
 
+        // Apply Contour + Noise to the tinted silhouette before clipping.
+        const shaped = applyContourAndNoise(shifted, p.contour, p.noise, p.contourAntiAliased);
+
         // Clip the tinted shadow to the layer's alpha so it only paints INSIDE
         // the layer (the cutout illusion).
         const out = document.createElement('canvas');
@@ -90,7 +106,7 @@ export const innerShadowEffect: Effect = {
         if (!octx) return empty;
         octx.drawImage(context.layerCanvas, 0, 0);
         octx.globalCompositeOperation = 'source-in';
-        octx.drawImage(shifted, 0, 0);
+        octx.drawImage(shaped, 0, 0);
 
         return { canvas: out, placement: 'overlay', blendMode: p.blendMode, opacity: p.opacity };
     },

@@ -1,5 +1,6 @@
 import type { Effect, EffectRenderContext, EffectRenderResult } from './Effect';
 import { registerEffect } from './registry';
+import { applyBevelContour, type ContourName } from './bevelEmboss';
 
 interface DropShadowParams {
     color: string;
@@ -9,6 +10,11 @@ interface DropShadowParams {
     spread: number;      // 0..1 — fraction of size that is hardened (no blur)
     size: number;        // blur radius px
     blendMode: GlobalCompositeOperation;
+    useGlobalLight: boolean;
+    contour: ContourName;
+    contourAntiAliased: boolean;
+    noise: number;       // 0..1 fraction of pixels to dither out
+    knockout: 'off' | 'on';
 }
 
 const defaultParams: DropShadowParams = {
@@ -19,6 +25,11 @@ const defaultParams: DropShadowParams = {
     spread: 0,
     size: 8,
     blendMode: 'source-over',
+    useGlobalLight: true,
+    contour: 'linear',
+    contourAntiAliased: true,
+    noise: 0,
+    knockout: 'off',
 };
 
 export const dropShadowEffect: Effect = {
@@ -47,7 +58,10 @@ export const dropShadowEffect: Effect = {
         // it's a hard, slightly-grown silhouette. This mirrors Photoshop's
         // semantics: "Spread" enlarges the matte boundaries of the shadow
         // before the Size blur is applied.
-        const rad = (p.angle * Math.PI) / 180;
+        const effAngle = p.useGlobalLight && context.globalLight
+            ? context.globalLight.angle
+            : p.angle;
+        const rad = (effAngle * Math.PI) / 180;
         const dx = Math.cos(rad) * p.distance;
         const dy = Math.sin(rad) * p.distance;
         const sizePx = Math.max(0, p.size);
@@ -86,16 +100,67 @@ export const dropShadowEffect: Effect = {
             bctx.drawImage(dilated, 0, 0);
         }
 
-        // Place the blurred silhouette at the offset.
+        // Apply contour to the alpha falloff. The contour reshapes the soft
+        // shadow's gradient from edge (high alpha) to outside (low alpha) so
+        // rings, sharp drop-offs, and tone curves are possible.
+        const shaped = applyContourAndNoise(blurred, p.contour, p.noise, p.contourAntiAliased);
+
+        // Place the (shaped) silhouette at the offset.
         const placed = document.createElement('canvas');
         placed.width = out.width;
         placed.height = out.height;
         const pctx = placed.getContext('2d');
-        if (!pctx) return { canvas: blurred, placement: 'underlay', blendMode: p.blendMode, opacity: p.opacity };
-        pctx.drawImage(blurred, dx, dy);
+        if (!pctx) return { canvas: shaped, placement: 'underlay', blendMode: p.blendMode, opacity: p.opacity };
+        pctx.drawImage(shaped, dx, dy);
+
+        // Knockout: when on, erase the layer's silhouette from the shadow so
+        // the shadow only shows where the layer ISN'T. Photoshop calls this
+        // "Layer Knocks Out Drop Shadow."
+        if (p.knockout === 'on') {
+            pctx.globalCompositeOperation = 'destination-out';
+            pctx.drawImage(context.layerCanvas, 0, 0);
+            pctx.globalCompositeOperation = 'source-over';
+        }
 
         return { canvas: placed, placement: 'underlay', blendMode: p.blendMode, opacity: p.opacity };
     },
 };
+
+// Shared shadow/glow post-processing: reshape alpha via the contour curve and
+// then optionally dither in noise. The output canvas only has alpha modified;
+// RGB is preserved (the tinted shadow/glow colour).
+export function applyContourAndNoise(
+    src: HTMLCanvasElement,
+    contour: ContourName,
+    noise: number,
+    antiAliased: boolean,
+): HTMLCanvasElement {
+    const out = document.createElement('canvas');
+    out.width = src.width; out.height = src.height;
+    const ctx = out.getContext('2d');
+    if (!ctx) return src;
+    ctx.drawImage(src, 0, 0);
+    const img = ctx.getImageData(0, 0, out.width, out.height);
+    const noiseAmt = Math.max(0, Math.min(1, noise));
+    for (let i = 0; i < img.data.length; i += 4) {
+        const a = img.data[i + 3] / 255;
+        let shaped = applyBevelContour(a, contour);
+        if (!antiAliased && shaped > 0 && shaped < 1) {
+            // Aliased contour quantises to a hard step at 0.5.
+            shaped = shaped >= 0.5 ? 1 : 0;
+        }
+        if (noiseAmt > 0 && shaped > 0) {
+            // Photoshop's Noise dithers the shadow body so it doesn't form a
+            // uniform gradient. Each pixel's alpha is multiplied by a random
+            // value in [1 - noiseAmt, 1] so noise=1 yields a maximally
+            // dithered shadow body.
+            const r = 1 - Math.random() * noiseAmt;
+            shaped *= r;
+        }
+        img.data[i + 3] = Math.round(shaped * 255);
+    }
+    ctx.putImageData(img, 0, 0);
+    return out;
+}
 
 registerEffect(dropShadowEffect);
