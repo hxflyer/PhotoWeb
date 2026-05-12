@@ -5,6 +5,7 @@ import type { LayerColorTag } from '../../core/Layer';
 import type { Layer } from '../../core/Layer';
 import { blendModes as v1BlendModes } from '../../core/blendModes';
 import { PanelFlyout, type PanelFlyoutItem } from './PanelFlyout';
+import { LayerStyleDialog } from '../Dialogs/LayerStyleDialog';
 
 const COLOR_TAGS: { id: LayerColorTag; color: string }[] = [
     { id: 'none', color: 'transparent' },
@@ -176,6 +177,7 @@ export function LayersPanel() {
     const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
     const [dropHint, setDropHint] = useState<{ targetId: string; zone: 'above' | 'inside' | 'below' } | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string; submenu: 'main' | 'fx' } | null>(null);
+    const [layerStyleDialog, setLayerStyleDialog] = useState<{ layerId: string; tab: string } | null>(null);
 
     // Tick periodically so thumbnails reflect canvas content updates from painting.
     const [thumbTick, setThumbTick] = useState(0);
@@ -519,8 +521,19 @@ export function LayersPanel() {
                                 {layer.visible ? <Eye size={16} /> : <EyeOff size={16} />}
                             </button>
 
-                            {/* Thumbnail */}
-                            <LayerThumbnail layer={layer} tick={thumbTick} />
+                            {/* Thumbnail (double-click opens Layer Style dialog) */}
+                            <div
+                                data-testid={`layer-thumb-${layer.id}`}
+                                onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveLayer(layer.id);
+                                    setLayerStyleDialog({ layerId: layer.id, tab: 'blending' });
+                                }}
+                                style={{ flexShrink: 0, lineHeight: 0, cursor: 'pointer' }}
+                                title="Double-click to open Layer Style"
+                            >
+                                <LayerThumbnail layer={layer} tick={thumbTick} />
+                            </div>
 
                             {layer.mask && (
                                 <>
@@ -696,9 +709,7 @@ export function LayersPanel() {
                         data-testid="layer-context-blending-options"
                         onClick={() => {
                             setActiveLayer(contextMenu.layerId);
-                            // Make Properties panel visible + emit a focus hint so it scrolls/highlights the Effects section.
-                            useEditorStore.getState().setPanelVisibility?.('properties', true);
-                            window.dispatchEvent(new CustomEvent('photoweb:focus-effects', { detail: { layerId: contextMenu.layerId } }));
+                            setLayerStyleDialog({ layerId: contextMenu.layerId, tab: 'blending' });
                             setContextMenu(null);
                         }}
                         style={{
@@ -836,6 +847,13 @@ export function LayersPanel() {
                     ))}
                 </div>
             )}
+
+            <LayerStyleDialog
+                isOpen={layerStyleDialog !== null}
+                layerId={layerStyleDialog?.layerId ?? null}
+                initialTab={layerStyleDialog?.tab}
+                onClose={() => setLayerStyleDialog(null)}
+            />
         </div>
     );
 }

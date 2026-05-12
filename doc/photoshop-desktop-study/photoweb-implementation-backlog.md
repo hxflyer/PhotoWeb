@@ -818,6 +818,13 @@ Status key:
   - Required tests: `src/test/panelFlyoutBatchF.test.tsx`.
   - Implementation notes: Single shared component intended to be reused across all panels. LayersPanel is the first consumer; remaining panels can adopt incrementally without API changes.
 
+- [x] `BATCH-F-03` Layer Style dialog
+  - Priority: `P1`
+  - Function description: New `src/components/Dialogs/LayerStyleDialog.tsx`. Tabbed modal opened by double-click on a layer thumbnail in `LayersPanel` and from the Blending Options context-menu entry. Tabs: Blending Options, Bevel & Emboss, Stroke, Inner Shadow, Inner Glow, Satin, Color Overlay, Gradient Overlay, Pattern Overlay, Outer Glow, Drop Shadow. Each effect tab reuses the existing `EffectEntry` editor when the effect is present, otherwise shows an `Add <Effect>` button.
+  - Acceptance criteria: double-clicking the thumbnail opens the dialog focused on Blending Options; Blending Options tab edits blend mode + opacity + fill opacity; switching tabs preserves state; clicking "Add Drop Shadow" wires the effect into the layer.
+  - Required tests: `src/test/layerStyleDialogBatchF.test.tsx`.
+  - Implementation notes: `EffectEntry` is now exported from PropertiesPanel so the dialog reuses it verbatim. Knockout, Blend If split-sliders, Blend Interior Effects as Group, and the remaining Advanced Blending options are pending under BATCH-F-05.
+
 ## Batch E - Adjustment / Filter UX
 
 - [x] `BATCH-E-01` Edit > Fade dialog

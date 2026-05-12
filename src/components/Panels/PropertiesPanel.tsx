@@ -645,7 +645,7 @@ function TypeSection({ layer }: { layer: Layer }) {
     );
 }
 
-function EffectEntry({ layer, effect, idx }: { layer: Layer; effect: LayerEffect; idx: number }) {
+export function EffectEntry({ layer, effect, idx }: { layer: Layer; effect: LayerEffect; idx: number }) {
     const { removeLayerEffect, setLayerEffectEnabled, setLayerEffectParams } = useEditorStore();
     const patternPresets = useEditorStore(s => s.patternPresets);
     const [gradientEditorOpen, setGradientEditorOpen] = useState(false);
