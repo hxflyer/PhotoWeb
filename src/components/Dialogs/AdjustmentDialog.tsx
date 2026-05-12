@@ -987,6 +987,15 @@ export function AdjustmentDialog({
             case 'hue-saturation':
                 return (
                     <>
+                        <SelectRow label="Range" value={stringValue(mergedParams, 'range', 'master')} options={[
+                            { value: 'master', label: 'Master' },
+                            { value: 'reds', label: 'Reds' },
+                            { value: 'yellows', label: 'Yellows' },
+                            { value: 'greens', label: 'Greens' },
+                            { value: 'cyans', label: 'Cyans' },
+                            { value: 'blues', label: 'Blues' },
+                            { value: 'magentas', label: 'Magentas' },
+                        ]} onChange={v => setParam('range', v)} />
                         <SliderRow label="Hue" value={numberValue(mergedParams, 'hue', 0)} min={-180} max={180} onChange={v => setParam('hue', v)} />
                         <SliderRow label="Saturation" value={numberValue(mergedParams, 'saturation', 0)} min={-100} max={100} onChange={v => setParam('saturation', v)} />
                         <SliderRow label="Lightness" value={numberValue(mergedParams, 'lightness', 0)} min={-100} max={100} onChange={v => setParam('lightness', v)} />

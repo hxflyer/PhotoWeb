@@ -66,8 +66,48 @@ export const vibrance: Adjustment<VibranceParams> = {
     },
 };
 
-export interface HueSaturationParams extends Record<string, unknown> { hue: number; saturation: number; lightness: number; colorize: boolean }
-const hueSaturationDefaults: HueSaturationParams = { hue: 0, saturation: 0, lightness: 0, colorize: false };
+export type HueSaturationRange = 'master' | 'reds' | 'yellows' | 'greens' | 'cyans' | 'blues' | 'magentas';
+
+export interface HueSaturationParams extends Record<string, unknown> {
+    hue: number;
+    saturation: number;
+    lightness: number;
+    colorize: boolean;
+    range: HueSaturationRange;
+}
+const hueSaturationDefaults: HueSaturationParams = { hue: 0, saturation: 0, lightness: 0, colorize: false, range: 'master' };
+
+// Hue centers (degrees, 0..360) for the six chromatic ranges.
+const HUE_SAT_CENTERS: Record<Exclude<HueSaturationRange, 'master'>, number> = {
+    reds: 0,
+    yellows: 60,
+    greens: 120,
+    cyans: 180,
+    blues: 240,
+    magentas: 300,
+};
+
+function angularDistance(a: number, b: number): number {
+    const d = Math.abs(a - b) % 360;
+    return d > 180 ? 360 - d : d;
+}
+
+// Photoshop-like 60° core window with feathered transitions to 30° on each side
+// (full window: 120°). Mirrors the selective-color logic but parameterized by
+// the explicit center.
+function hueWindowWeight(hueDegrees: number, center: number): number {
+    const dist = angularDistance(hueDegrees, center);
+    if (dist <= 30) return 1;
+    if (dist >= 90) return 0;
+    return 1 - (dist - 30) / 60;
+}
+
+function parseRange(value: unknown): HueSaturationRange {
+    return value === 'reds' || value === 'yellows' || value === 'greens'
+        || value === 'cyans' || value === 'blues' || value === 'magentas'
+        ? value
+        : 'master';
+}
 
 export const hueSaturation: Adjustment<HueSaturationParams> = {
     id: 'hue-saturation',
@@ -79,15 +119,26 @@ export const hueSaturation: Adjustment<HueSaturationParams> = {
         const saturation = numberParam(params, 'saturation', hueSaturationDefaults.saturation, -100, 100);
         const lightness = numberParam(params, 'lightness', hueSaturationDefaults.lightness, -100, 100);
         const colorize = booleanParam(params, 'colorize', hueSaturationDefaults.colorize);
+        const range = parseRange(params.range);
         const out = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
         const hueShift = hue / 360;
         const satAmt = saturation / 100;
         const lightAmt = lightness / 100;
+        const rangeCenter = range !== 'master' ? HUE_SAT_CENTERS[range] : null;
         for (let i = 0; i < out.data.length; i += 4) {
             const [h, s, l] = rgb2hsl(image.data[i], image.data[i + 1], image.data[i + 2]);
-            const newH = colorize ? wrap01(hueShift) : wrap01(h + hueShift);
-            let newS = colorize ? clamp01(saturation / 100) : s + satAmt;
-            let newL = l + lightAmt;
+            const weight = rangeCenter !== null
+                ? hueWindowWeight(h * 360, rangeCenter) * Math.min(1, s * 2)
+                : 1;
+            if (weight === 0) {
+                out.data[i] = image.data[i];
+                out.data[i + 1] = image.data[i + 1];
+                out.data[i + 2] = image.data[i + 2];
+                continue;
+            }
+            const newH = colorize ? wrap01(hueShift) : wrap01(h + hueShift * weight);
+            let newS = colorize ? clamp01(saturation / 100) : s + satAmt * weight;
+            let newL = l + lightAmt * weight;
             newS = clamp01(newS);
             newL = clamp01(newL);
             const [r, g, b] = hsl2rgb(newH, newS, newL);
