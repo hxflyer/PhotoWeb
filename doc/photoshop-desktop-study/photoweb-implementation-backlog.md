@@ -773,6 +773,25 @@ Status key:
   - Acceptance criteria: file removed; TS still clean; test asserts file no longer exists.
   - Required tests: `src/test/batchAQuickWins.test.tsx` — TestDialog removal.
 
+## Batch D - Document/Image dialogs
+
+- [x] `BATCH-D-01` ImageSize resample methods (Automatic + Bicubic Smoother/Sharper + full list)
+  - Priority: `P1`
+  - Function description: Match Photoshop's Image Size resample dropdown. Add a Resample on/off checkbox and the full method list (Automatic, Bicubic Smoother for enlargement, Bicubic Sharper for reduction, Bicubic, Bilinear, Nearest Neighbor). Automatic picks Smoother when the new pixel total is >= the source, otherwise Sharper. Each method is implemented as a pure ImageData function so output is deterministic.
+  - Acceptance criteria:
+    - Dropdown lists all six methods with Photoshop-verbatim labels.  `Implemented`
+    - Resample checkbox toggles the method dropdown and locks pixel count when off.  `Implemented`
+    - Automatic resolves to Bicubic Smoother on up-scale and Bicubic Sharper on down-scale.  `Implemented`
+    - Each method is a pure ImageData → ImageData function.  `Implemented (resampleImageData)`
+  - Required tests:
+    - `src/test/batchDDocumentDialogs.test.tsx` — Automatic resolves correctly; each method resamples 100x100 → 200x200; Resample off locks dimensions; dropdown lists six options.
+  - Implementation notes: `src/core/imageTransforms.ts` exports `ResampleMethod`, `RESAMPLE_METHOD_LABELS`, `resolveAutomaticResample`, `resampleImageData` (Mitchell–Netravali cubic kernel with a `bias` knob: 0 = Bicubic, +0.35 = Smoother, −0.35 = Sharper). `resampleCanvas` delegates to `resampleImageData` for determinism. `ImageSizeDialog` exposes Resample checkbox + Method dropdown.
+
+- [ ] `BATCH-D-02` CanvasSize Relative + Current/New Size header
+- [ ] `BATCH-D-03` Shared math expression + unit helpers (NewDocument / CanvasSize / ImageSize / NewGuide)
+- [ ] `BATCH-D-04` ExportDialog real-size estimate + Filename field
+- [ ] `BATCH-D-05` ShortcutsDialog single registry + missing Image/Edit/Layer/Select keys
+
 ## Batch F - Panels and Layer Styles
 
 - [x] `BATCH-F-01` Mask Properties buttons wiring

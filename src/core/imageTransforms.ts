@@ -3,9 +3,37 @@
  * All functions take an HTMLCanvasElement as input and return a NEW canvas.
  */
 
-export type ResampleMethod = 'nearest' | 'bilinear' | 'bicubic';
+export type ResampleMethod =
+    | 'automatic'
+    | 'bicubic-smoother'
+    | 'bicubic-sharper'
+    | 'bicubic'
+    | 'bilinear'
+    | 'nearest';
 export type FlipAxis = 'horizontal' | 'vertical';
 export type TrimBasis = 'transparent' | 'top-left' | 'bottom-right';
+
+export const RESAMPLE_METHOD_LABELS: Record<ResampleMethod, string> = {
+    'automatic': 'Automatic',
+    'bicubic-smoother': 'Bicubic Smoother (enlargement)',
+    'bicubic-sharper': 'Bicubic Sharper (reduction)',
+    'bicubic': 'Bicubic',
+    'bilinear': 'Bilinear',
+    'nearest': 'Nearest Neighbor',
+};
+
+export function resolveAutomaticResample(
+    method: ResampleMethod,
+    srcW: number,
+    srcH: number,
+    dstW: number,
+    dstH: number,
+): Exclude<ResampleMethod, 'automatic'> {
+    if (method !== 'automatic') return method;
+    const srcPx = srcW * srcH;
+    const dstPx = dstW * dstH;
+    return dstPx >= srcPx ? 'bicubic-smoother' : 'bicubic-sharper';
+}
 
 // ── Rotate ─────────────────────────────────────────────────────────���──────
 
@@ -46,18 +74,130 @@ export function flipCanvas(src: HTMLCanvasElement, axis: FlipAxis): HTMLCanvasEl
 // ── Resize / Resample ─────────────────────────────────────────────────────
 
 export function resampleCanvas(src: HTMLCanvasElement, newW: number, newH: number, method: ResampleMethod): HTMLCanvasElement {
+    const resolved = resolveAutomaticResample(method, src.width, src.height, newW, newH);
+    const srcCtx = src.getContext('2d')!;
+    const srcData = srcCtx.getImageData(0, 0, src.width, src.height);
+    const outData = resampleImageData(srcData, newW, newH, resolved);
+
     const out = document.createElement('canvas');
     out.width = newW;
     out.height = newH;
     const ctx = out.getContext('2d')!;
+    ctx.putImageData(outData, 0, 0);
+    return out;
+}
 
-    if (method === 'nearest') {
-        ctx.imageSmoothingEnabled = false;
-    } else {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = method === 'bicubic' ? 'high' : 'medium';
+// Pure ImageData → ImageData resamplers. Deterministic by design (no
+// imageSmoothingEnabled flag from the underlying Canvas2D backend).
+export function resampleImageData(
+    src: ImageData,
+    newW: number,
+    newH: number,
+    method: Exclude<ResampleMethod, 'automatic'>,
+): ImageData {
+    if (method === 'nearest') return resampleNearest(src, newW, newH);
+    if (method === 'bilinear') return resampleBilinear(src, newW, newH);
+    if (method === 'bicubic') return resampleBicubic(src, newW, newH, 0);
+    if (method === 'bicubic-smoother') return resampleBicubic(src, newW, newH, +0.35);
+    return resampleBicubic(src, newW, newH, -0.35);
+}
+
+function resampleNearest(src: ImageData, newW: number, newH: number): ImageData {
+    const out = new ImageData(newW, newH);
+    const sw = src.width, sh = src.height;
+    const sx = sw / newW, sy = sh / newH;
+    for (let y = 0; y < newH; y++) {
+        const srcY = Math.min(sh - 1, Math.floor(y * sy));
+        for (let x = 0; x < newW; x++) {
+            const srcX = Math.min(sw - 1, Math.floor(x * sx));
+            const si = (srcY * sw + srcX) * 4;
+            const di = (y * newW + x) * 4;
+            out.data[di] = src.data[si];
+            out.data[di + 1] = src.data[si + 1];
+            out.data[di + 2] = src.data[si + 2];
+            out.data[di + 3] = src.data[si + 3];
+        }
     }
-    ctx.drawImage(src, 0, 0, newW, newH);
+    return out;
+}
+
+function resampleBilinear(src: ImageData, newW: number, newH: number): ImageData {
+    const out = new ImageData(newW, newH);
+    const sw = src.width, sh = src.height;
+    const sx = sw / newW, sy = sh / newH;
+    for (let y = 0; y < newH; y++) {
+        const fy = (y + 0.5) * sy - 0.5;
+        const y0 = Math.max(0, Math.floor(fy));
+        const y1 = Math.min(sh - 1, y0 + 1);
+        const wy = fy - y0;
+        for (let x = 0; x < newW; x++) {
+            const fx = (x + 0.5) * sx - 0.5;
+            const x0 = Math.max(0, Math.floor(fx));
+            const x1 = Math.min(sw - 1, x0 + 1);
+            const wx = fx - x0;
+            const i00 = (y0 * sw + x0) * 4;
+            const i10 = (y0 * sw + x1) * 4;
+            const i01 = (y1 * sw + x0) * 4;
+            const i11 = (y1 * sw + x1) * 4;
+            const di = (y * newW + x) * 4;
+            for (let c = 0; c < 4; c++) {
+                const v0 = src.data[i00 + c] * (1 - wx) + src.data[i10 + c] * wx;
+                const v1 = src.data[i01 + c] * (1 - wx) + src.data[i11 + c] * wx;
+                out.data[di + c] = Math.round(v0 * (1 - wy) + v1 * wy);
+            }
+        }
+    }
+    return out;
+}
+
+// Mitchell–Netravali / cubic convolution. `bias` lets us bend the kernel
+// shape: positive bias = smoother (softer transitions, used by Bicubic
+// Smoother), negative bias = sharper (more edge contrast, used by Bicubic
+// Sharper). bias=0 reproduces standard bicubic (a = -0.5).
+function cubicWeight(t: number, bias: number): number {
+    const a = -0.5 - bias; // bias>0 → a more negative → softer
+    const ax = Math.abs(t);
+    if (ax < 1) return (a + 2) * ax * ax * ax - (a + 3) * ax * ax + 1;
+    if (ax < 2) return a * ax * ax * ax - 5 * a * ax * ax + 8 * a * ax - 4 * a;
+    return 0;
+}
+
+function resampleBicubic(src: ImageData, newW: number, newH: number, bias: number): ImageData {
+    const out = new ImageData(newW, newH);
+    const sw = src.width, sh = src.height;
+    const sx = sw / newW, sy = sh / newH;
+    for (let y = 0; y < newH; y++) {
+        const fy = (y + 0.5) * sy - 0.5;
+        const iy = Math.floor(fy);
+        const dy = fy - iy;
+        for (let x = 0; x < newW; x++) {
+            const fx = (x + 0.5) * sx - 0.5;
+            const ix = Math.floor(fx);
+            const dx = fx - ix;
+            let r = 0, g = 0, b = 0, a = 0, sum = 0;
+            for (let m = -1; m <= 2; m++) {
+                const yy = Math.min(sh - 1, Math.max(0, iy + m));
+                const wY = cubicWeight(m - dy, bias);
+                for (let n = -1; n <= 2; n++) {
+                    const xx = Math.min(sw - 1, Math.max(0, ix + n));
+                    const wX = cubicWeight(n - dx, bias);
+                    const w = wX * wY;
+                    const si = (yy * sw + xx) * 4;
+                    r += src.data[si] * w;
+                    g += src.data[si + 1] * w;
+                    b += src.data[si + 2] * w;
+                    a += src.data[si + 3] * w;
+                    sum += w;
+                }
+            }
+            const inv = sum === 0 ? 0 : 1 / sum;
+            const di = (y * newW + x) * 4;
+            out.data[di] = Math.max(0, Math.min(255, Math.round(r * inv)));
+            out.data[di + 1] = Math.max(0, Math.min(255, Math.round(g * inv)));
+            out.data[di + 2] = Math.max(0, Math.min(255, Math.round(b * inv)));
+            out.data[di + 3] = Math.max(0, Math.min(255, Math.round(a * inv)));
+        }
+    }
     return out;
 }
 
