@@ -904,6 +904,13 @@ Status key:
   - Required tests: `src/test/curvesTogglesBatchE.test.tsx`.
   - Implementation notes: `CurveDisplayOptions` is the new prop bag for `CurveEditor`. Display state lives on AdjustmentDialog via `useState`; hover state propagates via `onHoverChange`.
 
+- [x] `BATCH-E-07` Auto Options sub-dialog
+  - Priority: `P1`
+  - Function description: `src/components/Dialogs/AutoOptionsDialog.tsx` opens from the Auto button area of Levels / Curves / Brightness-Contrast. Renders the four enhancement modes (Find Dark & Light Colors / Enhance Per Channel Contrast / Enhance Monochromatic Contrast / Enhance Brightness and Contrast) as radios, a Snap Neutral Midtones checkbox, three target color swatches (Shadows / Midtones / Highlights), and shadow / highlight clip percent fields. `src/utils/autoOptions.ts` holds `AutoEnhancementMode`, `AutoOptions`, `loadAutoOptions`, `saveAutoOptions`, and `autoOptionsToAdjustmentId` — the latter dispatches Auto to the existing `auto-tone / auto-contrast / auto-color` registry entries.
+  - Acceptance criteria: four radios + Snap Neutral checkbox render; selecting a mode + confirming invokes onConfirm; shadow / highlight clip numeric inputs round-trip; autoOptionsToAdjustmentId maps modes to existing adjustments; saveAutoOptions then loadAutoOptions round-trips when localStorage is available.
+  - Required tests: `src/test/autoOptionsBatchE.test.tsx`.
+  - Implementation notes: AdjustmentDialog renders an `Options…` button in its right column when adjustmentId ∈ {levels, curves, brightness-contrast}. The chosen options are stashed in local state and persisted via `saveAutoOptions` so the dialog re-opens with the user's last choice.
+
 - [x] `BATCH-E-06` Hue/Saturation Range dropdown + per-color editing
   - Priority: `P1`
   - Function description: `hueSaturation` in `src/adjustments/colorAdjustments.ts` gains a `range` field (master / reds / yellows / greens / cyans / blues / magentas). When a non-Master range is selected, hue/sat/lightness shifts only affect pixels whose hue falls within a 120° window around the range center, with feathered transitions at the window edges (30° core, 30° feather on each side). AdjustmentDialog adds a Range dropdown above Hue.

@@ -7,6 +7,7 @@ import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { useDialogEyedropper } from '../../hooks/useDialogEyedropper';
 import { useEditorStore } from '../../store/editorStore';
 import { PresetDropdown } from './PresetDropdown';
+import { AutoOptionsDialog, type AutoOptions } from './AutoOptionsDialog';
 
 interface AdjustmentDialogProps {
     isOpen: boolean;
@@ -713,6 +714,8 @@ export function AdjustmentDialog({
         showClipping: false,
     });
     const [curvesHover, setCurvesHover] = useState<{ input: number | null; output: number | null }>({ input: null, output: null });
+    const [autoOptionsOpen, setAutoOptionsOpen] = useState(false);
+    const [autoOptionsValue, setAutoOptionsValue] = useState<AutoOptions | null>(null);
     const eyedropper = useDialogEyedropper({
         getActiveLayerCanvas: () => {
             const store = useEditorStore.getState();
@@ -1235,11 +1238,21 @@ export function AdjustmentDialog({
                             Cancel
                         </button>
                         <button
+                            data-testid="adjustment-auto"
                             onClick={() => setParams(autoParams())}
                             style={{ padding: '8px 16px', background: 'transparent', border: '2px solid #777', color: '#f0f0f0', borderRadius: 20, cursor: 'pointer', fontSize: 16, fontWeight: 700 }}
                         >
                             Auto
                         </button>
+                        {(adjustmentId === 'levels' || adjustmentId === 'curves' || adjustmentId === 'brightness-contrast') && (
+                            <button
+                                data-testid="adjustment-auto-options"
+                                onClick={() => setAutoOptionsOpen(true)}
+                                style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #777', color: '#f0f0f0', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}
+                            >
+                                Options…
+                            </button>
+                        )}
                         <CheckboxRow label="Preview" checked={previewEnabled} onChange={setPreviewEnabled} />
                         <div style={{ marginTop: 8, color: '#d8d8d8', fontSize: 11, fontWeight: 500 }}>
                             Preview sample
@@ -1268,6 +1281,12 @@ export function AdjustmentDialog({
                     </span>
                 </div>
             </div>
+            <AutoOptionsDialog
+                isOpen={autoOptionsOpen}
+                initial={autoOptionsValue ?? undefined}
+                onConfirm={(opts) => setAutoOptionsValue(opts)}
+                onClose={() => setAutoOptionsOpen(false)}
+            />
         </div>
     );
 }
