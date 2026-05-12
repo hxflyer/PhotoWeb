@@ -440,16 +440,39 @@ function normalizeCurve(points: unknown): { x: number; y: number }[] {
         .sort((a, b) => a.x - b.x);
 }
 
+export interface CurveDisplayOptions {
+    showHistogram: boolean;
+    showBaseline: boolean;
+    showIntersection: boolean;
+    showChannelOverlays: boolean;
+    gridSize: 4 | 10;
+    showClipping: boolean;
+    image?: ImageData | null;
+    channelOverlays?: { points: { x: number; y: number }[]; color: string }[];
+}
+
 function CurveEditor({
     points,
     onChange,
+    display,
+    onHoverChange,
 }: {
     points: { x: number; y: number }[];
     onChange: (points: { x: number; y: number }[]) => void;
+    display?: Partial<CurveDisplayOptions>;
+    onHoverChange?: (input: number | null, output: number | null) => void;
 }) {
     const ref = useRef<HTMLCanvasElement>(null);
     const dragging = useRef<number | null>(null);
     const size = 220;
+    const showHistogram = display?.showHistogram ?? true;
+    const showBaseline = display?.showBaseline ?? true;
+    const showIntersection = display?.showIntersection ?? false;
+    const gridSize = display?.gridSize ?? 4;
+    const showClipping = display?.showClipping ?? false;
+    const showChannelOverlays = display?.showChannelOverlays ?? false;
+    const histogramImage = display?.image ?? null;
+    const channelOverlays = display?.channelOverlays ?? [];
 
     const draw = useCallback(() => {
         const canvas = ref.current;
@@ -460,10 +483,32 @@ function CurveEditor({
         canvas.height = size;
         ctx.fillStyle = '#101010';
         ctx.fillRect(0, 0, size, size);
+
+        // Histogram behind the curve.
+        if (showHistogram && histogramImage) {
+            const hist = new Uint32Array(256);
+            let max = 0;
+            for (let i = 0; i < histogramImage.data.length; i += 4) {
+                if (histogramImage.data[i + 3] === 0) continue;
+                const luma = Math.round(0.299 * histogramImage.data[i] + 0.587 * histogramImage.data[i + 1] + 0.114 * histogramImage.data[i + 2]);
+                hist[luma]++;
+                if (hist[luma] > max) max = hist[luma];
+            }
+            if (max > 0) {
+                ctx.fillStyle = '#4a5566';
+                for (let i = 0; i < 256; i++) {
+                    const bar = Math.round((hist[i] / max) * (size - 8));
+                    const x = Math.floor((i / 256) * size);
+                    ctx.fillRect(x, size - bar, Math.max(1, Math.ceil(size / 256)), bar);
+                }
+            }
+        }
+
+        // Grid.
         ctx.strokeStyle = '#303030';
         ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-            const p = (i / 4) * size;
+        for (let i = 0; i <= gridSize; i++) {
+            const p = (i / gridSize) * size;
             ctx.beginPath();
             ctx.moveTo(p, 0);
             ctx.lineTo(p, size);
@@ -471,11 +516,13 @@ function CurveEditor({
             ctx.lineTo(size, p);
             ctx.stroke();
         }
-        ctx.strokeStyle = '#555';
-        ctx.beginPath();
-        ctx.moveTo(0, size);
-        ctx.lineTo(size, 0);
-        ctx.stroke();
+        if (showBaseline) {
+            ctx.strokeStyle = '#555';
+            ctx.beginPath();
+            ctx.moveTo(0, size);
+            ctx.lineTo(size, 0);
+            ctx.stroke();
+        }
 
         const safe = normalizeCurve(points);
         const sampleCurve = (xValue: number): number => {
@@ -504,6 +551,35 @@ function CurveEditor({
             }
             return xValue;
         };
+        // Channel overlays (e.g., R/G/B curves shown behind the active channel's curve).
+        if (showChannelOverlays) {
+            for (const overlay of channelOverlays) {
+                ctx.strokeStyle = overlay.color;
+                ctx.lineWidth = 1;
+                const overlayPts = normalizeCurve(overlay.points);
+                const overlaySample = (xv: number) => {
+                    if (xv <= overlayPts[0].x) return overlayPts[0].y;
+                    if (xv >= overlayPts[overlayPts.length - 1].x) return overlayPts[overlayPts.length - 1].y;
+                    for (let i = 0; i < overlayPts.length - 1; i++) {
+                        if (xv >= overlayPts[i].x && xv <= overlayPts[i + 1].x) {
+                            const t = (xv - overlayPts[i].x) / Math.max(1, overlayPts[i + 1].x - overlayPts[i].x);
+                            return overlayPts[i].y + t * (overlayPts[i + 1].y - overlayPts[i].y);
+                        }
+                    }
+                    return xv;
+                };
+                ctx.beginPath();
+                for (let px = 0; px <= size; px++) {
+                    const xv = (px / size) * 255;
+                    const y = size - (overlaySample(xv) / 255) * size;
+                    if (px === 0) ctx.moveTo(px, y);
+                    else ctx.lineTo(px, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        // Main curve.
         ctx.strokeStyle = '#d7ecff';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -515,6 +591,21 @@ function CurveEditor({
         }
         ctx.stroke();
 
+        // Clipping markers: red where output reaches 0, blue where it reaches 255.
+        if (showClipping) {
+            for (let px = 0; px <= size; px++) {
+                const xValue = (px / size) * 255;
+                const outValue = sampleCurve(xValue);
+                if (outValue <= 0) {
+                    ctx.fillStyle = 'rgba(255,40,40,0.5)';
+                    ctx.fillRect(px, size - 6, 1, 6);
+                } else if (outValue >= 255) {
+                    ctx.fillStyle = 'rgba(60,120,255,0.5)';
+                    ctx.fillRect(px, 0, 1, 6);
+                }
+            }
+        }
+
         ctx.fillStyle = '#fff';
         safe.forEach(point => {
             const x = (point.x / 255) * size;
@@ -523,7 +614,7 @@ function CurveEditor({
             ctx.arc(x, y, 4, 0, Math.PI * 2);
             ctx.fill();
         });
-    }, [points]);
+    }, [points, showHistogram, histogramImage, showBaseline, gridSize, showClipping, showChannelOverlays, channelOverlays]);
 
     useEffect(() => { draw(); }, [draw]);
 
@@ -571,7 +662,16 @@ function CurveEditor({
                     event.currentTarget.setPointerCapture(event.pointerId);
                     updateAtEvent(event, nearest);
                 }}
-                onPointerMove={event => updateAtEvent(event)}
+                onPointerMove={event => {
+                    updateAtEvent(event);
+                    if (onHoverChange && showIntersection) {
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        const ix = Math.max(0, Math.min(255, Math.round(((event.clientX - rect.left) / rect.width) * 255)));
+                        const iy = Math.max(0, Math.min(255, Math.round((1 - ((event.clientY - rect.top) / rect.height)) * 255)));
+                        onHoverChange(ix, iy);
+                    }
+                }}
+                onPointerLeave={() => onHoverChange?.(null, null)}
                 onPointerUp={event => {
                     dragging.current = null;
                     event.currentTarget.releasePointerCapture(event.pointerId);
@@ -604,6 +704,15 @@ export function AdjustmentDialog({
     const [curveChannel, setCurveChannel] = useState<'rgb' | 'r' | 'g' | 'b'>('rgb');
     const dialogRef = useDialogA11y(isOpen, onClose);
     const [previewEnabled, setPreviewEnabled] = useState(true);
+    const [curvesDisplay, setCurvesDisplay] = useState<CurveDisplayOptions>({
+        showHistogram: true,
+        showBaseline: true,
+        showIntersection: true,
+        showChannelOverlays: false,
+        gridSize: 4,
+        showClipping: false,
+    });
+    const [curvesHover, setCurvesHover] = useState<{ input: number | null; output: number | null }>({ input: null, output: null });
     const eyedropper = useDialogEyedropper({
         getActiveLayerCanvas: () => {
             const store = useEditorStore.getState();
@@ -767,14 +876,65 @@ export function AdjustmentDialog({
             case 'curves':
                 return (
                     <>
-                        <Histogram image={sourceImage} />
                         <SelectRow label="Channel" value={curveChannel} options={[
                             { value: 'rgb', label: 'RGB' },
                             { value: 'r', label: 'Red' },
                             { value: 'g', label: 'Green' },
                             { value: 'b', label: 'Blue' },
                         ]} onChange={v => setCurveChannel(v as typeof curveChannel)} />
-                        <CurveEditor points={currentCurve} onChange={points => setParam(curveChannel, points)} />
+                        <CurveEditor
+                            points={currentCurve}
+                            onChange={points => setParam(curveChannel, points)}
+                            display={{
+                                ...curvesDisplay,
+                                image: sourceImage,
+                                channelOverlays: curvesDisplay.showChannelOverlays && curveChannel === 'rgb'
+                                    ? [
+                                        { points: normalizeCurve(mergedParams.r), color: 'rgba(220,80,80,0.6)' },
+                                        { points: normalizeCurve(mergedParams.g), color: 'rgba(80,220,80,0.6)' },
+                                        { points: normalizeCurve(mergedParams.b), color: 'rgba(80,120,255,0.6)' },
+                                    ]
+                                    : [],
+                            }}
+                            onHoverChange={(input, output) => setCurvesHover({ input, output })}
+                        />
+                        <div data-testid="curves-readout" style={{ marginTop: 6, color: '#d8d8d8', fontSize: 11 }}>
+                            Input: {curvesHover.input ?? '—'} &nbsp; Output: {curvesHover.output ?? '—'}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginTop: 8, fontSize: 11, color: '#d0d0d0' }}>
+                            <span style={{ fontWeight: 600 }}>Show:</span>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <input data-testid="curves-toggle-channel-overlays" type="checkbox" checked={curvesDisplay.showChannelOverlays} onChange={e => setCurvesDisplay(d => ({ ...d, showChannelOverlays: e.target.checked }))} />
+                                <span>Channel Overlays</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <input data-testid="curves-toggle-histogram" type="checkbox" checked={curvesDisplay.showHistogram} onChange={e => setCurvesDisplay(d => ({ ...d, showHistogram: e.target.checked }))} />
+                                <span>Histogram</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <input data-testid="curves-toggle-baseline" type="checkbox" checked={curvesDisplay.showBaseline} onChange={e => setCurvesDisplay(d => ({ ...d, showBaseline: e.target.checked }))} />
+                                <span>Baseline</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <input data-testid="curves-toggle-intersection" type="checkbox" checked={curvesDisplay.showIntersection} onChange={e => setCurvesDisplay(d => ({ ...d, showIntersection: e.target.checked }))} />
+                                <span>Intersection Line</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span>Grid:</span>
+                                <button
+                                    data-testid="curves-grid-toggle"
+                                    type="button"
+                                    onClick={() => setCurvesDisplay(d => ({ ...d, gridSize: d.gridSize === 4 ? 10 : 4 }))}
+                                    style={{ padding: '2px 6px', background: 'transparent', border: '1px solid #777', color: '#e0e0e0', borderRadius: 2, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                    {curvesDisplay.gridSize}×{curvesDisplay.gridSize}
+                                </button>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <input data-testid="curves-toggle-clipping" type="checkbox" checked={curvesDisplay.showClipping} onChange={e => setCurvesDisplay(d => ({ ...d, showClipping: e.target.checked }))} />
+                                <span>Show Clipping</span>
+                            </label>
+                        </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6 }}>
                             <EyedropperButton testId="eyedropper-curves-black" slot="curves-black" armed={eyedropper.armedSlot === 'curves-black'} title="Set Black Point" onActivate={() => eyedropper.activate('curves-black', (s) => {
                                 const pts = normalizeCurve(mergedParams[curveChannel]);

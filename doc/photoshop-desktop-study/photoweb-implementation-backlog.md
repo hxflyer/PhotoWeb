@@ -895,6 +895,13 @@ Status key:
   - Required tests: `src/test/levelsTrianglesBatchE.test.tsx`.
   - Implementation notes: handle positions map linearly via `xFromValue = (v/255)*width`. The Gamma triangle lives between Input Black and White and corresponds to value `inputBlack + pow(0.5, 1/gamma)*(inputWhite-inputBlack)`. Dragging it solves the inverse so the preview tracks.
 
+- [x] `BATCH-E-05` Curves cluster of toggles
+  - Priority: `P1`
+  - Function description: Curves case in `AdjustmentDialog.tsx` renders the histogram behind the curve, an Input / Output hover readout below the curve canvas, Show toggles for Channel Overlays / Histogram / Baseline / Intersection Line, a Grid Size toggle (4×4 ↔ 10×10), and a Show Clipping checkbox. Channel Overlays paints R/G/B curves in their channel colors when the active channel is RGB. Show Clipping renders red bottom strokes where output reaches 0 and blue top strokes where it reaches 255.
+  - Acceptance criteria: all five toggles + Grid + Clipping render; grid toggle alternates labels; readout placeholder is visible until hover.
+  - Required tests: `src/test/curvesTogglesBatchE.test.tsx`.
+  - Implementation notes: `CurveDisplayOptions` is the new prop bag for `CurveEditor`. Display state lives on AdjustmentDialog via `useState`; hover state propagates via `onHoverChange`.
+
 ## Batch C - Color / Gradient / Path Dialogs
 
 - [x] `BATCH-C-01` Fill Path: Mode + Preserve Transparency
