@@ -867,6 +867,13 @@ Status key:
   - Required tests: `src/test/presetDialogsBatchF.test.tsx`.
   - Implementation notes: SwatchesPanel does not currently invoke `window.prompt` (it uses a silent "+" button on the current primary color) — extending it to a NewSwatchDialog would require adding a name field to the swatch model and is deferred.
 
+- [x] `BATCH-F-07` Stroke effect: gradient + pattern fill type
+  - Priority: `P1`
+  - Function description: Extend `src/effects/stroke.ts` with a `fillType` enum (Color / Gradient / Pattern). Color path keeps the original solid-fill semantics. Gradient stores `{ colorStops, opacityStops, type, angle, scale }` on the effect and the renderer paints a gradient canvas (linear / radial / angle / reflected / diamond) clipped to the stroke ring. Pattern stores `{ patternId, scale, link }` and the renderer uses the existing `getPatternTile` helper to populate the ring via `createPattern('repeat')`. PropertiesPanel exposes the Fill Type dropdown plus a gradient editor (reusing `GradientEditorDialog`) or pattern picker depending on the active fill type.
+  - Acceptance criteria: Color stroke renders solid (backwards compat); Gradient stroke renders the gradient along the stroke direction; Pattern path stores patternId/scale/link on the effect; a missing patternId falls back to a grey ring rather than throwing.
+  - Required tests: `src/test/strokeFillBatchF.test.ts`.
+  - Implementation notes: The gradient sampler supports color stops + opacity stops independently and the renderer evaluates the t coordinate per gradient type at the layer-center origin.
+
 - [x] `BATCH-F-06` Drop / Inner Shadow + Outer / Inner Glow option parity
   - Priority: `P1`
   - Function description: Bring `src/effects/dropShadow.ts`, `innerShadow.ts`, `outerGlow.ts`, `innerGlow.ts` up to Photoshop's option set. Drop Shadow + Inner Shadow: Contour selector + Anti-aliased + Noise + Use Global Light (Drop Shadow + Inner Shadow share the document `globalLight`) + Knockout (Drop Shadow only). Outer Glow + Inner Glow: Contour + Anti-aliased + Noise + Technique (Softer / Precise) + Range + Jitter + Color Source toggle (Solid / Gradient) — when Gradient, store stops on the effect and reuse `GradientEditorDialog`. Inner Glow additionally: Source toggle (Center / Edge).
