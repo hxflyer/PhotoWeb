@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Pipette } from 'lucide-react';
 import { getAdjustment } from '../../adjustments';
 import { buildSelectionMask, blendWithMask } from '../../filters/selectionMask';
 import type { SelectionState } from '../../store/types';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { useDialogEyedropper } from '../../hooks/useDialogEyedropper';
+import { useEditorStore } from '../../store/editorStore';
 
 interface AdjustmentDialogProps {
     isOpen: boolean;
@@ -169,6 +171,45 @@ function ColorRow({
             <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ width: 32, height: 24, padding: 0 }} />
             <input value={value} onChange={e => onChange(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
         </label>
+    );
+}
+
+function EyedropperButton({
+    slot,
+    armed,
+    onActivate,
+    title,
+    testId,
+}: {
+    slot: string;
+    armed: boolean;
+    onActivate: () => void;
+    title: string;
+    testId?: string;
+}) {
+    return (
+        <button
+            type="button"
+            data-testid={testId ?? `eyedropper-${slot}`}
+            aria-label={title}
+            title={title}
+            onClick={(e) => { e.preventDefault(); onActivate(); }}
+            style={{
+                width: 24,
+                height: 24,
+                background: armed ? 'hsl(var(--accent-primary))' : 'transparent',
+                border: '1px solid #777',
+                borderRadius: 3,
+                color: armed ? 'white' : '#e0e0e0',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+            }}
+        >
+            <Pipette size={14} />
+        </button>
     );
 }
 
@@ -390,6 +431,13 @@ export function AdjustmentDialog({
     const [curveChannel, setCurveChannel] = useState<'rgb' | 'r' | 'g' | 'b'>('rgb');
     const dialogRef = useDialogA11y(isOpen, onClose);
     const [previewEnabled, setPreviewEnabled] = useState(true);
+    const eyedropper = useDialogEyedropper({
+        getActiveLayerCanvas: () => {
+            const store = useEditorStore.getState();
+            const layer = store.layers.find(l => l.id === store.activeLayerId);
+            return layer?.canvas ?? null;
+        },
+    });
 
     const mergedParams = useMemo(() => ({
         ...(adjustment?.defaultParams ?? {}),
@@ -488,6 +536,19 @@ export function AdjustmentDialog({
                         <SliderRow label="Input White" value={numberValue(mergedParams, 'inputWhite', 255)} min={1} max={255} onChange={v => setParam('inputWhite', v)} />
                         <SliderRow label="Output Black" value={numberValue(mergedParams, 'outputBlack', 0)} min={0} max={255} onChange={v => setParam('outputBlack', v)} />
                         <SliderRow label="Output White" value={numberValue(mergedParams, 'outputWhite', 255)} min={0} max={255} onChange={v => setParam('outputWhite', v)} />
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                            <EyedropperButton testId="eyedropper-levels-black" slot="levels-black" armed={eyedropper.armedSlot === 'levels-black'} title="Set Black Point" onActivate={() => eyedropper.activate('levels-black', (s) => setParam('inputBlack', s.luma))} />
+                            <EyedropperButton testId="eyedropper-levels-gray" slot="levels-gray" armed={eyedropper.armedSlot === 'levels-gray'} title="Set Gray Point" onActivate={() => eyedropper.activate('levels-gray', (s) => {
+                                const ib = numberValue(mergedParams, 'inputBlack', 0);
+                                const iw = numberValue(mergedParams, 'inputWhite', 255);
+                                const t = Math.max(1, iw - ib);
+                                const normalized = Math.max(0.001, Math.min(0.999, (s.luma - ib) / t));
+                                const gamma = Math.log(0.5) / Math.log(normalized);
+                                setParam('gamma', Math.max(0.1, Math.min(9.99, gamma)));
+                            })} />
+                            <EyedropperButton testId="eyedropper-levels-white" slot="levels-white" armed={eyedropper.armedSlot === 'levels-white'} title="Set White Point" onActivate={() => eyedropper.activate('levels-white', (s) => setParam('inputWhite', Math.max(1, s.luma)))} />
+                            <span style={{ color: '#c0c0c0', fontSize: 11, marginLeft: 4 }}>Sample Black / Gray / White Point</span>
+                        </div>
                     </>
                 );
             case 'curves':
@@ -501,6 +562,24 @@ export function AdjustmentDialog({
                             { value: 'b', label: 'Blue' },
                         ]} onChange={v => setCurveChannel(v as typeof curveChannel)} />
                         <CurveEditor points={currentCurve} onChange={points => setParam(curveChannel, points)} />
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6 }}>
+                            <EyedropperButton testId="eyedropper-curves-black" slot="curves-black" armed={eyedropper.armedSlot === 'curves-black'} title="Set Black Point" onActivate={() => eyedropper.activate('curves-black', (s) => {
+                                const pts = normalizeCurve(mergedParams[curveChannel]);
+                                pts[0] = { x: s.luma, y: 0 };
+                                setParam(curveChannel, pts);
+                            })} />
+                            <EyedropperButton testId="eyedropper-curves-gray" slot="curves-gray" armed={eyedropper.armedSlot === 'curves-gray'} title="Set Gray Point" onActivate={() => eyedropper.activate('curves-gray', (s) => {
+                                const pts = normalizeCurve(mergedParams[curveChannel]);
+                                pts.push({ x: s.luma, y: 128 });
+                                setParam(curveChannel, pts.sort((a, b) => a.x - b.x));
+                            })} />
+                            <EyedropperButton testId="eyedropper-curves-white" slot="curves-white" armed={eyedropper.armedSlot === 'curves-white'} title="Set White Point" onActivate={() => eyedropper.activate('curves-white', (s) => {
+                                const pts = normalizeCurve(mergedParams[curveChannel]);
+                                pts[pts.length - 1] = { x: s.luma, y: 255 };
+                                setParam(curveChannel, pts);
+                            })} />
+                            <span style={{ color: '#c0c0c0', fontSize: 11, marginLeft: 4 }}>Sample Black / Gray / White Point</span>
+                        </div>
                     </>
                 );
             case 'exposure':
@@ -509,6 +588,20 @@ export function AdjustmentDialog({
                         <SliderRow label="Exposure" value={numberValue(mergedParams, 'exposure', 0)} min={-20} max={20} step={0.01} onChange={v => setParam('exposure', v)} />
                         <SliderRow label="Offset" value={numberValue(mergedParams, 'offset', 0)} min={-1} max={1} step={0.001} onChange={v => setParam('offset', v)} />
                         <SliderRow label="Gamma" value={numberValue(mergedParams, 'gamma', 1)} min={0.01} max={9.99} step={0.01} onChange={v => setParam('gamma', v)} />
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                            <EyedropperButton testId="eyedropper-exposure-black" slot="exposure-black" armed={eyedropper.armedSlot === 'exposure-black'} title="Set Black Point" onActivate={() => eyedropper.activate('exposure-black', (s) => setParam('offset', Math.max(-1, Math.min(1, -s.luma / 255))))} />
+                            <EyedropperButton testId="eyedropper-exposure-gray" slot="exposure-gray" armed={eyedropper.armedSlot === 'exposure-gray'} title="Set Gray Point" onActivate={() => eyedropper.activate('exposure-gray', (s) => {
+                                const normalized = Math.max(0.001, Math.min(0.999, s.luma / 255));
+                                const gamma = Math.log(0.5) / Math.log(normalized);
+                                setParam('gamma', Math.max(0.01, Math.min(9.99, gamma)));
+                            })} />
+                            <EyedropperButton testId="eyedropper-exposure-white" slot="exposure-white" armed={eyedropper.armedSlot === 'exposure-white'} title="Set White Point" onActivate={() => eyedropper.activate('exposure-white', (s) => {
+                                const v = Math.max(1, s.luma) / 255;
+                                const ev = Math.log2(1 / v);
+                                setParam('exposure', Math.max(-20, Math.min(20, ev)));
+                            })} />
+                            <span style={{ color: '#c0c0c0', fontSize: 11, marginLeft: 4 }}>Sample Black / Gray / White Point</span>
+                        </div>
                     </>
                 );
             case 'vibrance':
@@ -525,6 +618,29 @@ export function AdjustmentDialog({
                         <SliderRow label="Saturation" value={numberValue(mergedParams, 'saturation', 0)} min={-100} max={100} onChange={v => setParam('saturation', v)} />
                         <SliderRow label="Lightness" value={numberValue(mergedParams, 'lightness', 0)} min={-100} max={100} onChange={v => setParam('lightness', v)} />
                         <CheckboxRow label="Colorize" checked={booleanValue(mergedParams, 'colorize', false)} onChange={v => setParam('colorize', v)} />
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                            <EyedropperButton testId="eyedropper-huesat-range" slot="huesat-range" armed={eyedropper.armedSlot === 'huesat-range'} title="Sample range to edit" onActivate={() => eyedropper.activate('huesat-range', (s) => {
+                                // Map sampled hue to one of the 6 chromatic ranges.
+                                const max = Math.max(s.r, s.g, s.b);
+                                const min = Math.min(s.r, s.g, s.b);
+                                if (max === min) { setParam('range', 'master'); return; }
+                                const d = max - min;
+                                let h: number;
+                                if (max === s.r) h = ((s.g - s.b) / d + (s.g < s.b ? 6 : 0));
+                                else if (max === s.g) h = ((s.b - s.r) / d + 2);
+                                else h = ((s.r - s.g) / d + 4);
+                                h = (h * 60 + 360) % 360;
+                                const range =
+                                    h < 30 || h >= 330 ? 'reds'
+                                    : h < 90 ? 'yellows'
+                                    : h < 150 ? 'greens'
+                                    : h < 210 ? 'cyans'
+                                    : h < 270 ? 'blues'
+                                    : 'magentas';
+                                setParam('range', range);
+                            })} />
+                            <span style={{ color: '#c0c0c0', fontSize: 11, marginLeft: 4 }}>Sample range to edit</span>
+                        </div>
                     </>
                 );
             case 'color-balance':
@@ -549,6 +665,29 @@ export function AdjustmentDialog({
                         ))}
                         <CheckboxRow label="Tint" checked={booleanValue(mergedParams, 'tint', false)} onChange={v => setParam('tint', v)} />
                         <ColorRow label="Tint Color" value={stringValue(mergedParams, 'tintColor', '#ddc080')} onChange={v => setParam('tintColor', v)} />
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                            <EyedropperButton testId="eyedropper-bw-range" slot="bw-range" armed={eyedropper.armedSlot === 'bw-range'} title="Sample range to brighten/darken" onActivate={() => eyedropper.activate('bw-range', (s) => {
+                                const max = Math.max(s.r, s.g, s.b);
+                                const min = Math.min(s.r, s.g, s.b);
+                                if (max === min) return;
+                                const d = max - min;
+                                let h: number;
+                                if (max === s.r) h = ((s.g - s.b) / d + (s.g < s.b ? 6 : 0));
+                                else if (max === s.g) h = ((s.b - s.r) / d + 2);
+                                else h = ((s.r - s.g) / d + 4);
+                                h = (h * 60 + 360) % 360;
+                                const target =
+                                    h < 30 || h >= 330 ? 'reds'
+                                    : h < 90 ? 'yellows'
+                                    : h < 150 ? 'greens'
+                                    : h < 210 ? 'cyans'
+                                    : h < 270 ? 'blues'
+                                    : 'magentas';
+                                const current = numberValue(mergedParams, target, 40);
+                                setParam(target, Math.max(-200, Math.min(300, current + 25)));
+                            })} />
+                            <span style={{ color: '#c0c0c0', fontSize: 11, marginLeft: 4 }}>Sample range to brighten</span>
+                        </div>
                     </>
                 );
             case 'photo-filter':
@@ -633,12 +772,14 @@ export function AdjustmentDialog({
             style={{
                 position: 'fixed',
                 inset: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.62)',
+                backgroundColor: eyedropper.isArmed ? 'rgba(0,0,0,0)' : 'rgba(0, 0, 0, 0.62)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 1100,
-                backdropFilter: 'blur(2px)',
+                backdropFilter: eyedropper.isArmed ? 'none' : 'blur(2px)',
+                pointerEvents: eyedropper.isArmed ? 'none' : 'auto',
+                cursor: eyedropper.isArmed ? 'crosshair' : undefined,
             }}
             onClick={onClose}
         >

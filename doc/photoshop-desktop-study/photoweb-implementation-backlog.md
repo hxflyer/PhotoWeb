@@ -827,6 +827,13 @@ Status key:
   - Required tests: `src/test/fadeDialogBatchE.test.ts` — opacity endpoints, multiply formula, alpha preservation, mismatched-dimensions guard.
   - Implementation notes: `src/utils/fadeBlend.ts` exports `fadeImageData(before, after, opacity, mode)` + `BLEND_MODE_OPTIONS`. `src/components/Dialogs/FadeDialog.tsx` is the modal. App.tsx listens for `photoweb:open-fade` and the Cmd+Shift+F shortcut; MenuBar inserts the menu item under Edit. `lastEffect` lives on the history slice via `setLastEffect`.
 
+- [x] `BATCH-E-02` Shared eyedropper hook for adjustment dialogs
+  - Priority: `P1`
+  - Function description: `src/hooks/useDialogEyedropper.ts` exposes `activate(slot, callback)` to arm a one-shot canvas sampling mode. While armed, the dialog backdrop becomes click-through (pointerEvents: none) and the next click on the viewport canvas reads the pixel under the cursor and resolves the callback with `{ r, g, b, luma, x, y }`. Wired into Levels (Set Black/Gray/White Point), Curves (same 3), Exposure (same 3), Hue/Saturation (sample range to edit), Black & White (sample range to brighten).
+  - Acceptance criteria: hook starts idle; activate sets armedSlot; cancel resets it; sampleAt returns RGBA + luma for in-bounds coords and null otherwise; clicking the viewport while armed fires the callback with the sampled pixel; Escape cancels.
+  - Required tests: `src/test/eyedropperHookBatchE.test.tsx` — idle state, activate, cancel, sampleAt bounds, viewport click sample.
+  - Implementation notes: AdjustmentDialog renders `EyedropperButton` rows inside each adjustment's controls. Levels Black-Point writes `inputBlack`; Gray writes `gamma` solved from `pow(normalized, 1/gamma) = 0.5`; White writes `inputWhite`. Curves eyedroppers update channel endpoint/midpoint of the active channel's curve points. Exposure eyedroppers shift `offset` / `gamma` / `exposure`. Hue/Sat + B&W eyedroppers map hue to one of the six chromatic ranges.
+
 ## Batch C - Color / Gradient / Path Dialogs
 
 - [x] `BATCH-C-01` Fill Path: Mode + Preserve Transparency
