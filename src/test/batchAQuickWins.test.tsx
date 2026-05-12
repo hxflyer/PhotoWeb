@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import { ColorPickerDialog } from '../components/Dialogs/ColorPickerDialog';
+import { ScaleEffectsDialog } from '../components/Dialogs/ScaleEffectsDialog';
 import { runScript } from './simulator';
 
 describe('Batch A — TestDialog removal', () => {
@@ -75,5 +76,44 @@ describe('Batch A — ColorPickerDialog hex + Enter + current swatch revert', ()
         const dialog = getByTestId('color-picker-dialog');
         fireEvent.keyDown(dialog, { key: 'Enter' });
         expect(committed).toBe('#112233');
+    });
+});
+
+describe('Batch A — ScaleEffectsDialog a11y + Preview + min 1%', () => {
+    it('accepts 1% as the minimum value', () => {
+        let committed = 0;
+        const { getByTestId } = render(
+            <ScaleEffectsDialog
+                isOpen
+                onClose={() => { /* noop */ }}
+                onConfirm={(v) => { committed = v; }}
+            />
+        );
+        const input = getByTestId('scale-effects-input') as HTMLInputElement;
+        fireEvent.change(input, { target: { value: '1' } });
+        fireEvent.click(getByTestId('scale-effects-ok'));
+        expect(committed).toBe(1);
+    });
+
+    it('renders aria-modal and the Preview checkbox', () => {
+        const { getByTestId } = render(
+            <ScaleEffectsDialog isOpen onClose={() => { /* noop */ }} onConfirm={() => { /* noop */ }} />
+        );
+        const card = getByTestId('scale-effects-dialog');
+        expect(card.getAttribute('aria-modal')).toBe('true');
+        expect(card.getAttribute('role')).toBe('dialog');
+        const preview = getByTestId('scale-effects-preview') as HTMLInputElement;
+        expect(preview.checked).toBe(true);
+    });
+
+    it('Opt+P toggles the Preview checkbox', async () => {
+        const { getByTestId } = render(
+            <ScaleEffectsDialog isOpen onClose={() => { /* noop */ }} onConfirm={() => { /* noop */ }} />
+        );
+        await runScript([
+            { type: 'keyDown', key: 'p', modifiers: { alt: true } },
+        ]);
+        const preview = getByTestId('scale-effects-preview') as HTMLInputElement;
+        expect(preview.checked).toBe(false);
     });
 });
