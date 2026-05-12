@@ -51,7 +51,19 @@ function applyMidpoint(k: number, midpoint?: number): number {
     return 0.5 + ((k - m) / (1 - m)) * 0.5;
 }
 
-function sampleColor(stops: GradientColorStop[], t: number): { r: number; g: number; b: number } {
+/**
+ * Smoothness slider (0..100) blends between straight linear (0) and a
+ * Hermite/smoothstep S-curve (100). Smoothstep gives zero derivative at the
+ * endpoints, which is Photoshop's "smooth" gradient look.
+ */
+function applySmoothness(k: number, smoothness: number): number {
+    const s = Math.max(0, Math.min(100, smoothness)) / 100;
+    if (s <= 0) return k;
+    const sm = k * k * (3 - 2 * k);
+    return k * (1 - s) + sm * s;
+}
+
+function sampleColor(stops: GradientColorStop[], t: number, smoothness = 0): { r: number; g: number; b: number } {
     if (stops.length === 0) return { r: 0, g: 0, b: 0 };
     const sorted = sortStops(stops);
     if (t <= sorted[0].position) return parseHex(sorted[0].color);
@@ -64,7 +76,8 @@ function sampleColor(stops: GradientColorStop[], t: number): { r: number; g: num
     }
     const span = hi.position - lo.position || 1;
     const kRaw = (t - lo.position) / span;
-    const k = applyMidpoint(kRaw, lo.midpointToNext);
+    const kMid = applyMidpoint(kRaw, lo.midpointToNext);
+    const k = applySmoothness(kMid, smoothness);
     const a = parseHex(lo.color);
     const b = parseHex(hi.color);
     return {
@@ -74,7 +87,7 @@ function sampleColor(stops: GradientColorStop[], t: number): { r: number; g: num
     };
 }
 
-function sampleOpacity(stops: GradientOpacityStop[], t: number): number {
+function sampleOpacity(stops: GradientOpacityStop[], t: number, smoothness = 0): number {
     if (stops.length === 0) return 1;
     const sorted = sortStops(stops);
     if (t <= sorted[0].position) return sorted[0].opacity;
@@ -87,7 +100,8 @@ function sampleOpacity(stops: GradientOpacityStop[], t: number): number {
     }
     const span = hi.position - lo.position || 1;
     const kRaw = (t - lo.position) / span;
-    const k = applyMidpoint(kRaw, lo.midpointToNext);
+    const kMid = applyMidpoint(kRaw, lo.midpointToNext);
+    const k = applySmoothness(kMid, smoothness);
     return lo.opacity + (hi.opacity - lo.opacity) * k;
 }
 
@@ -103,6 +117,7 @@ function drawStrip(
     canvas: HTMLCanvasElement,
     colorStops: GradientColorStop[],
     opacityStops: GradientOpacityStop[],
+    smoothness = 0,
 ): void {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -121,8 +136,8 @@ function drawStrip(
     const d = img.data;
     for (let x = 0; x < w; x++) {
         const t = x / Math.max(1, w - 1);
-        const c = sampleColor(colorStops, t);
-        const a = clamp01(sampleOpacity(opacityStops, t));
+        const c = sampleColor(colorStops, t, smoothness);
+        const a = clamp01(sampleOpacity(opacityStops, t, smoothness));
         for (let y = 0; y < h; y++) {
             const idx = (y * w + x) * 4;
             const bgR = d[idx]; const bgG = d[idx + 1]; const bgB = d[idx + 2];
@@ -159,8 +174,8 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
     const removeGradientPreset = useEditorStore(s => s.removeGradientPreset);
 
     useEffect(() => {
-        if (stripRef.current) drawStrip(stripRef.current, colorStops, opacityStops);
-    }, [colorStops, opacityStops]);
+        if (stripRef.current) drawStrip(stripRef.current, colorStops, opacityStops, smoothness);
+    }, [colorStops, opacityStops, smoothness]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {

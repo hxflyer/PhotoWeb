@@ -882,7 +882,13 @@ Status key:
   - Required tests: `src/test/gradientMidpointBatchC.test.tsx`.
   - Implementation notes: Added `midpointToNext?` to gradient stop interfaces in `src/store/types.ts` and `src/tools/gradient.ts`. `sampleColor` / `sampleOpacity` in `GradientEditorDialog.tsx` and `sampleStops` in `gradient.ts` route through a piecewise linear remap so the 50% transition lands at the midpoint. Drag tracking added to `dragRef` with new `color-mid` / `opacity-mid` kinds. `OptionsBar.onEditorConfirm` plumbs `midpointToNext` through to `setGradientOptions.stops`.
 
-- [ ] `BATCH-C-04` Gradient Editor: Smoothness applied
+- [x] `BATCH-C-04` Gradient Editor: Smoothness applied
+  - Priority: `P1`
+  - Function description: The Smoothness slider (0..100) now actually changes gradient rendering. 0 = straight linear, 100 = Hermite/smoothstep S-curve with zero derivative at endpoints. Anywhere in between linearly blends the two ramps.
+  - Acceptance criteria: setting Smoothness=100 visibly darkens t=0.25 of a black→white gradient strip (smoothstep(0.25)≈0.156 vs linear 0.25); setting Smoothness=0 leaves the strip linear; presets without explicit smoothness are unchanged behaviorally.
+  - Required tests: `src/test/gradientSmoothnessBatchC.test.tsx`.
+  - Implementation notes: `sampleColor` / `sampleOpacity` in `GradientEditorDialog.tsx` and `sampleStops` in `gradient.ts` now accept a `smoothness` parameter and blend linear ↔ smoothstep. `drawStrip` and `renderGradientCanvas` plumb the value through. When smoothness > 0 the gradient tool always uses the pixel walker (the native `CanvasGradient` can't apply the Hermite remap).
+
 - [ ] `BATCH-C-05` Replace native color inputs with openColorPicker
 
 ## Deferred By Scope

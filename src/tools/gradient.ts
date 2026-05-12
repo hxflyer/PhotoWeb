@@ -168,7 +168,7 @@ function constrainAngle(start: { x: number; y: number }, end: { x: number; y: nu
  * Method = 'classic' interpolates in sRGB (linear in 0..255 space).
  * Method = 'smooth' interpolates in linear-light space (gamma-corrected).
  */
-function sampleStops(stops: GradientStop[], t: number, method: GradientMethod): [number, number, number, number] {
+function sampleStops(stops: GradientStop[], t: number, method: GradientMethod, smoothness = 0): [number, number, number, number] {
     t = Math.max(0, Math.min(1, t));
     let lo = stops[0];
     let hi = stops[stops.length - 1];
@@ -183,9 +183,15 @@ function sampleStops(stops: GradientStop[], t: number, method: GradientMethod): 
     // Honor Photoshop's midpoint diamond — remap kRaw so the 50% transition
     // happens at lo.midpointToNext (default 0.5 = linear).
     const m = Math.max(0.05, Math.min(0.95, lo.midpointToNext ?? 0.5));
-    const k = Math.abs(m - 0.5) < 1e-4
+    const kMid = Math.abs(m - 0.5) < 1e-4
         ? kRaw
         : (kRaw <= m ? (kRaw / m) * 0.5 : 0.5 + ((kRaw - m) / (1 - m)) * 0.5);
+    // Smoothness slider (0..100) blends linear → Hermite/smoothstep so 100
+    // produces a perfectly smooth gradient with zero derivative at endpoints.
+    const sm = Math.max(0, Math.min(100, smoothness)) / 100;
+    const k = sm <= 0
+        ? kMid
+        : kMid * (1 - sm) + (kMid * kMid * (3 - 2 * kMid)) * sm;
     const parse = (c: string) => {
         const r = parseInt(c.slice(1, 3), 16);
         const g = parseInt(c.slice(3, 5), 16);
@@ -223,15 +229,17 @@ export function renderGradientCanvas(
     stops: GradientStop[],
     dither: boolean,
     method: GradientMethod,
+    smoothness = 0,
 ): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = width; c.height = height;
     const ctx = c.getContext('2d')!;
 
     // Native CanvasGradient interpolates in sRGB; this matches "classic". For
-    // "smooth" we always walk pixels through sampleStops, which interpolates
-    // in linear-light space.
-    if (method === 'classic' && (type === 'linear' || type === 'radial' || type === 'reflected')) {
+    // "smooth" or for nonzero Smoothness slider we always walk pixels through
+    // sampleStops, which honors the Smoothness Hermite remap.
+    const usePixelWalk = method === 'smooth' || smoothness > 0;
+    if (!usePixelWalk && (type === 'linear' || type === 'radial' || type === 'reflected')) {
         let g: CanvasGradient;
         if (type === 'linear') {
             g = ctx.createLinearGradient(start.x, start.y, end.x, end.y);
@@ -289,7 +297,7 @@ export function renderGradientCanvas(
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const t = computeT(x, y);
-                const [r, g, b, alpha] = sampleStops(stops, t, method);
+                const [r, g, b, alpha] = sampleStops(stops, t, method, smoothness);
                 const idx = (y * width + x) * 4;
                 d[idx]     = r;
                 d[idx + 1] = g;
@@ -401,7 +409,7 @@ function repaintLive(ctx: { getStore: () => import('../store/types').EditorStore
     // Revert to the pre-stroke snapshot, then composite the new gradient.
     layer.ctx.putImageData(liveSnapshot, 0, 0);
     const stops = resolveStops(store.primaryColor, store.secondaryColor);
-    const grad = renderGradientCanvas(w, h, options.type, drag.start, endPt, stops, options.dither, options.method);
+    const grad = renderGradientCanvas(w, h, options.type, drag.start, endPt, stops, options.dither, options.method, options.smoothness);
     const selectionMask = buildSelectionMask(store.selection, w, h);
     compositeGradient(layer.ctx, w, h, grad, selectionMask);
     layer.markDirty(null);
