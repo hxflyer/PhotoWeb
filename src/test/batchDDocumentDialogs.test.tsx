@@ -14,8 +14,10 @@ import {
 import { ImageSizeDialog } from '../components/Dialogs/ImageSizeDialog';
 import { CanvasSizeDialog } from '../components/Dialogs/CanvasSizeDialog';
 import { NewDocumentDialog } from '../components/Dialogs/NewDocumentDialog';
+import { ExportDialog } from '../components/Dialogs/ExportDialog';
 import { evaluateNumericExpression } from '../utils/numericExpression';
 import { convertLength, fromPixels, toPixels } from '../utils/units';
+import { useEditorStore } from '../store/editorStore';
 import { runScript } from './simulator';
 
 function makeChecker(w: number, h: number): HTMLCanvasElement {
@@ -347,5 +349,92 @@ describe('Batch D Item 3 — Shared math expression + unit helpers', () => {
         fireEvent.change(wInput, { target: { value: '50+50' } });
         fireEvent.blur(wInput);
         expect(wInput.value).toBe('100');
+    });
+});
+
+describe('Batch D Item 4 — ExportDialog real size + filename', () => {
+    afterEach(() => {
+        cleanup();
+        // Restore toBlob if a test patched it
+    });
+
+    it('renders a Filename text input and a File Size label (not "Est. size")', () => {
+        const { container, getByTestId } = render(
+            <ExportDialog isOpen={true} onClose={() => { /* noop */ }} />,
+        );
+        const f = getByTestId('export-filename') as HTMLInputElement;
+        expect(f).toBeTruthy();
+        expect(container.textContent).toContain('File Size');
+        expect(container.textContent).not.toContain('Est. size');
+    });
+
+    it('Filename defaults to the current document name', () => {
+        useEditorStore.getState().setDocumentName('my-photo');
+        const { getByTestId } = render(
+            <ExportDialog isOpen={true} onClose={() => { /* noop */ }} />,
+        );
+        const f = getByTestId('export-filename') as HTMLInputElement;
+        expect(f.value).toBe('my-photo');
+    });
+
+    it('Filename is honored on the download anchor (custom-name.png)', () => {
+        const created: HTMLAnchorElement[] = [];
+        const origCreate = document.createElement.bind(document);
+        const spy = (tag: string) => {
+            const el = origCreate(tag);
+            if (tag === 'a') created.push(el as HTMLAnchorElement);
+            return el;
+        };
+        // @ts-expect-error patch for capture
+        document.createElement = spy;
+
+        const origToBlob = HTMLCanvasElement.prototype.toBlob;
+        HTMLCanvasElement.prototype.toBlob = function fakeBlob(this: HTMLCanvasElement, cb: BlobCallback) {
+            cb(new Blob([new Uint8Array([0])], { type: 'image/png' }));
+        };
+        const origURL = URL.createObjectURL;
+        URL.createObjectURL = () => 'blob:test';
+        URL.revokeObjectURL = () => { /* noop */ };
+
+        try {
+            const { getByTestId } = render(
+                <ExportDialog isOpen={true} onClose={() => { /* noop */ }} />,
+            );
+            const f = getByTestId('export-filename') as HTMLInputElement;
+            fireEvent.change(f, { target: { value: 'my-custom-name' } });
+            fireEvent.click(getByTestId('export-download-btn'));
+
+            const anchor = created.find(a => a.download && a.download.startsWith('my-custom-name'));
+            expect(anchor).toBeTruthy();
+            expect(anchor!.download).toBe('my-custom-name.png');
+        } finally {
+            document.createElement = origCreate;
+            HTMLCanvasElement.prototype.toBlob = origToBlob;
+            URL.createObjectURL = origURL;
+        }
+    });
+
+    it('File Size uses actual debounced toBlob measurement (not heuristic)', async () => {
+        const origToBlob = HTMLCanvasElement.prototype.toBlob;
+        let toBlobCallCount = 0;
+        HTMLCanvasElement.prototype.toBlob = function fakeBlob(this: HTMLCanvasElement, cb: BlobCallback) {
+            toBlobCallCount++;
+            // 12345 bytes — distinct enough to confirm it's the real measurement.
+            cb(new Blob([new Uint8Array(12345)], { type: 'image/png' }));
+        };
+
+        try {
+            const { getByTestId } = render(
+                <ExportDialog isOpen={true} onClose={() => { /* noop */ }} />,
+            );
+            // Wait past the 250ms debounce.
+            await new Promise(r => setTimeout(r, 320));
+            const sizeNode = getByTestId('export-size-value');
+            expect(toBlobCallCount).toBeGreaterThanOrEqual(1);
+            // 12345 B = 12.1 KB
+            expect(sizeNode.textContent).toMatch(/12\.1 KB|12345 B/);
+        } finally {
+            HTMLCanvasElement.prototype.toBlob = origToBlob;
+        }
     });
 });

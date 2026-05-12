@@ -810,7 +810,19 @@ Status key:
     - `src/test/batchDDocumentDialogs.test.tsx` — expression evaluator (arith, precedence, percent, error cases), units helpers, wiring into NewDocument/CanvasSize/ImageSize.
   - Implementation notes: `src/utils/numericExpression.ts` (recursive-descent parser), `src/utils/units.ts` (`LengthUnit`, `toPixels`, `fromPixels`, `convertLength`). Dialog inputs switched from `type="number"` to `type="text"` with a paired `*Text` state buffer; partial expressions evaluate live so the live readouts update on each keystroke, while invalid input only snaps back on blur/Enter so users aren't fighting the field while typing.
 
-- [ ] `BATCH-D-04` ExportDialog real-size estimate + Filename field
+- [x] `BATCH-D-04` ExportDialog real-size estimate + Filename field
+  - Priority: `P1`
+  - Function description: Replace the heuristic file-size estimate with a debounced real `canvas.toBlob` re-encode at the current format/quality/transparency settings, and add a Filename text field that drives the download anchor.
+  - Acceptance criteria:
+    - File Size label shows the actual encoded byte length, not a guess.  `Implemented`
+    - Re-encoding is debounced (250 ms) so slider drags don't thrash the encoder.  `Implemented`
+    - Stale measurements are dropped via a request-id ref so the last-typed quality wins.  `Implemented`
+    - Filename field defaults to the document name and is honored on the download anchor.  `Implemented`
+    - "Est. size" label removed; "File Size" matches Photoshop verbatim.  `Implemented`
+  - Required tests:
+    - `src/test/batchDDocumentDialogs.test.tsx` — Filename input renders; default is document name; custom filename appears on the download anchor; File Size uses real `toBlob` byte length.
+  - Implementation notes: `src/components/Dialogs/ExportDialog.tsx`. Filename strips a trailing extension before appending the format extension (`.jpg` for JPEG). The size effect runs once on every relevant prop change but debounces via `setTimeout(250)` + request-id ref so only the freshest call's blob updates state.
+
 - [ ] `BATCH-D-05` ShortcutsDialog single registry + missing Image/Edit/Layer/Select keys
 
 ## Batch F - Panels and Layer Styles
@@ -858,6 +870,13 @@ Status key:
   - Acceptance criteria: presets list empty by default; savePreset persists params; saving the same name replaces; delete removes; rename updates name only; adjustment + filter presets are isolated by kind; reload from localStorage works.
   - Required tests: `src/test/presetsSliceBatchE.test.ts` covers list, save, save-replace, delete, kind isolation, rename, localStorage round-trip.
   - Implementation notes: PresetDropdown takes `kind`, `id`, `currentParams`, `defaultParams`, `onApply`. The dialog passes `mergedParams` and `adjustment.defaultParams`. Special option values (`__save__`, `__delete__`, `__reset__`, `__default__`) are handled inline.
+
+- [x] `BATCH-E-04` Levels histogram with draggable triangle handles
+  - Priority: `P1`
+  - Function description: `LevelsHistogramSlider` sub-component in `AdjustmentDialog.tsx` (Levels case). Histogram canvas with black / gamma / white triangle handles on the bottom edge to set input levels and an output gradient strip below with two triangle handles for output levels. Numeric fields stay, kept in sync.
+  - Acceptance criteria: the five handles render (Input Black / Gamma / White + Output Black / White); numeric fields update via the input boxes and round-trip through onConfirm; setting inputBlack to 64 clamps a pixel at value 40 to 0.
+  - Required tests: `src/test/levelsTrianglesBatchE.test.tsx`.
+  - Implementation notes: handle positions map linearly via `xFromValue = (v/255)*width`. The Gamma triangle lives between Input Black and White and corresponds to value `inputBlack + pow(0.5, 1/gamma)*(inputWhite-inputBlack)`. Dragging it solves the inverse so the preview tracks.
 
 ## Batch C - Color / Gradient / Path Dialogs
 

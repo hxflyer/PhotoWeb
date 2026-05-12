@@ -1,7 +1,7 @@
 /**
  * ExportDialog — export the composited document as PNG/JPEG/WebP/GIF.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { Canvas2DCompositor } from '../../compositor/Canvas2DCompositor';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
@@ -20,8 +20,46 @@ function formatMime(fmt: ExportFormat): string {
     return 'image/png';
 }
 
+function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function buildExportCanvas(
+    layers: ReturnType<typeof useEditorStore.getState>['layers'],
+    width: number,
+    height: number,
+): HTMLCanvasElement | null {
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const compositor = new Canvas2DCompositor();
+        const viewport = { width, height, zoom: 1, pan: { x: 0, y: 0 } };
+        compositor.beginFrame(canvas);
+        compositor.render({ target: canvas, layers, activeLayerId: null, viewport });
+        compositor.present();
+        return canvas;
+    } catch {
+        return null;
+    }
+}
+
+function flattenOnto(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
+    const flat = document.createElement('canvas');
+    flat.width = src.width;
+    flat.height = src.height;
+    const ctx = flat.getContext('2d');
+    if (!ctx) return src;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, src.width, src.height);
+    ctx.drawImage(src, 0, 0);
+    return flat;
+}
+
 export function ExportDialog({ isOpen, onClose }: Props) {
-    const { layers, width, height } = useEditorStore();
+    const { layers, width, height, documentName } = useEditorStore();
     const [format, setFormat] = useState<ExportFormat>('png');
     const [quality, setQuality] = useState(90);
     const [sizeEstimate, setSizeEstimate] = useState('');
@@ -29,22 +67,46 @@ export function ExportDialog({ isOpen, onClose }: Props) {
     const [flattenColor, setFlattenColor] = useState('#ffffff');
     const [pngTransparency, setPngTransparency] = useState(true);
     const [pngBackground, setPngBackground] = useState('#ffffff');
+    const [filename, setFilename] = useState<string>('export');
     const dialogRef = useDialogA11y(isOpen, onClose);
+    const sizeReqIdRef = useRef(0);
 
+    // Default filename to the current document name when the dialog opens.
+    useEffect(() => {
+        if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setFilename(documentName?.trim() || 'export');
+        }
+    }, [isOpen, documentName]);
+
+    // Debounced real-size measurement: re-encode the composite at the current
+    // format/quality/transparency settings and report the actual blob size.
     useEffect(() => {
         if (!isOpen) return;
-        const pixels = width * height;
-        const estimates: Record<ExportFormat, number> = {
-            png: pixels * 0.5,
-            jpeg: pixels * (quality / 100) * 0.08,
-            webp: pixels * (quality / 100) * 0.05,
-            gif: pixels * 0.15,
-        };
-        const bytes = estimates[format];
-        if (bytes < 1024) setSizeEstimate(`${bytes.toFixed(0)} B`); // eslint-disable-line react-hooks/set-state-in-effect
-        else if (bytes < 1024 * 1024) setSizeEstimate(`${(bytes / 1024).toFixed(1)} KB`); // eslint-disable-line react-hooks/set-state-in-effect
-        else setSizeEstimate(`${(bytes / 1024 / 1024).toFixed(2)} MB`); // eslint-disable-line react-hooks/set-state-in-effect
-    }, [format, quality, width, height, isOpen]);
+        const reqId = ++sizeReqIdRef.current;
+        setSizeEstimate('…'); // eslint-disable-line react-hooks/set-state-in-effect
+        const timer = window.setTimeout(() => {
+            let canvas = buildExportCanvas(layers, width, height);
+            if (!canvas) {
+                if (sizeReqIdRef.current === reqId) setSizeEstimate('—');
+                return;
+            }
+            if (format === 'jpeg' && flattenOnColor) canvas = flattenOnto(canvas, flattenColor);
+            if (format === 'png' && !pngTransparency) canvas = flattenOnto(canvas, pngBackground);
+            const mime = formatMime(format);
+            const q = (format === 'jpeg' || format === 'webp') ? quality / 100 : undefined;
+            try {
+                canvas.toBlob((blob) => {
+                    if (sizeReqIdRef.current !== reqId) return; // stale
+                    if (!blob) { setSizeEstimate('—'); return; }
+                    setSizeEstimate(formatBytes(blob.size));
+                }, mime, q);
+            } catch {
+                if (sizeReqIdRef.current === reqId) setSizeEstimate('—');
+            }
+        }, 250);
+        return () => window.clearTimeout(timer);
+    }, [format, quality, width, height, isOpen, layers, flattenOnColor, flattenColor, pngTransparency, pngBackground]);
 
     function reportExportError(message: string): void {
         useEditorStore.getState().reportError(
@@ -126,7 +188,8 @@ export function ExportDialog({ isOpen, onClose }: Props) {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `export.${format}`;
+                    const safeBase = (filename.trim() || 'export').replace(/\.[a-zA-Z0-9]{1,5}$/, '');
+                    a.download = `${safeBase}.${format === 'jpeg' ? 'jpg' : format}`;
                     a.click();
                     URL.revokeObjectURL(url);
                     useEditorStore.getState().clearLastErrorChannel?.();
@@ -240,10 +303,23 @@ export function ExportDialog({ isOpen, onClose }: Props) {
                         </label>
                     )}
 
-                    {/* Size estimate */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.7 }}>
-                        <span style={{ width: '80px' }}>Est. size</span>
-                        <span>{sizeEstimate}</span>
+                    {/* Filename */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '80px' }}>Filename</span>
+                        <input
+                            type="text"
+                            value={filename}
+                            onChange={e => setFilename(e.target.value)}
+                            data-testid="export-filename"
+                            style={{ flex: 1, background: '#333', border: '1px solid #555', borderRadius: '3px', color: 'white', padding: '4px 8px', fontSize: '12px' }}
+                        />
+                        <span style={{ opacity: 0.6 }}>.{format === 'jpeg' ? 'jpg' : format}</span>
+                    </label>
+
+                    {/* File size (actual debounced toBlob measurement) */}
+                    <div data-testid="export-size" style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.7 }}>
+                        <span style={{ width: '80px' }}>File Size</span>
+                        <span data-testid="export-size-value">{sizeEstimate}</span>
                     </div>
 
                     {/* Dimensions */}
