@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { evaluateNumericExpression } from '../../utils/numericExpression';
 
 interface CanvasSizeDialogProps {
     isOpen: boolean;
@@ -16,6 +17,27 @@ const ANCHORS: [number, number][] = [
     [0, 1], [0.5, 1], [1, 1],
 ];
 
+// Compass-style arrow used in the anchor grid: rotation is computed from the
+// signed (dx, dy) offset between the cell and the anchor, so cells "around"
+// the anchor point outward toward themselves.
+function AnchorArrow({ dx, dy }: { dx: number; dy: number }) {
+    // Angle in degrees; 0 = up. atan2 gives (y up), so flip sign.
+    const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
+    return (
+        <svg
+            data-testid={`anchor-arrow-${dx}-${dy}`}
+            width={12}
+            height={12}
+            viewBox="0 0 12 12"
+            style={{ transform: `rotate(${angle}deg)` }}
+            aria-hidden
+        >
+            {/* Up arrow: a stem with a triangle head. */}
+            <path d="M6 2 L6 10 M3 5 L6 2 L9 5" stroke="hsl(var(--text-main))" strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
 function formatSize(w: number, h: number): string {
     // RGBA bytes for a flat canvas, mirrors Photoshop's "X.X M" header.
     const bytes = Math.max(0, w) * Math.max(0, h) * 4;
@@ -27,6 +49,8 @@ function formatSize(w: number, h: number): string {
 export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfirm, onClose }: CanvasSizeDialogProps) {
     const [w, setW] = useState(currentWidth);
     const [h, setH] = useState(currentHeight);
+    const [wText, setWText] = useState(String(currentWidth));
+    const [hText, setHText] = useState(String(currentHeight));
     const [relative, setRelative] = useState(false);
     const [anchorIdx, setAnchorIdx] = useState(4); // center
     const [extensionColor, setExtensionColor] = useState('transparent');
@@ -37,10 +61,22 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
             /* eslint-disable react-hooks/set-state-in-effect */
             setW(currentWidth);
             setH(currentHeight);
+            setWText(String(currentWidth));
+            setHText(String(currentHeight));
             setRelative(false);
             /* eslint-enable react-hooks/set-state-in-effect */
         }
     }, [isOpen, currentWidth, currentHeight]);
+
+    function commitField(text: string, setter: (n: number) => void, textSetter: (s: string) => void, current: number) {
+        const v = evaluateNumericExpression(text);
+        if (v !== null) {
+            setter(Math.round(v));
+            textSetter(String(Math.round(v)));
+        } else {
+            textSetter(String(current));
+        }
+    }
 
     if (!isOpen) return null;
 
@@ -63,10 +99,14 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
             // Switching ON: zero out the deltas (Photoshop verbatim).
             setW(0);
             setH(0);
+            setWText('0');
+            setHText('0');
         } else {
             // Switching OFF: re-populate with computed absolute values.
             setW(newW);
             setH(newH);
+            setWText(String(newW));
+            setHText(String(newH));
         }
         setRelative(next);
     }
@@ -89,14 +129,30 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
                         <div>
                             <div style={{ fontSize: '12px', color: 'hsl(var(--text-muted))', marginBottom: '4px' }}>Width</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <input data-testid="canvas-size-w" type="number" value={w} onChange={e => setW(Number(e.target.value))} style={inputStyle} />
+                                <input
+                                    data-testid="canvas-size-w"
+                                    type="text"
+                                    value={wText}
+                                    onChange={e => { setWText(e.target.value); const v = evaluateNumericExpression(e.target.value); if (v !== null) setW(Math.round(v)); }}
+                                    onBlur={e => commitField(e.target.value, setW, setWText, w)}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitField((e.target as HTMLInputElement).value, setW, setWText, w); } }}
+                                    style={inputStyle}
+                                />
                                 <span style={{ fontSize: '12px', color: 'hsl(var(--text-muted))' }}>px</span>
                             </div>
                         </div>
                         <div>
                             <div style={{ fontSize: '12px', color: 'hsl(var(--text-muted))', marginBottom: '4px' }}>Height</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <input data-testid="canvas-size-h" type="number" value={h} onChange={e => setH(Number(e.target.value))} style={inputStyle} />
+                                <input
+                                    data-testid="canvas-size-h"
+                                    type="text"
+                                    value={hText}
+                                    onChange={e => { setHText(e.target.value); const v = evaluateNumericExpression(e.target.value); if (v !== null) setH(Math.round(v)); }}
+                                    onBlur={e => commitField(e.target.value, setH, setHText, h)}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitField((e.target as HTMLInputElement).value, setH, setHText, h); } }}
+                                    style={inputStyle}
+                                />
                                 <span style={{ fontSize: '12px', color: 'hsl(var(--text-muted))' }}>px</span>
                             </div>
                         </div>
@@ -114,21 +170,43 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
                         </label>
                     </div>
 
-                    {/* Anchor grid */}
+                    {/* Anchor grid. Each non-anchor cell shows an arrow pointing
+                        AWAY from the anchor, mirroring Photoshop's Canvas Size
+                        dialog hint for which sides will gain space. */}
                     <div style={{ fontSize: '12px', color: 'hsl(var(--text-muted))', marginBottom: '6px' }}>Anchor</div>
                     <div data-testid="anchor-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 28px)', gap: '3px', marginBottom: '16px' }}>
-                        {ANCHORS.map((_, idx) => (
-                            <button
-                                key={idx}
-                                data-testid={`anchor-${idx}`}
-                                onClick={() => setAnchorIdx(idx)}
-                                style={{
-                                    width: '28px', height: '28px', borderRadius: '4px', cursor: 'pointer',
-                                    background: idx === anchorIdx ? 'hsl(var(--accent-primary))' : 'hsl(var(--bg-input))',
-                                    border: `1px solid ${idx === anchorIdx ? 'hsl(var(--accent-primary))' : 'hsl(var(--border-light))'}`,
-                                }}
-                            />
-                        ))}
+                        {ANCHORS.map((_, idx) => {
+                            const isAnchor = idx === anchorIdx;
+                            const col = idx % 3;
+                            const row = Math.floor(idx / 3);
+                            const acol = anchorIdx % 3;
+                            const arow = Math.floor(anchorIdx / 3);
+                            const dx = col - acol;
+                            const dy = row - arow;
+                            return (
+                                <button
+                                    key={idx}
+                                    data-testid={`anchor-${idx}`}
+                                    aria-label={isAnchor ? 'Anchor cell' : `Extend toward column ${col + 1}, row ${row + 1}`}
+                                    onClick={() => setAnchorIdx(idx)}
+                                    style={{
+                                        width: '28px', height: '28px', borderRadius: '4px', cursor: 'pointer',
+                                        background: isAnchor ? 'hsl(var(--accent-primary))' : 'hsl(var(--bg-input))',
+                                        border: `1px solid ${isAnchor ? 'hsl(var(--accent-primary))' : 'hsl(var(--border-light))'}`,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        padding: 0,
+                                    }}
+                                >
+                                    {isAnchor ? (
+                                        <svg width={10} height={10} viewBox="0 0 10 10" aria-hidden>
+                                            <circle cx={5} cy={5} r={3} fill="#fff" />
+                                        </svg>
+                                    ) : (
+                                        <AnchorArrow dx={dx} dy={dy} />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

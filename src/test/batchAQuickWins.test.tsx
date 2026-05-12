@@ -8,6 +8,7 @@ import { ColorPickerDialog } from '../components/Dialogs/ColorPickerDialog';
 import { ScaleEffectsDialog } from '../components/Dialogs/ScaleEffectsDialog';
 import { InputNumberDialog } from '../components/Dialogs/InputNumberDialog';
 import { DefringeDialog } from '../components/Dialogs/DefringeDialog';
+import { CanvasSizeDialog } from '../components/Dialogs/CanvasSizeDialog';
 import { buildColorRangeMask } from '../tools/colorRange';
 import { runScript } from './simulator';
 
@@ -188,6 +189,46 @@ describe('Batch A — InputNumberDialog OK label + suffix/step/decimals', () => 
         fireEvent.change(input, { target: { value: '1.2345' } });
         fireEvent.click(getByTestId('input-number-ok'));
         expect(committed).toBe(1.23);
+    });
+});
+
+describe('Batch A — CanvasSize anchor arrows', () => {
+    it('renders arrows for the 8 non-anchor cells (center anchor default)', () => {
+        const { getByTestId, queryByTestId } = render(
+            <CanvasSizeDialog
+                isOpen
+                currentWidth={100}
+                currentHeight={100}
+                onConfirm={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />
+        );
+        const expected: [number, number][] = [
+            [-1, -1], [0, -1], [1, -1],
+            [-1, 0], /* center */ [1, 0],
+            [-1, 1], [0, 1], [1, 1],
+        ];
+        for (const [dx, dy] of expected) {
+            expect(queryByTestId(`anchor-arrow-${dx}-${dy}`)).toBeTruthy();
+        }
+        expect(queryByTestId('anchor-arrow-0-0')).toBeNull();
+        expect(getByTestId('anchor-4')).toBeTruthy();
+    });
+
+    it('updates arrow set after picking a corner anchor (top-left)', async () => {
+        const { queryByTestId } = render(
+            <CanvasSizeDialog
+                isOpen
+                currentWidth={100}
+                currentHeight={100}
+                onConfirm={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />
+        );
+        await runScript([{ type: 'click', target: queryByTestId('anchor-0') as HTMLElement }]);
+        expect(queryByTestId('anchor-arrow-1-0')).toBeTruthy();
+        expect(queryByTestId('anchor-arrow-2-2')).toBeTruthy();
+        expect(queryByTestId('anchor-arrow-0-0')).toBeNull();
     });
 });
 
