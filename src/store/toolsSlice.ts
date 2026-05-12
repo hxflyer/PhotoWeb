@@ -87,6 +87,15 @@ export function getPatternTile(id: string): HTMLCanvasElement | null {
     return patternTileCache.get(id) ?? null;
 }
 
+/**
+ * Seed the pattern tile cache directly. Useful for tests (jsdom can't load
+ * data URLs through `new Image()`) and for save/load paths that have already
+ * decoded the tile elsewhere. Overwrites any prior cached canvas for `id`.
+ */
+export function cachePatternTile(id: string, canvas: HTMLCanvasElement): void {
+    patternTileCache.set(id, canvas);
+}
+
 export function decodePatternPreset(preset: PatternPreset): Promise<HTMLCanvasElement> {
     return new Promise((resolve, reject) => {
         const cached = patternTileCache.get(preset.id);

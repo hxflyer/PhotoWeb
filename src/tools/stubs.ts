@@ -16,6 +16,7 @@ import './healingBrush';
 import './patch';
 import './redEye';
 import './cloneStamp';
+import './patternStamp';
 import './gradient';
 import './paintBucket';
 import './crop';
