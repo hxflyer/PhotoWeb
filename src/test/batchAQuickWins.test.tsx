@@ -9,6 +9,7 @@ import { ScaleEffectsDialog } from '../components/Dialogs/ScaleEffectsDialog';
 import { InputNumberDialog } from '../components/Dialogs/InputNumberDialog';
 import { DefringeDialog } from '../components/Dialogs/DefringeDialog';
 import { CanvasSizeDialog } from '../components/Dialogs/CanvasSizeDialog';
+import { ImageSizeDialog } from '../components/Dialogs/ImageSizeDialog';
 import { buildColorRangeMask } from '../tools/colorRange';
 import { runScript } from './simulator';
 
@@ -229,6 +230,26 @@ describe('Batch A — CanvasSize anchor arrows', () => {
         expect(queryByTestId('anchor-arrow-1-0')).toBeTruthy();
         expect(queryByTestId('anchor-arrow-2-2')).toBeTruthy();
         expect(queryByTestId('anchor-arrow-0-0')).toBeNull();
+    });
+});
+
+describe('Batch A — ImageSize chain-link icon', () => {
+    it('renders the chain-link icon and toggles between locked/broken states', async () => {
+        const { getByTestId, queryByTestId } = render(
+            <ImageSizeDialog
+                isOpen
+                currentWidth={100}
+                currentHeight={50}
+                onConfirm={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />
+        );
+        const btn = getByTestId('img-size-constrain') as HTMLButtonElement;
+        expect(btn.getAttribute('aria-pressed')).toBe('true');
+        expect(queryByTestId('chain-link-locked')).toBeTruthy();
+        await runScript([{ type: 'click', target: btn }]);
+        expect(btn.getAttribute('aria-pressed')).toBe('false');
+        expect(queryByTestId('chain-link-broken')).toBeTruthy();
     });
 });
 
