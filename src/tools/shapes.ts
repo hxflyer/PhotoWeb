@@ -5,6 +5,7 @@ import { rerenderShapeLayer } from './shapeRender';
 import { useEditorStore } from '../store/editorStore';
 import { buildSnapCandidates, snapPoint, type SnapTarget } from './snap';
 import { getCustomShapeById } from './customShapes';
+import { renderCombinedShapeCanvas, type ShapeBooleanOp } from '../utils/shapeBoolean';
 import type {
     ShapeData,
     ShapeFill,
@@ -378,6 +379,44 @@ function commitShapeLayer(
     const store = ctx.getStore();
     const data = buildShapeData(kind, anchor, current, store.primaryColor, modifiers);
     if (!data) return;
+
+    // Path-operations: when combineMode != 'new' and a shape layer is active,
+    // boolean-combine the new shape into the existing layer's path instead
+    // of creating a new layer.
+    const op = options.combineMode;
+    if (op !== 'new' && (op === 'combine' || op === 'subtract' || op === 'intersect' || op === 'exclude')) {
+        const activeLayer = store.layers.find(l => l.id === store.activeLayerId);
+        if (activeLayer && activeLayer.kind === 'shape' && activeLayer.shapeData) {
+            const before = activeLayer.shapeData as ShapeData;
+            const combinedCanvas = renderCombinedShapeCanvas(before, data, op as ShapeBooleanOp, store.width, store.height);
+            if (combinedCanvas) {
+                store.executeDocumentCommand({
+                    kind: 'layer-property',
+                    label: `${labelForOp(op as ShapeBooleanOp)} Shape`,
+                    affectedIds: [activeLayer.id],
+                    run: () => {
+                        const state = ctx.getStore();
+                        const layer = state.layers.find(l => l.id === activeLayer.id);
+                        if (!layer) return;
+                        // Boolean combines rasterize the shape layer — the
+                        // composite silhouette cannot be expressed by the
+                        // existing per-kind ShapeData and Photoshop also
+                        // rasterizes in this case.
+                        layer.kind = 'raster';
+                        layer.shapeData = null;
+                        layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+                        layer.ctx.drawImage(combinedCanvas, 0, 0);
+                        layer.markDirty(null);
+                        useEditorStore.setState(s => ({ layers: [...s.layers] }));
+                    },
+                });
+                options.combineMode = 'new';
+                return;
+            }
+        }
+        // Fall through to creating a new layer if no active shape layer exists.
+    }
+
     store.executeDocumentCommand({
         kind: 'layer-add',
         label: `Add ${labelForKind(kind)}`,
@@ -398,6 +437,15 @@ function commitShapeLayer(
     // Path-operations buttons only affect the next shape in the session.
     // Reset to the default so subsequent drags create new shape layers.
     options.combineMode = 'new';
+}
+
+function labelForOp(op: ShapeBooleanOp): string {
+    switch (op) {
+        case 'combine': return 'Combine';
+        case 'subtract': return 'Subtract';
+        case 'intersect': return 'Intersect';
+        case 'exclude': return 'Exclude';
+    }
 }
 
 function labelForKind(kind: ShapeKind): string {
