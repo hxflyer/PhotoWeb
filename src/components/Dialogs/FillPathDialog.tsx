@@ -3,6 +3,7 @@ import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { useEditorStore } from '../../store/editorStore';
 import { fillActivePath } from '../../tools/pathPaint';
 import type { BlendModeId } from '../../core/blendModes';
+import { ColorPickerDialog } from './ColorPickerDialog';
 
 interface Props {
     open: boolean;
@@ -36,6 +37,7 @@ function FillPathDialogBody({ onClose }: { onClose: () => void }) {
     const [opacity, setOpacity] = useState(100);
     const [mode, setMode] = useState<BlendModeId>('normal');
     const [preserveTransparency, setPreserveTransparency] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
 
     const resolveColor = (): string => {
         const s = useEditorStore.getState();
@@ -90,16 +92,17 @@ function FillPathDialogBody({ onClose }: { onClose: () => void }) {
                     </select>
                 </label>
                 {source === 'color' && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                         <span style={{ width: 100, fontSize: 11 }}>Color</span>
-                        <input
-                            type="color"
-                            value={customColor}
-                            onChange={e => setCustomColor(e.target.value)}
-                            data-testid="fill-path-color-input"
-                            style={{ width: 40, height: 24, padding: 0, border: '1px solid #555', borderRadius: 3, background: '#333' }}
+                        <button
+                            type="button"
+                            data-testid="fill-path-color-swatch"
+                            onClick={() => setPickerOpen(true)}
+                            aria-label="Open Color Picker"
+                            style={{ width: 40, height: 24, padding: 0, border: '1px solid #555', borderRadius: 3, background: customColor, cursor: 'pointer' }}
                         />
-                    </label>
+                        <span style={{ fontSize: 11, color: '#bbb', fontFamily: 'monospace' }}>{customColor}</span>
+                    </div>
                 )}
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ width: 100, fontSize: 11 }}>Mode</span>
@@ -144,6 +147,13 @@ function FillPathDialogBody({ onClose }: { onClose: () => void }) {
                     </button>
                 </div>
             </div>
+            <ColorPickerDialog
+                isOpen={pickerOpen}
+                initialColor={customColor}
+                title="Fill Path Color"
+                onConfirm={(c) => setCustomColor(c)}
+                onClose={() => setPickerOpen(false)}
+            />
         </div>
     );
 }

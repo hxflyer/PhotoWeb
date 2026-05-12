@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { useEditorStore } from '../../store/editorStore';
 import { strokeActivePath, type StrokePathToolId } from '../../tools/pathPaint';
+import { ColorPickerDialog } from './ColorPickerDialog';
 
 interface Props {
     open: boolean;
@@ -30,6 +31,7 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
     const [opacity, setOpacity] = useState(100);
     const [tool, setTool] = useState<StrokePathToolId>('brush');
     const [simulatePressure, setSimulatePressure] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
 
     const handleOk = () => {
         strokeActivePath({
@@ -87,16 +89,17 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
                         style={{ flex: 1, background: '#333', border: '1px solid #555', borderRadius: 3, color: 'white', padding: '4px 8px', fontSize: 12 }}
                     />
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ width: 100, fontSize: 11 }}>Color</span>
-                    <input
-                        type="color"
-                        value={color}
-                        onChange={e => setColor(e.target.value)}
-                        data-testid="stroke-path-color-input"
-                        style={{ width: 40, height: 24, padding: 0, border: '1px solid #555', borderRadius: 3, background: '#333' }}
+                    <button
+                        type="button"
+                        data-testid="stroke-path-color-swatch"
+                        onClick={() => setPickerOpen(true)}
+                        aria-label="Open Color Picker"
+                        style={{ width: 40, height: 24, padding: 0, border: '1px solid #555', borderRadius: 3, background: color, cursor: 'pointer' }}
                     />
-                </label>
+                    <span style={{ fontSize: 11, color: '#bbb', fontFamily: 'monospace' }}>{color}</span>
+                </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ width: 100, fontSize: 11 }}>Opacity (%)</span>
                     <input
@@ -129,6 +132,13 @@ function StrokePathDialogBody({ onClose }: { onClose: () => void }) {
                     </button>
                 </div>
             </div>
+            <ColorPickerDialog
+                isOpen={pickerOpen}
+                initialColor={color}
+                title="Stroke Path Color"
+                onConfirm={(c) => setColor(c)}
+                onClose={() => setPickerOpen(false)}
+            />
         </div>
     );
 }

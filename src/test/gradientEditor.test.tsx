@@ -112,7 +112,7 @@ describe('GradientEditorDialog', () => {
         expect(moved!.position).toBeLessThan(0.8);
     });
 
-    it('changing a color via the selected-stop color input updates the stop', () => {
+    it('changing a color via the selected-stop color picker updates the stop', () => {
         const onConfirm = vi.fn();
         const { getByTestId } = render(
             <GradientEditorDialog
@@ -126,12 +126,17 @@ describe('GradientEditorDialog', () => {
         const peg = getByTestId('gradient-color-stop-0') as HTMLDivElement;
         fireEvent.pointerDown(peg, { clientX: 0, clientY: 8, pointerId: 1 });
         fireEvent.pointerUp(peg, { clientX: 0, clientY: 8, pointerId: 1 });
-        const colorInput = getByTestId('gradient-selected-color') as HTMLInputElement;
-        fireEvent.change(colorInput, { target: { value: '#00aa44' } });
+        // Click the selected-stop color swatch to open the ColorPickerDialog.
+        fireEvent.click(getByTestId('gradient-selected-color'));
+        // Type a hex value into the picker's hex input and Enter to commit.
+        const hex = getByTestId('color-picker-hex-input') as HTMLInputElement;
+        fireEvent.change(hex, { target: { value: 'ff0000' } });
+        const pickerCard = getByTestId('color-picker-dialog');
+        fireEvent.keyDown(pickerCard, { key: 'Enter' });
         fireEvent.click(getByTestId('gradient-editor-ok'));
         const result: GradientEditorResult = onConfirm.mock.calls[0][0];
         const updated = result.colorStops.find(s => Math.abs(s.position) < 0.001);
-        expect(updated?.color).toBe('#00aa44');
+        expect(updated?.color).toBe('#ff0000');
     });
 
     it('Delete key removes the selected stop', () => {

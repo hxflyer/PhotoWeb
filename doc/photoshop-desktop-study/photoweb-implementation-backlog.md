@@ -915,7 +915,12 @@ Status key:
   - Required tests: `src/test/gradientSmoothnessBatchC.test.tsx`.
   - Implementation notes: `sampleColor` / `sampleOpacity` in `GradientEditorDialog.tsx` and `sampleStops` in `gradient.ts` now accept a `smoothness` parameter and blend linear ↔ smoothstep. `drawStrip` and `renderGradientCanvas` plumb the value through. When smoothness > 0 the gradient tool always uses the pixel walker (the native `CanvasGradient` can't apply the Hermite remap).
 
-- [ ] `BATCH-C-05` Replace native color inputs with openColorPicker
+- [x] `BATCH-C-05` Replace native color inputs with openColorPicker
+  - Priority: `P1`
+  - Function description: Replace every `<input type="color">` in the path/gradient dialogs with photoweb's unified `ColorPickerDialog` so the color UX matches the rest of the app (HSB field, hue slider, web-safe / out-of-gamut warnings, swatch library, etc.).
+  - Acceptance criteria: clicking the Color swatch in FillPathDialog, StrokePathDialog, or the Gradient Editor's selected-stop editor mounts `ColorPickerDialog`; double-clicking a gradient color peg also mounts it; no `<input type="color">` remains in any of the three dialogs.
+  - Required tests: `src/test/colorPickerWiringBatchC.test.tsx`.
+  - Implementation notes: Each dialog now keeps a local `pickerOpen` / `pickerForIndex` state and renders `<ColorPickerDialog>` as a child modal that commits via `onConfirm`. The existing global `openColorPicker(target)` slice helper is reserved for foreground/background/type targets and was not extended.
 
 ## Deferred By Scope
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import type { GradientColorStop, GradientOpacityStop } from '../../store/types';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { ColorPickerDialog } from './ColorPickerDialog';
 
 export interface GradientEditorResult {
     colorStops: GradientColorStop[];
@@ -163,6 +164,7 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
     const [smoothness, setSmoothness] = useState<number>(initialSmoothness);
     const [selected, setSelected] = useState<Selected>(null);
     const [presetName, setPresetName] = useState<string>('');
+    const [pickerForIndex, setPickerForIndex] = useState<number | null>(null);
     const stripRef = useRef<HTMLCanvasElement | null>(null);
     const dialogRef = useDialogA11y(true, onClose);
 
@@ -280,18 +282,8 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
     const onPegDouble = (kind: 'color' | 'opacity', index: number) => (e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         if (kind === 'color') {
-            const input = document.createElement('input');
-            input.type = 'color';
-            input.value = colorStops[index].color;
-            input.setAttribute('data-color-editor', `color-${index}`);
-            input.style.position = 'fixed'; input.style.left = '-9999px';
-            document.body.appendChild(input);
-            input.addEventListener('change', () => {
-                const v = input.value;
-                setColorStops(prev => prev.map((s, i) => i === index ? { ...s, color: v } : s));
-                document.body.removeChild(input);
-            });
-            input.click();
+            setSelected({ kind: 'color', index });
+            setPickerForIndex(index);
         } else {
             setSelected({ kind: 'opacity', index });
         }
@@ -541,16 +533,14 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
                                 />
                                 <span>%</span>
                                 <span style={{ marginLeft: 8 }}>Color:</span>
-                                <input
-                                    type="color"
-                                    value={selectedColorStop.color}
+                                <button
+                                    type="button"
                                     data-testid="gradient-selected-color"
-                                    onChange={e => {
-                                        const v = e.target.value;
-                                        setColorStops(prev => prev.map((s, i) => i === selected.index ? { ...s, color: v } : s));
-                                    }}
-                                    style={{ width: 32, height: 22, border: '1px solid hsl(var(--border-light))', background: 'transparent' }}
+                                    aria-label="Open Color Picker"
+                                    onClick={() => setPickerForIndex(selected.index)}
+                                    style={{ width: 32, height: 22, border: '1px solid hsl(var(--border-light))', background: selectedColorStop.color, cursor: 'pointer', padding: 0, borderRadius: 2 }}
                                 />
+                                <span style={{ fontSize: 10, color: 'hsl(var(--text-muted))', fontFamily: 'monospace' }}>{selectedColorStop.color}</span>
                             </>
                         )}
                         {selectedOpacityStop && selected?.kind === 'opacity' && (
@@ -616,6 +606,17 @@ function GradientEditorDialogBody(props: GradientEditorDialogProps) {
                     >OK</button>
                 </div>
             </div>
+            <ColorPickerDialog
+                isOpen={pickerForIndex !== null}
+                initialColor={pickerForIndex !== null && colorStops[pickerForIndex] ? colorStops[pickerForIndex].color : '#000000'}
+                title="Gradient Stop Color"
+                onConfirm={(c) => {
+                    if (pickerForIndex === null) return;
+                    const idx = pickerForIndex;
+                    setColorStops(prev => prev.map((s, i) => i === idx ? { ...s, color: c } : s));
+                }}
+                onClose={() => setPickerForIndex(null)}
+            />
         </div>
     );
 }
