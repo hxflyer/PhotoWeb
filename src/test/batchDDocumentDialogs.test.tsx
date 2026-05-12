@@ -13,6 +13,9 @@ import {
 } from '../core/imageTransforms';
 import { ImageSizeDialog } from '../components/Dialogs/ImageSizeDialog';
 import { CanvasSizeDialog } from '../components/Dialogs/CanvasSizeDialog';
+import { NewDocumentDialog } from '../components/Dialogs/NewDocumentDialog';
+import { evaluateNumericExpression } from '../utils/numericExpression';
+import { convertLength, fromPixels, toPixels } from '../utils/units';
 import { runScript } from './simulator';
 
 function makeChecker(w: number, h: number): HTMLCanvasElement {
@@ -253,5 +256,96 @@ describe('Batch D Item 2 — CanvasSize Relative + Current/New Size header', () 
         ], container);
         expect(captured!.w).toBe(400);
         expect(captured!.h).toBe(300);
+    });
+});
+
+describe('Batch D Item 3 — Shared math expression + unit helpers', () => {
+    afterEach(() => cleanup());
+
+    it('evaluateNumericExpression handles plain numbers, addition, subtraction, multiplication, division', () => {
+        expect(evaluateNumericExpression('100+50')).toBe(150);
+        expect(evaluateNumericExpression('100 + 50')).toBe(150);
+        expect(evaluateNumericExpression('200-25')).toBe(175);
+        expect(evaluateNumericExpression('10*5')).toBe(50);
+        expect(evaluateNumericExpression('100/4')).toBe(25);
+        expect(evaluateNumericExpression('100')).toBe(100);
+        expect(evaluateNumericExpression('-5')).toBe(-5);
+        expect(evaluateNumericExpression('1.5')).toBe(1.5);
+    });
+
+    it('evaluateNumericExpression honours operator precedence and parentheses', () => {
+        expect(evaluateNumericExpression('2+3*4')).toBe(14);
+        expect(evaluateNumericExpression('(2+3)*4')).toBe(20);
+        expect(evaluateNumericExpression('10/2+3')).toBe(8);
+    });
+
+    it('evaluateNumericExpression resolves trailing percent against a base when supplied', () => {
+        expect(evaluateNumericExpression('50%', { base: 200 })).toBe(100);
+        expect(evaluateNumericExpression('25%', { base: 400 })).toBe(100);
+    });
+
+    it('evaluateNumericExpression rejects garbage and division by zero', () => {
+        expect(evaluateNumericExpression('abc')).toBeNull();
+        expect(evaluateNumericExpression('1/0')).toBeNull();
+        expect(evaluateNumericExpression('1++')).toBeNull();
+        expect(evaluateNumericExpression('')).toBeNull();
+    });
+
+    it('toPixels and fromPixels convert px/in/cm/mm at 72 dpi', () => {
+        expect(toPixels(1, 'in')).toBe(72);
+        expect(toPixels(2.54, 'cm')).toBeCloseTo(72, 3);
+        expect(toPixels(25.4, 'mm')).toBeCloseTo(72, 3);
+        expect(fromPixels(72, 'in')).toBe(1);
+        expect(fromPixels(72, 'cm')).toBeCloseTo(2.54, 3);
+    });
+
+    it('toPixels handles percent relative to a base', () => {
+        expect(toPixels(50, 'percent', { base: 200 })).toBe(100);
+        expect(toPixels(100, 'percent', { base: 800 })).toBe(800);
+    });
+
+    it('convertLength round-trips the same unit unchanged', () => {
+        expect(convertLength(100, 'px', 'px')).toBe(100);
+        expect(convertLength(200, 'in', 'in', { dpi: 300 })).toBe(200);
+    });
+
+    it('NewDocumentDialog Width field accepts a math expression and resolves to the result', () => {
+        const { container } = render(<NewDocumentDialog isOpen={true} onClose={() => { /* noop */ }} />);
+        const wInput = container.querySelector('[data-testid="new-doc-width"]') as HTMLInputElement;
+        fireEvent.change(wInput, { target: { value: '100+50' } });
+        fireEvent.blur(wInput);
+        expect(wInput.value).toBe('150');
+    });
+
+    it('CanvasSizeDialog Width field accepts a math expression and updates the New Size readout', () => {
+        const { container } = render(
+            <CanvasSizeDialog
+                isOpen={true}
+                currentWidth={500}
+                currentHeight={300}
+                onConfirm={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        const wInput = container.querySelector('[data-testid="canvas-size-w"]') as HTMLInputElement;
+        fireEvent.change(wInput, { target: { value: '300*2' } });
+        const next = container.querySelector('[data-testid="canvas-size-new"]')!;
+        expect(next.textContent).toContain('600');
+    });
+
+    it('ImageSizeDialog Width field accepts a math expression and updates the displayed value', () => {
+        const { container } = render(
+            <ImageSizeDialog
+                isOpen={true}
+                currentWidth={100}
+                currentHeight={100}
+                onConfirm={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        const wInput = container.querySelector('[data-testid="img-size-w"]') as HTMLInputElement;
+        fireEvent.change(wInput, { target: { value: '50+50' } });
+        fireEvent.blur(wInput);
+        expect(wInput.value).toBe('100');
     });
 });

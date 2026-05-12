@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
+import { evaluateNumericExpression } from '../../utils/numericExpression';
 
 interface Props {
     isOpen: boolean;
@@ -24,7 +25,18 @@ function NewGuideDialogBody({ onClose }: { onClose: () => void }) {
     const addGuideWithHistory = useEditorStore(s => s.addGuideWithHistory);
     const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
     const [position, setPosition] = useState<number>(0);
+    const [positionText, setPositionText] = useState<string>('0');
     const inputRef = useRef<HTMLInputElement>(null);
+
+    function commitPosition(text: string) {
+        const v = evaluateNumericExpression(text);
+        if (v !== null) {
+            setPosition(v);
+            setPositionText(String(v));
+        } else {
+            setPositionText(String(position));
+        }
+    }
 
     useEffect(() => {
         const id = window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -32,7 +44,10 @@ function NewGuideDialogBody({ onClose }: { onClose: () => void }) {
     }, []);
 
     function commit() {
-        addGuideWithHistory(orientation, position);
+        // Parse any pending math expression in the position field before commit.
+        const v = evaluateNumericExpression(positionText);
+        const final = v !== null ? v : position;
+        addGuideWithHistory(orientation, final);
         onClose();
     }
 
@@ -79,13 +94,15 @@ function NewGuideDialogBody({ onClose }: { onClose: () => void }) {
                     <span style={{ width: 80, opacity: 0.85 }}>Position</span>
                     <input
                         ref={inputRef}
-                        type="number"
-                        value={Number.isFinite(position) ? position : 0}
+                        data-testid="new-guide-position"
+                        type="text"
+                        value={positionText}
                         onChange={e => {
-                            const raw = e.target.value;
-                            const parsed = raw === '' || raw === '-' ? 0 : Number(raw);
-                            setPosition(Number.isFinite(parsed) ? parsed : 0);
+                            setPositionText(e.target.value);
+                            const v = evaluateNumericExpression(e.target.value);
+                            if (v !== null) setPosition(v);
                         }}
+                        onBlur={e => commitPosition(e.target.value)}
                         style={inputStyle}
                         aria-label="Position"
                     />

@@ -798,7 +798,18 @@ Status key:
     - `src/test/batchDDocumentDialogs.test.tsx` — header rendering, live New Size update, Relative +50 delta, Relative negative delta shrink.
   - Implementation notes: `src/components/Dialogs/CanvasSizeDialog.tsx`. Negative deltas clamp to ≥ 1 px; the New Size readout uses an RGBA-byte estimate (`w*h*4`) for the megabyte string.
 
-- [ ] `BATCH-D-03` Shared math expression + unit helpers (NewDocument / CanvasSize / ImageSize / NewGuide)
+- [x] `BATCH-D-03` Shared math expression + unit helpers (NewDocument / CanvasSize / ImageSize / NewGuide)
+  - Priority: `P1`
+  - Function description: Add a shared expression evaluator (`+ - * / ( )` and trailing `%` against a base) and a px ↔ % ↔ in ↔ cm ↔ mm length conversion helper, then wire the expression evaluator into every Photoshop sizing dialog. Photoshop study page 0033 mandates math-in-fields across every numeric input.
+  - Acceptance criteria:
+    - `evaluateNumericExpression('100+50')` resolves to 150; precedence and parentheses honoured.  `Implemented`
+    - Percent literals resolve against a supplied base.  `Implemented`
+    - NewDocument / CanvasSize / ImageSize / NewGuide all accept math expressions in numeric fields and commit on blur or Enter.  `Implemented`
+    - `convertLength` round-trips px/in/cm/mm at a given dpi.  `Implemented`
+  - Required tests:
+    - `src/test/batchDDocumentDialogs.test.tsx` — expression evaluator (arith, precedence, percent, error cases), units helpers, wiring into NewDocument/CanvasSize/ImageSize.
+  - Implementation notes: `src/utils/numericExpression.ts` (recursive-descent parser), `src/utils/units.ts` (`LengthUnit`, `toPixels`, `fromPixels`, `convertLength`). Dialog inputs switched from `type="number"` to `type="text"` with a paired `*Text` state buffer; partial expressions evaluate live so the live readouts update on each keystroke, while invalid input only snaps back on blur/Enter so users aren't fighting the field while typing.
+
 - [ ] `BATCH-D-04` ExportDialog real-size estimate + Filename field
 - [ ] `BATCH-D-05` ShortcutsDialog single registry + missing Image/Edit/Layer/Select keys
 

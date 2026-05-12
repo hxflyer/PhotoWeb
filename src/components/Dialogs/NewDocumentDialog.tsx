@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { requestViewportFit } from '../../utils/viewportFit';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { evaluateNumericExpression } from '../../utils/numericExpression';
 
 interface Preset {
     label: string;
@@ -32,15 +33,40 @@ export function NewDocumentDialog({ isOpen, onClose }: Props) {
     const [presetIndex, setPresetIndex] = useState(2);
     const [width, setWidth] = useState(PRESETS[2].width);
     const [height, setHeight] = useState(PRESETS[2].height);
+    const [widthText, setWidthText] = useState(String(PRESETS[2].width));
+    const [heightText, setHeightText] = useState(String(PRESETS[2].height));
     const [resolution, setResolution] = useState(72);
     const [background, setBackground] = useState<'white' | 'black' | 'transparent'>('white');
     const dialogRef = useDialogA11y(isOpen, onClose);
+
+    function commitWidth(text: string) {
+        const v = evaluateNumericExpression(text);
+        if (v !== null && v > 0) {
+            setWidth(Math.round(v));
+            setWidthText(String(Math.round(v)));
+            setPresetIndex(5);
+        } else {
+            setWidthText(String(width));
+        }
+    }
+    function commitHeight(text: string) {
+        const v = evaluateNumericExpression(text);
+        if (v !== null && v > 0) {
+            setHeight(Math.round(v));
+            setHeightText(String(Math.round(v)));
+            setPresetIndex(5);
+        } else {
+            setHeightText(String(height));
+        }
+    }
 
     function onPresetSelect(idx: number) {
         setPresetIndex(idx);
         const p = PRESETS[idx];
         setWidth(p.width);
         setHeight(p.height);
+        setWidthText(String(p.width));
+        setHeightText(String(p.height));
         setResolution(p.resolution);
     }
 
@@ -111,8 +137,12 @@ export function NewDocumentDialog({ isOpen, onClose }: Props) {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ width: '80px' }}>Width</span>
                             <input
-                                type="number" min={1} max={32000} value={width}
-                                onChange={e => { setWidth(Number(e.target.value)); setPresetIndex(5); }}
+                                data-testid="new-doc-width"
+                                type="text"
+                                value={widthText}
+                                onChange={e => setWidthText(e.target.value)}
+                                onBlur={e => commitWidth(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitWidth((e.target as HTMLInputElement).value); } }}
                                 style={{ flex: 1, background: '#333', border: '1px solid #555', borderRadius: '3px', color: 'white', padding: '4px 8px', fontSize: '12px' }}
                             />
                             <span>px</span>
@@ -120,8 +150,12 @@ export function NewDocumentDialog({ isOpen, onClose }: Props) {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ width: '80px' }}>Height</span>
                             <input
-                                type="number" min={1} max={32000} value={height}
-                                onChange={e => { setHeight(Number(e.target.value)); setPresetIndex(5); }}
+                                data-testid="new-doc-height"
+                                type="text"
+                                value={heightText}
+                                onChange={e => setHeightText(e.target.value)}
+                                onBlur={e => commitHeight(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitHeight((e.target as HTMLInputElement).value); } }}
                                 style={{ flex: 1, background: '#333', border: '1px solid #555', borderRadius: '3px', color: 'white', padding: '4px 8px', fontSize: '12px' }}
                             />
                             <span>px</span>
