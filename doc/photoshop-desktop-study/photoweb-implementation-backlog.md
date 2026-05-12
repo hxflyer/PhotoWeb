@@ -773,6 +773,15 @@ Status key:
   - Acceptance criteria: file removed; TS still clean; test asserts file no longer exists.
   - Required tests: `src/test/batchAQuickWins.test.tsx` — TestDialog removal.
 
+## Batch F - Panels and Layer Styles
+
+- [x] `BATCH-F-01` Mask Properties buttons wiring
+  - Priority: `P1`
+  - Function description: Wire Mask Edge…, Color Range…, Invert, Apply, Disable, Delete buttons in the PropertiesPanel MaskSection so the existing dialogs and store actions are reachable without going through context menus.
+  - Acceptance criteria: clicking Mask Edge… opens RefineEdgeDialog and selects the mask edit target; Color Range… opens ColorRangeDialog; Invert inverts mask pixels; Apply merges mask into the layer; Disable toggles `mask.enabled`; Delete removes the mask.
+  - Required tests: `src/test/maskPropertiesButtons.test.tsx`.
+  - Implementation notes: All store actions (`invertLayerMask`, `applyLayerMask`, `removeLayerMask`, `setLayerMaskEnabled`, `openRefineEdgeDialog`, `openColorRangeDialog`) already existed; this slice is pure wiring through the PropertiesPanel MaskSection.
+
 ## Deferred By Scope
 
 - [>] `AI-*` Generative AI, Neural Filters, Firefly, subject detection, object removal, automatic background removal

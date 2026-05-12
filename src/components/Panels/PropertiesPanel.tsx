@@ -111,8 +111,25 @@ function LayerSection({ layer }: { layer: Layer }) {
     );
 }
 
+const maskButtonStyle: React.CSSProperties = {
+    flex: 1,
+    fontSize: 11,
+    padding: '3px 6px',
+    background: 'hsl(var(--bg-input))',
+    color: 'hsl(var(--text-main))',
+    border: '1px solid hsl(var(--border-light))',
+    borderRadius: 2,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+};
+
 function MaskSection({ layer }: { layer: Layer }) {
-    const { setLayerMaskEnabled, setLayerMaskLinked, setLayerMaskDensity, setLayerMaskFeather } = useEditorStore();
+    const {
+        setLayerMaskEnabled, setLayerMaskLinked, setLayerMaskDensity, setLayerMaskFeather,
+        invertLayerMask, applyLayerMask, removeLayerMask,
+        setActiveLayer, setActiveLayerEditTarget,
+        openRefineEdgeDialog, openColorRangeDialog,
+    } = useEditorStore();
     if (!layer.mask) return null;
     const density = layer.mask.density ?? 1;
     const feather = layer.mask.feather ?? 0;
@@ -144,6 +161,48 @@ function MaskSection({ layer }: { layer: Layer }) {
                     onChange={e => setLayerMaskFeather(layer.id, +e.target.value)}
                     style={{ flex: 1 }} />
                 <span style={{ width: 36, textAlign: 'right' }}>{feather}px</span>
+            </div>
+            <div style={{ ...rowStyle, gap: 4 }}>
+                <button
+                    data-testid="mask-section-edge"
+                    style={maskButtonStyle}
+                    onClick={() => {
+                        setActiveLayer(layer.id);
+                        setActiveLayerEditTarget('mask');
+                        openRefineEdgeDialog();
+                    }}
+                >Mask Edge…</button>
+                <button
+                    data-testid="mask-section-color-range"
+                    style={maskButtonStyle}
+                    onClick={() => {
+                        setActiveLayer(layer.id);
+                        setActiveLayerEditTarget('mask');
+                        openColorRangeDialog();
+                    }}
+                >Color Range…</button>
+                <button
+                    data-testid="mask-section-invert"
+                    style={maskButtonStyle}
+                    onClick={() => invertLayerMask(layer.id)}
+                >Invert</button>
+            </div>
+            <div style={{ ...rowStyle, gap: 4 }}>
+                <button
+                    data-testid="mask-section-apply"
+                    style={maskButtonStyle}
+                    onClick={() => applyLayerMask(layer.id)}
+                >Apply</button>
+                <button
+                    data-testid="mask-section-disable"
+                    style={maskButtonStyle}
+                    onClick={() => setLayerMaskEnabled(layer.id, !layer.mask?.enabled)}
+                >{layer.mask.enabled ? 'Disable' : 'Enable'}</button>
+                <button
+                    data-testid="mask-section-delete"
+                    style={maskButtonStyle}
+                    onClick={() => removeLayerMask(layer.id)}
+                >Delete</button>
             </div>
         </div>
     );
