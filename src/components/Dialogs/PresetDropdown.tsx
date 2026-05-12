@@ -30,13 +30,14 @@ const inputStyle: React.CSSProperties = {
 };
 
 export function PresetDropdown({ kind, id, currentParams, defaultParams, onApply }: PresetDropdownProps) {
-    const { savePreset, deletePreset, presets } = useEditorStore(
+    const presetsRaw = useEditorStore((s) => s.presetStore[kind][id]);
+    const { savePreset, deletePreset } = useEditorStore(
         useShallow((s) => ({
             savePreset: s.savePreset,
             deletePreset: s.deletePreset,
-            presets: s.presetStore[kind][id] ?? [],
         }))
     );
+    const presets = presetsRaw ?? [];
     const [selectedId, setSelectedId] = useState<string>('');
 
     const handleChange = (value: string) => {

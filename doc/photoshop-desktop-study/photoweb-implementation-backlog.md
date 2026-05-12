@@ -848,6 +848,13 @@ Status key:
   - Required tests: `src/test/layerStyleDialogBatchF.test.tsx`.
   - Implementation notes: `EffectEntry` is now exported from PropertiesPanel so the dialog reuses it verbatim. Knockout, Blend If split-sliders, Blend Interior Effects as Group, and the remaining Advanced Blending options are pending under BATCH-F-05.
 
+- [x] `BATCH-F-04` Replace window.prompt with real modals for preset naming
+  - Priority: `P2`
+  - Function description: New `src/components/Dialogs/NewBrushPresetDialog.tsx` and `DefinePatternDialog.tsx`. Each shows a thumbnail preview, name field, and (for brushes) Capture Brush Size + Capture Color toggles. Wired into BrushPresetsPanel and PatternPresetsPanel to replace the existing `window.prompt` calls.
+  - Acceptance criteria: clicking "New Preset" / "Define Pattern" footer opens the dialog (no browser prompt); OK commits the name and creates the preset; Cancel dismisses without committing.
+  - Required tests: `src/test/presetDialogsBatchF.test.tsx`.
+  - Implementation notes: SwatchesPanel does not currently invoke `window.prompt` (it uses a silent "+" button on the current primary color) — extending it to a NewSwatchDialog would require adding a name field to the swatch model and is deferred.
+
 ## Batch E - Adjustment / Filter UX
 
 - [x] `BATCH-E-01` Edit > Fade dialog

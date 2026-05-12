@@ -175,6 +175,178 @@ function ColorRow({
     );
 }
 
+type LevelsHandleKind = 'black' | 'gamma' | 'white' | 'outBlack' | 'outWhite';
+
+function LevelsTriangle({
+    x,
+    color,
+    kind,
+    testId,
+    handleSize,
+    onStart,
+}: {
+    x: number;
+    color: string;
+    kind: LevelsHandleKind;
+    testId: string;
+    handleSize: number;
+    onStart: (kind: LevelsHandleKind, e: React.PointerEvent<HTMLDivElement>) => void;
+}) {
+    return (
+        <div
+            data-testid={testId}
+            role="slider"
+            aria-orientation="horizontal"
+            onPointerDown={(e) => onStart(kind, e)}
+            style={{
+                position: 'absolute',
+                left: x - handleSize / 2,
+                bottom: -handleSize,
+                width: handleSize,
+                height: handleSize,
+                cursor: 'ew-resize',
+                clipPath: 'polygon(50% 0, 0 100%, 100% 100%)',
+                background: color,
+                userSelect: 'none',
+            }}
+        />
+    );
+}
+
+function LevelsHistogramSlider({
+    image,
+    inputBlack,
+    inputWhite,
+    gamma,
+    outputBlack,
+    outputWhite,
+    onInputChange,
+    onOutputChange,
+}: {
+    image: ImageData | null;
+    inputBlack: number;
+    inputWhite: number;
+    gamma: number;
+    outputBlack: number;
+    outputWhite: number;
+    onInputChange: (next: { inputBlack: number; inputWhite: number; gamma: number }) => void;
+    onOutputChange: (next: { outputBlack: number; outputWhite: number }) => void;
+}) {
+    const histRef = useRef<HTMLCanvasElement>(null);
+    const dragRef = useRef<LevelsHandleKind | null>(null);
+    const width = 384;
+    const height = 92;
+    const gradientHeight = 18;
+    const handleSize = 10;
+
+    useEffect(() => {
+        const canvas = histRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        canvas.width = width;
+        canvas.height = height;
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = '#2d2d2d';
+        for (let x = 0; x <= width; x += width / 4) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+        if (!image) return;
+        const hist = new Uint32Array(256);
+        let max = 0;
+        for (let i = 0; i < image.data.length; i += 4) {
+            if (image.data[i + 3] === 0) continue;
+            const luma = Math.round(0.299 * image.data[i] + 0.587 * image.data[i + 1] + 0.114 * image.data[i + 2]);
+            hist[luma]++;
+            if (hist[luma] > max) max = hist[luma];
+        }
+        if (max === 0) return;
+        ctx.fillStyle = '#b8c7d9';
+        for (let i = 0; i < 256; i++) {
+            const bar = Math.round((hist[i] / max) * (height - 8));
+            const x = Math.floor((i / 256) * width);
+            ctx.fillRect(x, height - bar, Math.max(1, Math.ceil(width / 256)), bar);
+        }
+    }, [image]);
+
+    const xFromValue = (v: number) => (v / 255) * width;
+    const valueFromX = (x: number) => Math.max(0, Math.min(255, Math.round((x / width) * 255)));
+
+    const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!dragRef.current) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const localX = event.clientX - rect.left;
+        const v = valueFromX(localX);
+        if (dragRef.current === 'black') {
+            const newBlack = Math.min(v, inputWhite - 1);
+            onInputChange({ inputBlack: newBlack, inputWhite, gamma });
+        } else if (dragRef.current === 'white') {
+            const newWhite = Math.max(v, inputBlack + 1);
+            onInputChange({ inputBlack, inputWhite: newWhite, gamma });
+        } else if (dragRef.current === 'gamma') {
+            // Gamma slider lives between the black + white triangles.
+            const range = Math.max(1, inputWhite - inputBlack);
+            const t = Math.max(0.001, Math.min(0.999, (v - inputBlack) / range));
+            // 0.5 → gamma 1; left → larger gamma; right → smaller gamma.
+            const newGamma = Math.max(0.1, Math.min(9.99, Math.log(0.5) / Math.log(t)));
+            onInputChange({ inputBlack, inputWhite, gamma: newGamma });
+        } else if (dragRef.current === 'outBlack') {
+            const newBlack = Math.min(v, outputWhite - 1);
+            onOutputChange({ outputBlack: newBlack, outputWhite });
+        } else if (dragRef.current === 'outWhite') {
+            const newWhite = Math.max(v, outputBlack + 1);
+            onOutputChange({ outputBlack, outputWhite: newWhite });
+        }
+    };
+
+    const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+        dragRef.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+    };
+
+    const onTriangleStart = (kind: LevelsHandleKind, e: React.PointerEvent<HTMLDivElement>) => {
+        dragRef.current = kind;
+        (e.currentTarget.parentNode as HTMLElement)?.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    };
+
+    // Gamma triangle x-coordinate maps to value 0..255 via inverse gamma.
+    const gammaT = Math.pow(0.5, 1 / Math.max(0.001, gamma));
+    const gammaValue = inputBlack + gammaT * (inputWhite - inputBlack);
+
+    return (
+        <div style={{ marginBottom: 12 }}>
+            <div
+                style={{ position: 'relative', width, marginBottom: handleSize + 6 }}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+            >
+                <canvas ref={histRef} style={{ display: 'block', width, height, border: '1px solid hsl(var(--border-light))', borderRadius: 2 }} />
+                <LevelsTriangle x={xFromValue(inputBlack)} color="#000" kind="black" testId="levels-handle-black" handleSize={handleSize} onStart={onTriangleStart} />
+                <LevelsTriangle x={xFromValue(gammaValue)} color="#808080" kind="gamma" testId="levels-handle-gamma" handleSize={handleSize} onStart={onTriangleStart} />
+                <LevelsTriangle x={xFromValue(inputWhite)} color="#fff" kind="white" testId="levels-handle-white" handleSize={handleSize} onStart={onTriangleStart} />
+            </div>
+            <div
+                style={{ position: 'relative', width, marginTop: 18 }}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+            >
+                <div style={{ width, height: gradientHeight, background: 'linear-gradient(to right, #000, #fff)', border: '1px solid hsl(var(--border-light))', borderRadius: 2 }} />
+                <LevelsTriangle x={xFromValue(outputBlack)} color="#000" kind="outBlack" testId="levels-handle-out-black" handleSize={handleSize} onStart={onTriangleStart} />
+                <LevelsTriangle x={xFromValue(outputWhite)} color="#fff" kind="outWhite" testId="levels-handle-out-white" handleSize={handleSize} onStart={onTriangleStart} />
+            </div>
+        </div>
+    );
+}
+
 function EyedropperButton({
     slot,
     armed,
@@ -535,18 +707,48 @@ export function AdjustmentDialog({
             case 'levels':
                 return (
                     <>
-                        <Histogram image={sourceImage} />
                         <SelectRow label="Channel" value={stringValue(mergedParams, 'channel', 'rgb')} options={[
                             { value: 'rgb', label: 'RGB' },
                             { value: 'red', label: 'Red' },
                             { value: 'green', label: 'Green' },
                             { value: 'blue', label: 'Blue' },
                         ]} onChange={v => setParam('channel', v)} />
-                        <SliderRow label="Input Black" value={numberValue(mergedParams, 'inputBlack', 0)} min={0} max={254} onChange={v => setParam('inputBlack', v)} />
-                        <SliderRow label="Gamma" value={numberValue(mergedParams, 'gamma', 1)} min={0.1} max={9.99} step={0.01} onChange={v => setParam('gamma', v)} />
-                        <SliderRow label="Input White" value={numberValue(mergedParams, 'inputWhite', 255)} min={1} max={255} onChange={v => setParam('inputWhite', v)} />
-                        <SliderRow label="Output Black" value={numberValue(mergedParams, 'outputBlack', 0)} min={0} max={255} onChange={v => setParam('outputBlack', v)} />
-                        <SliderRow label="Output White" value={numberValue(mergedParams, 'outputWhite', 255)} min={0} max={255} onChange={v => setParam('outputWhite', v)} />
+                        <div style={{ color: '#d8d8d8', fontSize: 11, fontWeight: 500, marginBottom: 4 }}>Input Levels</div>
+                        <LevelsHistogramSlider
+                            image={sourceImage}
+                            inputBlack={numberValue(mergedParams, 'inputBlack', 0)}
+                            inputWhite={numberValue(mergedParams, 'inputWhite', 255)}
+                            gamma={numberValue(mergedParams, 'gamma', 1)}
+                            outputBlack={numberValue(mergedParams, 'outputBlack', 0)}
+                            outputWhite={numberValue(mergedParams, 'outputWhite', 255)}
+                            onInputChange={(next) => setParams(prev => ({ ...prev, ...next }))}
+                            onOutputChange={(next) => setParams(prev => ({ ...prev, ...next }))}
+                        />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+                                <span>Input Black</span>
+                                <input data-testid="levels-input-black" type="number" min={0} max={254} value={numberValue(mergedParams, 'inputBlack', 0)} onChange={e => setParam('inputBlack', Number(e.target.value))} style={inputStyle} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+                                <span>Gamma</span>
+                                <input data-testid="levels-input-gamma" type="number" min={0.1} max={9.99} step={0.01} value={numberValue(mergedParams, 'gamma', 1)} onChange={e => setParam('gamma', Number(e.target.value))} style={inputStyle} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+                                <span>Input White</span>
+                                <input data-testid="levels-input-white" type="number" min={1} max={255} value={numberValue(mergedParams, 'inputWhite', 255)} onChange={e => setParam('inputWhite', Number(e.target.value))} style={inputStyle} />
+                            </label>
+                        </div>
+                        <div style={{ color: '#d8d8d8', fontSize: 11, fontWeight: 500, marginBottom: 4, marginTop: 6 }}>Output Levels</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+                                <span>Output Black</span>
+                                <input data-testid="levels-output-black" type="number" min={0} max={255} value={numberValue(mergedParams, 'outputBlack', 0)} onChange={e => setParam('outputBlack', Number(e.target.value))} style={inputStyle} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+                                <span>Output White</span>
+                                <input data-testid="levels-output-white" type="number" min={0} max={255} value={numberValue(mergedParams, 'outputWhite', 255)} onChange={e => setParam('outputWhite', Number(e.target.value))} style={inputStyle} />
+                            </label>
+                        </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
                             <EyedropperButton testId="eyedropper-levels-black" slot="levels-black" armed={eyedropper.armedSlot === 'levels-black'} title="Set Black Point" onActivate={() => eyedropper.activate('levels-black', (s) => setParam('inputBlack', s.luma))} />
                             <EyedropperButton testId="eyedropper-levels-gray" slot="levels-gray" armed={eyedropper.armedSlot === 'levels-gray'} title="Set Gray Point" onActivate={() => eyedropper.activate('levels-gray', (s) => {
