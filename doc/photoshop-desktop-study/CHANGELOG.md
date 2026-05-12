@@ -8,7 +8,7 @@ Format: one section per pass with date, test-count delta, and a one-paragraph su
 
 ## 2026-05-12 — Batches A–F: popup audit + parallel implementation pass
 
-Tests: **789 / 98 → 972 / 122 (+183, +24 files)**. Lint: 0 errors. TypeScript clean.
+Tests: **789 / 98 → 1003 / 128 (+214, +30 files)**. Lint: 0 errors. TypeScript clean.
 
 Triggered by user prompt: *"check all popups and functions, and sub functions in popups, you should search internet to gather more information about each functions of photoshop and read doc/snapshots folders of photoshop popups, compare the project code with photoshop's function and interaction/UI/UE, write plans of how to correct and improve our code, then fire a multiple subagents implement the plan."*
 
@@ -59,12 +59,19 @@ Five audit agents read every dialog, panel, and overlay against `doc/snapshots/`
 - **Auto Color Correction Options** (new `AutoOptionsDialog.tsx`): four enhancement modes (Find Dark & Light Colors / Enhance Per Channel Contrast / Enhance Monochromatic Contrast / Enhance Brightness and Contrast) + Snap Neutral Midtones + clip percentages, persisted to `photoweb:autoOptions:v1`.
 - **FilterDialog visual parity + shared `SliderRow`**: gradient header, right-side OK/Cancel/Reset/Preview column, Opt+P Preview shortcut, numeric inputs next to every slider. Migration applied to the four blur filters' `renderUI`; remaining filters inherit the chrome immediately and adopt the slider row incrementally.
 
-### Batch F — Panels & Layer Styles (4 / 8 shipped) [+29 tests across 4 files]
+### Batch F — Panels & Layer Styles [+52 tests across 8 files]
+
+First half (4 items):
 - **Real Layer Style modal** (new `LayerStyleDialog.tsx`): tabbed modal opened by double-click on a layer thumbnail; tabs for Blending Options + every registered effect, each reusing the existing PropertiesPanel `EffectEntry` editor.
 - **Mask Properties buttons wiring** (`PropertiesPanel.tsx` MaskSection): real buttons for Mask Edge… (opens `RefineEdgeDialog`), Color Range… (opens `ColorRangeDialog`), Invert / Apply / Disable / Delete.
 - **Universal `PanelFlyout`** (new `Panels/PanelFlyout.tsx`): reusable hamburger menu wired into LayersPanel; remaining panels inherit the shared component.
 - **`NewBrushPresetDialog` + `DefinePatternDialog`** replace `window.prompt` calls in BrushPresetsPanel and PatternPresetsPanel. SwatchesPanel skipped (its data model is `string[]` without names — extending it would be scope creep, deferred).
-- **Deferred to follow-up (`BATCH-F-02`–`05`)**: Bevel & Emboss completeness (Technique + Gloss Contour + Use Global Light + Contour + Texture sub-sections), Drop/Inner Shadow + Outer/Inner Glow option parity, Stroke gradient/pattern fill type, Blending Options Advanced + Blend If split sliders. Each is a full SOP cycle and is queued as its own batch.
+
+Second half (4 items, follow-up agent):
+- **Bevel & Emboss completeness** (`BATCH-F-02`, `4278ed1`): Technique (Smooth/Chisel Hard/Chisel Soft), Gloss Contour selector (Linear/Half Round/Cone/Cone Inverted/Gaussian/Ring/Sawtooth), Use Global Light toggle wired through new `DocumentSlice.globalLight`, Contour sub-section with range slider, Texture sub-section (pattern picker + scale + depth + invert + link-with-layer).
+- **Drop/Inner Shadow + Outer/Inner Glow option parity** (`BATCH-F-03`, `53ada3c`): Drop + Inner Shadow gained Contour + Anti-Aliased + Noise + Use Global Light + Knockout (Drop only). Outer + Inner Glow gained Technique (Softer/Precise), Range, Jitter, Contour + Anti-Aliased, Noise, Color Source (Solid/Gradient). Inner Glow additionally has Source (Center/Edge). `applyContourAndNoise` factored into a shared helper.
+- **Stroke gradient + pattern fill type** (`BATCH-F-04`, `2533ec6`): Fill Type dropdown (Color/Gradient/Pattern). Gradient path stores `{colorStops, opacityStops, type, angle, scale}` with all five gradient types implemented; reuses `GradientEditorDialog`. Pattern path uses `getPatternTile` + `createPattern('repeat')`.
+- **Blending Options modal section** (`BATCH-F-05`, `62a8cab`): extended `Layer` with `knockout`, `blendInteriorEffectsAsGroup`, `blendClippedLayersAsGroup`, `transparencyShapesLayer`, `layerMaskHidesEffects`, `vectorMaskHidesEffects`, and a full four-stop Blend If model per channel. Compositor now separates Opacity (everything) from Fill Opacity (layer pixels only, not effects) — matches Photoshop. `applyBlendIf` masks layer alpha by channel value vs. running composite. LayerStyleDialog Blending Options tab renders the full Advanced Blending + Blend If split sliders.
 
 ### Consolidation
 After the six implementation agents landed, a small repair pass fixed:
