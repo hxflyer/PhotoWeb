@@ -787,7 +787,17 @@ Status key:
     - `src/test/batchDDocumentDialogs.test.tsx` — Automatic resolves correctly; each method resamples 100x100 → 200x200; Resample off locks dimensions; dropdown lists six options.
   - Implementation notes: `src/core/imageTransforms.ts` exports `ResampleMethod`, `RESAMPLE_METHOD_LABELS`, `resolveAutomaticResample`, `resampleImageData` (Mitchell–Netravali cubic kernel with a `bias` knob: 0 = Bicubic, +0.35 = Smoother, −0.35 = Sharper). `resampleCanvas` delegates to `resampleImageData` for determinism. `ImageSizeDialog` exposes Resample checkbox + Method dropdown.
 
-- [ ] `BATCH-D-02` CanvasSize Relative + Current/New Size header
+- [x] `BATCH-D-02` CanvasSize Relative + Current/New Size header
+  - Priority: `P1`
+  - Function description: Match Photoshop's Canvas Size dialog header (Current Size / New Size readouts) and add a Relative checkbox so the Width/Height inputs become deltas rather than absolutes.
+  - Acceptance criteria:
+    - Header shows Current Size with pixel total in megabytes and dimensions, plus a live New Size readout that updates as inputs change.  `Implemented`
+    - Relative checkbox toggles between absolute mode and delta mode; switching to Relative zeroes the deltas, switching back populates with the computed absolute size.  `Implemented`
+    - With Relative=true and Width=+50, the final canvas grows by 50 px from current.  `Implemented`
+  - Required tests:
+    - `src/test/batchDDocumentDialogs.test.tsx` — header rendering, live New Size update, Relative +50 delta, Relative negative delta shrink.
+  - Implementation notes: `src/components/Dialogs/CanvasSizeDialog.tsx`. Negative deltas clamp to ≥ 1 px; the New Size readout uses an RGBA-byte estimate (`w*h*4`) for the megabyte string.
+
 - [ ] `BATCH-D-03` Shared math expression + unit helpers (NewDocument / CanvasSize / ImageSize / NewGuide)
 - [ ] `BATCH-D-04` ExportDialog real-size estimate + Filename field
 - [ ] `BATCH-D-05` ShortcutsDialog single registry + missing Image/Edit/Layer/Select keys

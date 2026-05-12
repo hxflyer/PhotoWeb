@@ -12,6 +12,7 @@ import {
     type ResampleMethod,
 } from '../core/imageTransforms';
 import { ImageSizeDialog } from '../components/Dialogs/ImageSizeDialog';
+import { CanvasSizeDialog } from '../components/Dialogs/CanvasSizeDialog';
 import { runScript } from './simulator';
 
 function makeChecker(w: number, h: number): HTMLCanvasElement {
@@ -162,5 +163,95 @@ describe('Batch D Item 1 — ImageSize resample methods', () => {
             'bilinear',
             'nearest',
         ]);
+    });
+});
+
+describe('Batch D Item 2 — CanvasSize Relative + Current/New Size header', () => {
+    afterEach(() => cleanup());
+
+    it('renders Current Size and New Size in the header', () => {
+        const { container } = render(
+            <CanvasSizeDialog
+                isOpen={true}
+                currentWidth={2048}
+                currentHeight={1024}
+                onConfirm={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        const current = container.querySelector('[data-testid="canvas-size-current"]')!;
+        const next = container.querySelector('[data-testid="canvas-size-new"]')!;
+        expect(current.textContent).toContain('2048');
+        expect(current.textContent).toContain('1024');
+        expect(next.textContent).toContain('2048');
+        expect(next.textContent).toContain('1024');
+    });
+
+    it('updates New Size live as the user types width', () => {
+        const { container } = render(
+            <CanvasSizeDialog
+                isOpen={true}
+                currentWidth={500}
+                currentHeight={300}
+                onConfirm={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        const wInput = container.querySelector('[data-testid="canvas-size-w"]') as HTMLInputElement;
+        fireEvent.change(wInput, { target: { value: '900' } });
+        const next = container.querySelector('[data-testid="canvas-size-new"]')!;
+        expect(next.textContent).toContain('900');
+        expect(next.textContent).toContain('300');
+    });
+
+    it('Relative + Width=50 grows canvas by 50 from its current width', async () => {
+        let captured: { w: number; h: number } | null = null;
+        const { container } = render(
+            <CanvasSizeDialog
+                isOpen={true}
+                currentWidth={500}
+                currentHeight={300}
+                onConfirm={(w, h) => { captured = { w, h }; }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        // toggle relative
+        const rel = container.querySelector('[data-testid="canvas-size-relative"]') as HTMLInputElement;
+        fireEvent.click(rel);
+        // delta +50 on width
+        const wInput = container.querySelector('[data-testid="canvas-size-w"]') as HTMLInputElement;
+        fireEvent.change(wInput, { target: { value: '50' } });
+        // New size readout reflects 550 x 300
+        const next = container.querySelector('[data-testid="canvas-size-new"]')!;
+        expect(next.textContent).toContain('550');
+        expect(next.textContent).toContain('300');
+        await runScript([
+            { type: 'click', target: '[data-testid="canvas-size-ok"]' },
+        ], container);
+        expect(captured).not.toBeNull();
+        expect(captured!.w).toBe(550);
+        expect(captured!.h).toBe(300);
+    });
+
+    it('Relative + negative delta shrinks the canvas (clamped to at least 1)', async () => {
+        let captured: { w: number; h: number } | null = null;
+        const { container } = render(
+            <CanvasSizeDialog
+                isOpen={true}
+                currentWidth={500}
+                currentHeight={300}
+                onConfirm={(w, h) => { captured = { w, h }; }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        const rel = container.querySelector('[data-testid="canvas-size-relative"]') as HTMLInputElement;
+        fireEvent.click(rel);
+        const wInput = container.querySelector('[data-testid="canvas-size-w"]') as HTMLInputElement;
+        fireEvent.change(wInput, { target: { value: '-100' } });
+        await runScript([
+            { type: 'click', target: '[data-testid="canvas-size-ok"]' },
+        ], container);
+        expect(captured!.w).toBe(400);
+        expect(captured!.h).toBe(300);
     });
 });
