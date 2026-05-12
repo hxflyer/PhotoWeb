@@ -6,6 +6,79 @@ Format: one section per pass with date, test-count delta, and a one-paragraph su
 
 ---
 
+## 2026-05-12 — Batches A–F: popup audit + parallel implementation pass
+
+Tests: **789 / 98 → 972 / 122 (+183, +24 files)**. Lint: 0 errors. TypeScript clean.
+
+Triggered by user prompt: *"check all popups and functions, and sub functions in popups, you should search internet to gather more information about each functions of photoshop and read doc/snapshots folders of photoshop popups, compare the project code with photoshop's function and interaction/UI/UE, write plans of how to correct and improve our code, then fire a multiple subagents implement the plan."*
+
+Five audit agents read every dialog, panel, and overlay against `doc/snapshots/`, the local `doc/photoshop-desktop-study/pages/` reference, and helpx.adobe.com; each wrote a per-slice plan to `/tmp/photoweb-plan-{document,color,selection,adjustment,panels}.md`. Six implementation agents then ran in parallel.
+
+### Batch A — Quick wins (`A1`–`A11`) [+20 tests in `batchAQuickWins.test.tsx`]
+- Deleted dead `Dialogs/TestDialog.tsx`.
+- `ColorPickerDialog`: hex normalization (3-digit + leading `#` + whitespace), Enter commits, click on the "current" swatch reverts to `initialColor`.
+- `ScaleEffectsDialog`: `useDialogA11y` + aria-modal, Preview (Opt+P), min 1%, dialog CSS vars instead of hardcoded `#2a2a2a`.
+- `InputNumberDialog`: button reads "OK", new optional `suffix` / `step` / `decimals` props.
+- `DefringeDialog`: max raised to 64 px, Enter-to-confirm wired.
+- `ColorRangeDialog` + `SelectionDialogs` (Load Selection): Invert checkbox.
+- `CanvasSizeDialog`: arrow indicators on the 3×3 anchor grid showing which sides extend.
+- `ImageSizeDialog`: chain-link icon for Constrain Proportions.
+- `ExportDialog`: PNG transparency toggle; when off, composite over the document background.
+- `NavigatorPanel`: proxy rectangle now tracks `viewSlice.pan.x/y` (was a silent no-op).
+- `ParagraphPanel`: four distinct generated SVG icons replace the identical ☰ glyphs.
+
+### Batch B — Selection dialog completion (`SEL-01`, `SEL-02`, `SEL-06`) [+25 tests]
+- **Select-and-Mask view modes** (`RefineEdgeDialog.tsx`, new `selectAndMaskCompositor.ts` + `SelectAndMaskCanvas.tsx`): Onion Skin / Marching Ants / Overlay / On Black / On White / Black & White / On Layers render the refined alpha against the chosen background.
+- **Output To destinations** (`selectionSlice.applyRefineEdgeOutput`): Selection / Layer Mask / New Layer / New Layer with Layer Mask / New Document / New Document with Layer Mask, all as a single undoable command instead of the prior split between an undoable `refineEdge` and a non-undoable `mask.putImageData`.
+- **Color Range Select dropdown** (new `colorRangePresets.ts`): Sampled / Reds / Yellows / Greens / Cyans / Blues / Magentas / Highlights / Midtones / Shadows / Skin Tones. Detect Faces / Out-of-Gamut skipped per CLAUDE.md §4.
+- **Color Range Localized Color Clusters + Range slider**: extends `ColorRangeOptions` with `range`; sample anchors store x/y.
+- **Refine Edge feather + Remember Settings**: `feather` is now `blurMask`-applied in both `refineEdgePreview.ts` (live preview) and `selectionSlice.refineEdge` (commit path); `refineEdge` prefs persist via `selectionDialogPrefs`.
+- **Save Selection Operation radios** (New / Replace / Add to Channel / Subtract from Channel / Intersect with Channel) wired through a new `mode` param on `saveSelection`. Load Selection's "Replace Selection" renamed to "New Selection" per Photoshop vocabulary.
+
+### Batch C — Color / Gradient / Path (`BATCH-C-01`–`05`) [+18 tests]
+- **FillPath Mode + Preserve Transparency** (`FillPathDialog.tsx`, `pathPaint.ts`): blend mode dropdown wired through the existing `blendModes` registry; Preserve Transparency masks the fill to the layer's existing alpha.
+- **StrokePath tool dropdown**: Brush / Pencil / Eraser / Clone Stamp / Dodge / Burn / Sponge (Smudge omitted — tool not registered in photoweb). The path is walked at each tool's spacing rather than drawn as a flat Canvas2D stroke. Simulate Pressure tapers size. Clone Stamp without a live source point falls back to a brush stamp.
+- **Gradient Editor midpoint diamonds**: new `midpointToNext` on `GradientStop`, diamond markers between adjacent stops, `sampleColor` honors midpoints.
+- **Gradient Editor smoothness**: switched from linear to Hermite/spline interpolation parameterized by the smoothness slider (0 = linear, 100 = full Hermite).
+- **Replace native `<input type="color">`** in FillPath, StrokePath, and Gradient Editor with `ColorPickerDialog` mounted as a child modal for consistent color UX.
+
+### Batch D — Document/Image dialogs (`BATCH-D-01`–`05`) [+33 tests in `batchDDocumentDialogs.test.tsx`]
+- **ImageSize resample methods** (`imageTransforms.ts`): Automatic / Bicubic Smoother / Bicubic Sharper / Bicubic / Bilinear / Nearest Neighbor as pure deterministic ImageData functions, with a Resample toggle.
+- **CanvasSize Relative + size header**: Width/Height become deltas when Relative is checked; a Current Size / New Size readout (megabytes + dimensions) updates live.
+- **Shared math expressions + units** (new `utils/numericExpression.ts` + `utils/units.ts`): `+ - * / ( ) %` plus px ↔ % ↔ in ↔ cm ↔ mm at a given DPI. Wired into NewDocument, CanvasSize, ImageSize, NewGuide. Photoshop study page 0033 mandates math-in-fields.
+- **ExportDialog real-size estimate + Filename**: heuristic estimate replaced with a debounced 250 ms `canvas.toBlob` measurement with request-id stale-drop; new Filename field defaults to the document name and drives the download anchor.
+- **ShortcutsDialog single registry** (new `core/shortcuts.ts`): typed registry feeds the dialog; added Image (⌘⌥I / ⌘⌥C), Layer (⌘J / ⌘E / ⌘⇧E / ⌘⇧⌥E / ⌘⌫ / ⌘G / ⌘⇧G / ⌘⇧N), Select (⌘D / ⌘⇧D / ⌘H), and Healing rows. ⌘⌥I Image Size and ⌘⌥C Canvas Size are also bound in App.tsx (were not before).
+
+### Batch E — Adjustment / Filter UX (`BATCH-E-01`–`08`) [+40 tests across 8 files]
+- **Edit > Fade dialog** (new `FadeDialog.tsx`, `utils/fadeBlend.ts`): Opacity + Blend Mode + Preview, applied to the last filter/adjustment via `LastEffectSnapshot` on `historySlice`.
+- **Shared eyedropper hook** (new `useDialogEyedropper.ts`): activates a one-shot canvas cross-cursor sampling mode; wired into Levels (3), Curves (3), Exposure (3), Hue/Sat range edit, Black & White range edit.
+- **Preset infrastructure** (new `presetsSlice.ts` + `PresetDropdown.tsx`): Save / Load / Delete / Reset per `(kind, name)` in `localStorage`. Wired into Levels, Curves, Exposure, B&W, Channel Mixer, Selective Color, Hue/Saturation.
+- **Levels histogram-with-triangles** (`AdjustmentDialog.tsx`): replaces the read-only histogram + 3 numeric fields with the iconic widget — black/gamma/white triangle handles on the histogram bottom edge plus an output gradient strip with two output triangle handles. Numeric fields stay in sync.
+- **Curves cluster of toggles**: histogram drawn behind the curve, Input/Output readout under the canvas, Show toggles (Channel Overlays / Histogram / Baseline / Intersection Line), Grid Size (4×4 ↔ 10×10), Show Clipping.
+- **Hue/Saturation Range dropdown** (`colorAdjustments.ts`): Master / Reds / Yellows / Greens / Cyans / Blues / Magentas with feathered hue-window weighting that mirrors Color Balance's range logic.
+- **Auto Color Correction Options** (new `AutoOptionsDialog.tsx`): four enhancement modes (Find Dark & Light Colors / Enhance Per Channel Contrast / Enhance Monochromatic Contrast / Enhance Brightness and Contrast) + Snap Neutral Midtones + clip percentages, persisted to `photoweb:autoOptions:v1`.
+- **FilterDialog visual parity + shared `SliderRow`**: gradient header, right-side OK/Cancel/Reset/Preview column, Opt+P Preview shortcut, numeric inputs next to every slider. Migration applied to the four blur filters' `renderUI`; remaining filters inherit the chrome immediately and adopt the slider row incrementally.
+
+### Batch F — Panels & Layer Styles (4 / 8 shipped) [+29 tests across 4 files]
+- **Real Layer Style modal** (new `LayerStyleDialog.tsx`): tabbed modal opened by double-click on a layer thumbnail; tabs for Blending Options + every registered effect, each reusing the existing PropertiesPanel `EffectEntry` editor.
+- **Mask Properties buttons wiring** (`PropertiesPanel.tsx` MaskSection): real buttons for Mask Edge… (opens `RefineEdgeDialog`), Color Range… (opens `ColorRangeDialog`), Invert / Apply / Disable / Delete.
+- **Universal `PanelFlyout`** (new `Panels/PanelFlyout.tsx`): reusable hamburger menu wired into LayersPanel; remaining panels inherit the shared component.
+- **`NewBrushPresetDialog` + `DefinePatternDialog`** replace `window.prompt` calls in BrushPresetsPanel and PatternPresetsPanel. SwatchesPanel skipped (its data model is `string[]` without names — extending it would be scope creep, deferred).
+- **Deferred to follow-up (`BATCH-F-02`–`05`)**: Bevel & Emboss completeness (Technique + Gloss Contour + Use Global Light + Contour + Texture sub-sections), Drop/Inner Shadow + Outer/Inner Glow option parity, Stroke gradient/pattern fill type, Blending Options Advanced + Blend If split sliders. Each is a full SOP cycle and is queued as its own batch.
+
+### Consolidation
+After the six implementation agents landed, a small repair pass fixed:
+- `HueSaturationParams.range` made optional (apply() already merges defaults; required field broke pre-existing tests).
+- `FadeDialog` reset effect carries a targeted `react-hooks/set-state-in-effect` disable.
+- `hueSatRangeBatchE` + `filterDialogVisualBatchE` test casts adjusted.
+- `patternStamp.test.ts` already auto-fixed by the patternStamp author to seed `patternTileCache` directly (jsdom can't decode data URLs through `new Image()`).
+
+Bonus side-quest commits landed in the same window from sibling agent work (not part of Batches A–F): Magnetic Lasso edge-snapping selection, shape-boolean rasterize-on-combine, Free Transform Cmd-distort / Cmd+Shift-skew / Cmd+Alt+Shift-perspective modifiers.
+
+Items explicitly skipped per CLAUDE.md §4: AI / Neural Filters, Camera Raw, Smart Filters / Smart Objects, Select Subject / Refine Hair, Detect Faces, Out-of-Gamut, Color Libraries / Pantone, CMYK / Lab editing, Content-Aware Fill, cloud presets, Adobe Stock, Liquify, Blur Gallery, Match Color, PSD/PSB parity, batch automation, generative features.
+
+---
+
 ## 2026-05-11 (late evening) — Batch 8: Photoshop UX parity — P1/P2 polish
 
 Tests: **773 / 97 → 789 / 98 (+16, +1 file)**. Lint: 0 errors. TypeScript clean.
