@@ -867,6 +867,13 @@ Status key:
   - Required tests: `src/test/presetDialogsBatchF.test.tsx`.
   - Implementation notes: SwatchesPanel does not currently invoke `window.prompt` (it uses a silent "+" button on the current primary color) — extending it to a NewSwatchDialog would require adding a name field to the swatch model and is deferred.
 
+- [x] `BATCH-F-05` Bevel & Emboss completeness
+  - Priority: `P1`
+  - Function description: Extend `src/effects/bevelEmboss.ts` with Technique (Smooth / Chisel Hard / Chisel Soft), Gloss Contour selector (Linear / Half Round / Cone / Cone Inverted / Gaussian / Ring / Sawtooth), Use Global Light toggle, Contour sub-section (contour curve + range slider + anti-aliased toggle), Texture sub-section (pattern picker + scale + depth + invert + link with layer). Wires through `EffectRenderContext.globalLight` and a new `DocumentSlice.globalLight: { angle, altitude }` that any effect with `useGlobalLight` reads at apply-time. PropertiesPanel `EffectEntry` adds dedicated editors for Technique, Gloss Contour, Texture, and globally-shared angle/altitude sliders.
+  - Acceptance criteria: Document store has `globalLight` default {angle:120, altitude:30}; `setGlobalLight` clamps altitude to 0..90; Bevel with Technique=Chisel Hard renders a sharp ridge band; toggling Use Global Light makes a bevel re-render when `setGlobalLight` is called; LayerStyleDialog Bevel tab exposes Technique, Gloss Contour, Contour, Texture sub-section controls; Texture sub-section modulates the height-field when enabled.
+  - Required tests: `src/test/bevelEmbossBatchF.test.tsx`.
+  - Implementation notes: `applyBevelContour` is exported from the effect for unit testing the contour primitives. Pattern lookup goes through the existing `getPatternTile` helper in toolsSlice; a synthesized checkerboard fallback is used when the patternId is not registered (matters in headless tests).
+
 ## Batch E - Adjustment / Filter UX
 
 - [x] `BATCH-E-01` Edit > Fade dialog

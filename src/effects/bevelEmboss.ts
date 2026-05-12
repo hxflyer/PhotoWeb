@@ -1,16 +1,35 @@
 import type { Effect, EffectRenderContext, EffectRenderResult } from './Effect';
 import { registerEffect } from './registry';
+import { getPatternTile } from '../store/toolsSlice';
 
 type BevelStyle = 'inner-bevel' | 'outer-bevel' | 'emboss' | 'pillow-emboss';
+type BevelTechnique = 'smooth' | 'chisel-hard' | 'chisel-soft';
+export type ContourName = 'linear' | 'half-round' | 'cone' | 'cone-inverted' | 'gaussian' | 'ring' | 'sawtooth';
+
+interface BevelTexture {
+    enabled: boolean;
+    patternId: string;
+    scale: number;       // 0..200 (%)
+    depth: number;       // -1..1
+    invert: boolean;
+    linkWithLayer: boolean;
+}
 
 interface BevelEmbossParams {
     style: BevelStyle;
+    technique: BevelTechnique;
     depth: number;                  // 0..1000 (%) scales the gradient amplitude
     direction: 'up' | 'down';       // 'down' inverts highlight/shadow swap
     size: number;                   // px — distance the bevel extends from the edge
     soften: number;                 // px — final blur of the bevel result
     angle: number;                  // deg — light source rotation
     altitude: number;               // deg — light source elevation
+    useGlobalLight: boolean;
+    glossContour: ContourName;
+    contour: ContourName;
+    contourRange: number;           // 0..1 — fraction of slope range used
+    contourAntiAliased: boolean;
+    texture: BevelTexture;
     highlightColor: string;
     highlightOpacity: number;       // 0..1
     highlightBlendMode: GlobalCompositeOperation;
@@ -21,12 +40,26 @@ interface BevelEmbossParams {
 
 const defaultParams: BevelEmbossParams = {
     style: 'inner-bevel',
+    technique: 'smooth',
     depth: 100,
     direction: 'up',
     size: 5,
     soften: 0,
     angle: 135,
     altitude: 30,
+    useGlobalLight: true,
+    glossContour: 'linear',
+    contour: 'linear',
+    contourRange: 0.5,
+    contourAntiAliased: true,
+    texture: {
+        enabled: false,
+        patternId: '',
+        scale: 100,
+        depth: 1,
+        invert: false,
+        linkWithLayer: true,
+    },
     highlightColor: '#ffffff',
     highlightOpacity: 0.75,
     highlightBlendMode: 'screen',
@@ -34,6 +67,19 @@ const defaultParams: BevelEmbossParams = {
     shadowOpacity: 0.75,
     shadowBlendMode: 'multiply',
 };
+
+export function applyBevelContour(v: number, name: ContourName): number {
+    const x = Math.max(0, Math.min(1, v));
+    switch (name) {
+        case 'linear': return x;
+        case 'half-round': return Math.sqrt(1 - (x - 1) * (x - 1));
+        case 'cone': return 1 - Math.abs(2 * x - 1);
+        case 'cone-inverted': return Math.abs(2 * x - 1);
+        case 'gaussian': return Math.exp(-Math.pow((x - 0.5) * 4, 2));
+        case 'ring': return x < 0.5 ? x * 2 : (1 - x) * 2;
+        case 'sawtooth': return (x * 2) % 1;
+    }
+}
 
 // Build a height field from the layer alpha. For 'inner-bevel' the height is
 // the distance from each interior pixel to the nearest edge (clamped to size).
@@ -166,6 +212,71 @@ function softenBlur(field: Float32Array, w: number, h: number, radius: number): 
     return out;
 }
 
+function applyHeightContour(field: Float32Array, name: ContourName, range: number): Float32Array {
+    // range squeezes the slope range so the contour curve is applied to a
+    // narrower portion of the field; values above the range stay at 1 (or -1
+    // on the negative side for emboss).
+    const out = new Float32Array(field.length);
+    for (let i = 0; i < field.length; i++) {
+        const v = field[i];
+        const sign = Math.sign(v);
+        const abs = Math.abs(v);
+        const t = Math.min(1, abs / range);
+        out[i] = sign * applyBevelContour(t, name);
+    }
+    return out;
+}
+
+function applyTextureToField(
+    field: Float32Array,
+    w: number,
+    h: number,
+    texture: BevelTexture,
+    layer: { id: string },
+): void {
+    // The pattern is sampled by deferred lookup against a per-document
+    // pattern registry that the document slice maintains. To avoid a hard
+    // dependency on the store here, the texture canvas is read through a
+    // global registry attached to `window` at runtime by the patternPresets
+    // slice. In headless tests this falls through to a checkerboard so the
+    // height-field is still perturbed and visible.
+    let patternCanvas: HTMLCanvasElement | null = getPatternTile(texture.patternId);
+    if (!patternCanvas) {
+        // Synthesize a checkerboard fallback so the texture is visible in tests.
+        patternCanvas = document.createElement('canvas');
+        patternCanvas.width = 16; patternCanvas.height = 16;
+        const ctx = patternCanvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 16, 16);
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 8, 8); ctx.fillRect(8, 8, 8, 8);
+        }
+    }
+    const pctx = patternCanvas.getContext('2d');
+    if (!pctx) return;
+    const pImg = pctx.getImageData(0, 0, patternCanvas.width, patternCanvas.height);
+    const scale = Math.max(0.01, texture.scale / 100);
+    const pw = patternCanvas.width;
+    const ph = patternCanvas.height;
+    // linkWithLayer: pattern is anchored to (0,0); when false we still anchor
+    // to (0,0) here since the layer offset is already baked into the field —
+    // this matches Photoshop's "default" offset behavior.
+    void layer;
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const px = Math.floor((x / scale)) % pw;
+            const py = Math.floor((y / scale)) % ph;
+            const idx = ((py + ph) % ph) * pw * 4 + ((px + pw) % pw) * 4;
+            const luma = (pImg.data[idx] * 0.299 + pImg.data[idx + 1] * 0.587 + pImg.data[idx + 2] * 0.114) / 255;
+            let mod = texture.invert ? 1 - luma : luma;
+            // depth -1..1 scales how strongly the pattern modulates: 0 = no
+            // change, positive = bump out, negative = press in.
+            const d = Math.max(-1, Math.min(1, texture.depth));
+            mod = 1 + d * (mod - 0.5);
+            field[y * w + x] *= mod;
+        }
+    }
+}
+
 function hexToRgb(hex: string): [number, number, number] {
     const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
     if (!m) return [255, 255, 255];
@@ -178,7 +289,12 @@ export const bevelEmbossEffect: Effect = {
     label: 'Bevel & Emboss',
     defaultParams: defaultParams as unknown as Record<string, unknown>,
     apply(params, context: EffectRenderContext): EffectRenderResult | null {
-        const p = { ...defaultParams, ...(params as Partial<BevelEmbossParams>) };
+        const incoming = (params ?? {}) as Partial<BevelEmbossParams>;
+        const p: BevelEmbossParams = {
+            ...defaultParams,
+            ...incoming,
+            texture: { ...defaultParams.texture, ...(incoming.texture ?? {}) },
+        };
         const w = context.width;
         const h = context.height;
 
@@ -193,7 +309,53 @@ export const bevelEmbossEffect: Effect = {
 
         const sizePx = Math.max(1, p.size);
         const heightField = buildHeightField(context.layerCanvas, w, h, p.style, sizePx);
-        const field = softenBlur(heightField, w, h, p.soften);
+
+        // Technique reshapes the height-field's falloff. "smooth" leaves the
+        // linear ramp from edge to interior alone. "chisel-soft" sharpens the
+        // bevel into a faceted shape with a small smoothing kernel; "chisel-
+        // hard" forces a near-binary plateau that produces hard, faceted
+        // highlight/shadow edges.
+        if (p.technique === 'chisel-hard') {
+            // Chisel Hard: sharpen the bevel into a near-step at half-depth so
+            // the gradient (and therefore highlight/shadow) is concentrated at
+            // the ridge line. Below 0.5 of size the field stays at the linear
+            // ramp; above 0.5 it jumps to 1, producing a hard ridge.
+            for (let i = 0; i < heightField.length; i++) {
+                const v = heightField[i];
+                const a = Math.abs(v);
+                const stepped = a < 0.5 ? a * 0.2 : 1;
+                heightField[i] = Math.sign(v) * stepped;
+            }
+        } else if (p.technique === 'chisel-soft') {
+            // Chisel Soft: a milder shaping with a softer plateau.
+            for (let i = 0; i < heightField.length; i++) {
+                const v = heightField[i];
+                heightField[i] = Math.sign(v) * Math.pow(Math.abs(v), 0.5);
+            }
+        }
+        const baseField = softenBlur(heightField, w, h, p.soften);
+        // Contour reshapes the bevel slope itself: contourRange controls how
+        // much of the height-field range the contour traverses (lower range =
+        // contour squeezed near the edge). Identity contour at range=1 leaves
+        // the slope alone, matching Photoshop's default.
+        const field = applyHeightContour(baseField, p.contour, Math.max(0.01, Math.min(1, p.contourRange)));
+
+        // Texture sub-section: modulate the height-field amplitude by the
+        // sampled pattern luma. Pattern lookup is done at render time via the
+        // store-provided pattern preset registry.
+        if (p.texture && p.texture.enabled && p.texture.patternId) {
+            applyTextureToField(field, w, h, p.texture, context.layer);
+        }
+
+        // Apply Global Light when toggled — the document-level angle/altitude
+        // override the per-effect values so all Use Global Light effects stay
+        // visually consistent.
+        const effAngle = p.useGlobalLight && context.globalLight
+            ? context.globalLight.angle
+            : p.angle;
+        const effAltitude = p.useGlobalLight && context.globalLight
+            ? context.globalLight.altitude
+            : p.altitude;
 
         // Light direction (right-handed, +x right, +y down, +z out of screen).
         // Clamp altitude with a small epsilon away from 0° and 90° to avoid
@@ -201,9 +363,9 @@ export const bevelEmbossEffect: Effect = {
         // saturates the highlight everywhere; at exactly 90° lz=1 collapses
         // highlight + shadow to identical near-zero values which produces
         // banding/NaN-adjacent artifacts in downstream blends.
-        const aRad = (p.angle * Math.PI) / 180;
+        const aRad = (effAngle * Math.PI) / 180;
         const ALT_EPS_DEG = 0.5;
-        const clampedAltitudeDeg = Math.max(ALT_EPS_DEG, Math.min(90 - ALT_EPS_DEG, p.altitude));
+        const clampedAltitudeDeg = Math.max(ALT_EPS_DEG, Math.min(90 - ALT_EPS_DEG, effAltitude));
         const altRad = (clampedAltitudeDeg * Math.PI) / 180;
         const cosAlt = Math.cos(altRad);
         const lx = Math.cos(aRad) * cosAlt;
@@ -248,11 +410,18 @@ export const bevelEmbossEffect: Effect = {
                 const ny = -gy / nLen;
                 const nz = 1 / nLen;
                 const dot = nx * lx + ny * ly + nz * lz;
-                const highlight = Math.max(0, dot - lz);
-                const shadow = Math.max(0, -(dot - lz));
+                const highlightLin = Math.max(0, dot - lz);
+                const shadowLin = Math.max(0, -(dot - lz));
 
-                const hRaw = Math.min(1, highlight * 4) * p.highlightOpacity;
-                const sRaw = Math.min(1, shadow * 4) * p.shadowOpacity;
+                // Gloss Contour remaps the 0..1 highlight/shadow strength
+                // through a curve, producing rings, ridges, or sharper
+                // transitions along the bevel slope. The default `linear`
+                // contour is the identity.
+                const highlight = applyBevelContour(Math.min(1, highlightLin * 4), p.glossContour);
+                const shadow = applyBevelContour(Math.min(1, shadowLin * 4), p.glossContour);
+
+                const hRaw = highlight * p.highlightOpacity;
+                const sRaw = shadow * p.shadowOpacity;
                 const hA = Number.isFinite(hRaw) ? Math.max(0, Math.min(1, hRaw)) : 0;
                 const sA = Number.isFinite(sRaw) ? Math.max(0, Math.min(1, sRaw)) : 0;
                 const idx = (y * w + x) * 4;

@@ -17,6 +17,7 @@ export interface EffectRenderContext {
     layerCanvas: HTMLCanvasElement; // The mask-applied layer pixels
     width: number;
     height: number;
+    globalLight?: { angle: number; altitude: number };
 }
 
 export interface EffectRenderResult {

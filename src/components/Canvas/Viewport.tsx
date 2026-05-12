@@ -265,7 +265,8 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         const { zoom, pan } = useEditorStore.getState();
         const viewportInfo = { width, height, zoom, pan };
         compositor.beginFrame(canvas);
-        compositor.render({ layers, activeLayerId, viewport: viewportInfo, target: canvas, activeChannel, channelVisibility, skipTypeLayers: !activeChannel || activeChannel === 'rgb' });
+        const { globalLight } = useEditorStore.getState();
+        compositor.render({ layers, activeLayerId, viewport: viewportInfo, target: canvas, activeChannel, channelVisibility, skipTypeLayers: !activeChannel || activeChannel === 'rgb', globalLight });
         compositor.present();
 
         // Grid overlay

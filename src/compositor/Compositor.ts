@@ -15,6 +15,8 @@ export interface CompositeRequest {
     activeChannel?: 'rgb' | 'r' | 'g' | 'b';
     channelVisibility?: { r: boolean; g: boolean; b: boolean };
     skipTypeLayers?: boolean;
+    globalLight?: { angle: number; altitude: number };
+    underlying?: HTMLCanvasElement;
 }
 
 export interface DirtyRect {

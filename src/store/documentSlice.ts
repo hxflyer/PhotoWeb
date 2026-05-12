@@ -84,6 +84,31 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
     documentName: 'Untitled',
     isDirty: false,
     lastSavedHistoryTick: 0,
+    globalLight: { angle: 120, altitude: 30 },
+
+    setGlobalLight: (light) => {
+        const a = Number.isFinite(light.angle) ? light.angle : 120;
+        const alt = Number.isFinite(light.altitude) ? Math.max(0, Math.min(90, light.altitude)) : 30;
+        set({ globalLight: { angle: ((a % 360) + 360) % 360, altitude: alt } });
+        const { layers } = get();
+        for (const layer of layers) {
+            if (!layer.effects) continue;
+            let touched = false;
+            for (const e of layer.effects) {
+                if (e.params?.useGlobalLight) {
+                    touched = true;
+                    layer.markDirty(null);
+                    break;
+                }
+            }
+            if (touched) {
+                // re-render is signalled by markDirty; no parameter rewriting needed
+                // because effects read globalLight via context at apply time.
+                // We still flush the layers reference so React re-renders.
+            }
+        }
+        set({ layers: [...get().layers] });
+    },
 
     setCanvasSize: (width, height) => get().executeDocumentCommand({
         kind: 'transform',

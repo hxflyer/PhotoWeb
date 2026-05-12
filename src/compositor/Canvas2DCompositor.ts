@@ -67,11 +67,15 @@ export class Canvas2DCompositor implements Compositor {
         for (const layer of layers) layer.clearDirty();
     }
 
+    private currentGlobalLight: { angle: number; altitude: number } | undefined;
+
     render(req: CompositeRequest): void {
         const frame = this.ensureFrameCanvas(req.target.width, req.target.height);
         const ctx = frame.getContext('2d');
         const targetCtx = req.target.getContext('2d');
         if (!ctx || !targetCtx) return;
+
+        this.currentGlobalLight = req.globalLight;
 
         const w = req.target.width;
         const h = req.target.height;
@@ -213,7 +217,7 @@ export class Canvas2DCompositor implements Compositor {
         for (const e of enabledEffects) {
             const renderer = getEffect(e.kind);
             if (!renderer) continue;
-            const result = renderer.apply(e.params, { layer, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height });
+            const result = renderer.apply(e.params, { layer, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height, globalLight: this.currentGlobalLight });
             if (!result || result.placement !== 'underlay') continue;
             sctx.globalAlpha = result.opacity;
             sctx.globalCompositeOperation = result.blendMode;
@@ -230,7 +234,7 @@ export class Canvas2DCompositor implements Compositor {
         for (const e of enabledEffects) {
             const renderer = getEffect(e.kind);
             if (!renderer) continue;
-            const result = renderer.apply(e.params, { layer, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height });
+            const result = renderer.apply(e.params, { layer, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height, globalLight: this.currentGlobalLight });
             if (!result || result.placement !== 'overlay') continue;
             sctx.globalAlpha = result.opacity;
             sctx.globalCompositeOperation = result.blendMode;
@@ -286,7 +290,7 @@ export class Canvas2DCompositor implements Compositor {
         for (const e of enabledEffects) {
             const renderer = getEffect(e.kind);
             if (!renderer) continue;
-            const result = renderer.apply(e.params, { layer: group, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height });
+            const result = renderer.apply(e.params, { layer: group, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height, globalLight: this.currentGlobalLight });
             if (!result || result.placement !== 'underlay') continue;
             sctx.globalAlpha = result.opacity;
             sctx.globalCompositeOperation = result.blendMode;
@@ -300,7 +304,7 @@ export class Canvas2DCompositor implements Compositor {
         for (const e of enabledEffects) {
             const renderer = getEffect(e.kind);
             if (!renderer) continue;
-            const result = renderer.apply(e.params, { layer: group, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height });
+            const result = renderer.apply(e.params, { layer: group, layerCanvas: sourceCanvas, width: scratch.width, height: scratch.height, globalLight: this.currentGlobalLight });
             if (!result || result.placement !== 'overlay') continue;
             sctx.globalAlpha = result.opacity;
             sctx.globalCompositeOperation = result.blendMode;

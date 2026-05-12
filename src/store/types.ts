@@ -207,6 +207,11 @@ export type ToolId =
     | 'patch'
     | 'red-eye';
 
+export interface GlobalLight {
+    angle: number;     // 0..360 degrees
+    altitude: number;  // 0..90 degrees
+}
+
 export interface DocumentSlice {
     width: number;
     height: number;
@@ -214,6 +219,8 @@ export interface DocumentSlice {
     documentName: string;
     isDirty: boolean;
     lastSavedHistoryTick: number;
+    globalLight: GlobalLight;
+    setGlobalLight: (light: GlobalLight) => void;
     setCanvasSize: (width: number, height: number) => void;
     rotateCanvas: (degrees: number) => void;
     flipCanvas: (axis: 'horizontal' | 'vertical') => void;

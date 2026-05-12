@@ -646,7 +646,8 @@ function TypeSection({ layer }: { layer: Layer }) {
 }
 
 export function EffectEntry({ layer, effect, idx }: { layer: Layer; effect: LayerEffect; idx: number }) {
-    const { removeLayerEffect, setLayerEffectEnabled, setLayerEffectParams } = useEditorStore();
+    const { removeLayerEffect, setLayerEffectEnabled, setLayerEffectParams, setGlobalLight } = useEditorStore();
+    const globalLight = useEditorStore(s => s.globalLight);
     const patternPresets = useEditorStore(s => s.patternPresets);
     const [gradientEditorOpen, setGradientEditorOpen] = useState(false);
 
@@ -669,6 +670,11 @@ export function EffectEntry({ layer, effect, idx }: { layer: Layer; effect: Laye
     if (isPatternOverlay) {
         skipKeys.add('patternId');
     }
+    // Texture (bevel) / gradient + pattern (stroke, glow) are compound objects
+    // rendered by dedicated editor components below; skip auto-loop.
+    skipKeys.add('texture');
+    skipKeys.add('gradient');
+    skipKeys.add('pattern');
 
     const currentColorStops = (params.colorStops as GradientColorStop[] | undefined)
         ?? (defaults.colorStops as GradientColorStop[]);
@@ -792,17 +798,31 @@ export function EffectEntry({ layer, effect, idx }: { layer: Layer; effect: Laye
                     const display = isPercent ? Math.round((current as number) * 100) : current as number;
                     const step = 1;
                     const unit = key === 'angle' || isAltitude ? '°' : isScale || isPercent || isDepth ? '%' : 'px';
+                    const useGL = (params.useGlobalLight as boolean | undefined)
+                        ?? (defaults.useGlobalLight as boolean | undefined)
+                        ?? false;
+                    const lightOverride = useGL && (key === 'angle' || isAltitude);
+                    const lightDisplay = lightOverride
+                        ? (key === 'angle' ? globalLight.angle : globalLight.altitude)
+                        : display;
                     return (
                         <div key={key} style={rowStyle}>
                             <span style={{ width: 60 }}>{key}</span>
-                            <input type="range" min={min} max={max} step={step} value={display}
+                            <input type="range" min={min} max={max} step={step} value={lightDisplay}
+                                data-testid={`effect-${idx}-${key}`}
                                 onChange={e => {
                                     const v = +e.target.value;
                                     const stored = isPercent ? v / 100 : v;
+                                    if (lightOverride) {
+                                        const next = { angle: globalLight.angle, altitude: globalLight.altitude };
+                                        if (key === 'angle') next.angle = v;
+                                        else next.altitude = v;
+                                        setGlobalLight(next);
+                                    }
                                     setLayerEffectParams(layer.id, idx, { [key]: stored });
                                 }}
                                 style={{ flex: 1 }} />
-                            <span style={{ width: 40, textAlign: 'right' }}>{display}{unit}</span>
+                            <span style={{ width: 40, textAlign: 'right' }}>{lightDisplay}{unit}</span>
                         </div>
                     );
                 }
@@ -886,26 +906,354 @@ export function EffectEntry({ layer, effect, idx }: { layer: Layer; effect: Laye
                         </div>
                     );
                 }
-                if (typeof current === 'string' && key === 'contour') {
+                if (typeof current === 'string' && (key === 'contour' || key === 'glossContour')) {
+                    const contourOptions: { id: string; label: string }[] = [
+                        { id: 'linear', label: 'Linear' },
+                        { id: 'half-round', label: 'Half Round' },
+                        { id: 'cone', label: 'Cone' },
+                        { id: 'cone-inverted', label: 'Cone Inverted' },
+                        { id: 'gaussian', label: 'Gaussian' },
+                        { id: 'ring', label: 'Ring' },
+                        { id: 'sawtooth', label: 'Sawtooth' },
+                    ];
                     return (
                         <div key={key} style={rowStyle}>
                             <span style={{ width: 60 }}>{key}</span>
                             <select
-                                data-testid={`effect-${idx}-contour`}
+                                data-testid={`effect-${idx}-${key}`}
                                 value={current as string}
                                 onChange={e => setLayerEffectParams(layer.id, idx, { [key]: e.target.value })}
                                 style={{ ...inputStyle, flex: 1 }}
                             >
-                                <option value="linear">Linear</option>
-                                <option value="cone">Cone</option>
-                                <option value="gaussian">Gaussian</option>
+                                {contourOptions.map(o => (
+                                    <option key={o.id} value={o.id}>{o.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    );
+                }
+                if (typeof current === 'string' && key === 'technique') {
+                    const techOptions = effect.kind === 'bevel-emboss'
+                        ? [
+                            { id: 'smooth', label: 'Smooth' },
+                            { id: 'chisel-hard', label: 'Chisel Hard' },
+                            { id: 'chisel-soft', label: 'Chisel Soft' },
+                        ]
+                        : [
+                            { id: 'softer', label: 'Softer' },
+                            { id: 'precise', label: 'Precise' },
+                        ];
+                    return (
+                        <div key={key} style={rowStyle}>
+                            <span style={{ width: 60 }}>{key}</span>
+                            <select
+                                data-testid={`effect-${idx}-technique`}
+                                value={current as string}
+                                onChange={e => setLayerEffectParams(layer.id, idx, { [key]: e.target.value })}
+                                style={{ ...inputStyle, flex: 1 }}
+                            >
+                                {techOptions.map(o => (
+                                    <option key={o.id} value={o.id}>{o.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    );
+                }
+                if (typeof current === 'string' && key === 'source' && effect.kind === 'inner-glow') {
+                    return (
+                        <div key={key} style={rowStyle}>
+                            <span style={{ width: 60 }}>{key}</span>
+                            <select
+                                data-testid={`effect-${idx}-source`}
+                                value={current as string}
+                                onChange={e => setLayerEffectParams(layer.id, idx, { [key]: e.target.value })}
+                                style={{ ...inputStyle, flex: 1 }}
+                            >
+                                <option value="center">Center</option>
+                                <option value="edge">Edge</option>
+                            </select>
+                        </div>
+                    );
+                }
+                if (typeof current === 'string' && key === 'colorSource') {
+                    return (
+                        <div key={key} style={rowStyle}>
+                            <span style={{ width: 60 }}>color source</span>
+                            <select
+                                data-testid={`effect-${idx}-color-source`}
+                                value={current as string}
+                                onChange={e => setLayerEffectParams(layer.id, idx, { [key]: e.target.value })}
+                                style={{ ...inputStyle, flex: 1 }}
+                            >
+                                <option value="solid">Solid</option>
+                                <option value="gradient">Gradient</option>
+                            </select>
+                        </div>
+                    );
+                }
+                if (typeof current === 'string' && key === 'fillType' && effect.kind === 'stroke') {
+                    return (
+                        <div key={key} style={rowStyle}>
+                            <span style={{ width: 60 }}>fill type</span>
+                            <select
+                                data-testid={`effect-${idx}-fill-type`}
+                                value={current as string}
+                                onChange={e => setLayerEffectParams(layer.id, idx, { [key]: e.target.value })}
+                                style={{ ...inputStyle, flex: 1 }}
+                            >
+                                <option value="color">Color</option>
+                                <option value="gradient">Gradient</option>
+                                <option value="pattern">Pattern</option>
+                            </select>
+                        </div>
+                    );
+                }
+                if (typeof current === 'string' && key === 'knockout' && effect.kind === 'drop-shadow') {
+                    return (
+                        <div key={key} style={rowStyle}>
+                            <span style={{ width: 60 }}>knockout</span>
+                            <select
+                                data-testid={`effect-${idx}-knockout`}
+                                value={current as string}
+                                onChange={e => setLayerEffectParams(layer.id, idx, { [key]: e.target.value })}
+                                style={{ ...inputStyle, flex: 1 }}
+                            >
+                                <option value="off">Off</option>
+                                <option value="on">On</option>
                             </select>
                         </div>
                     );
                 }
                 return null;
             })}
+            {effect.kind === 'bevel-emboss' && (
+                <BevelTextureEditor layer={layer} effect={effect} idx={idx} />
+            )}
+            {effect.kind === 'stroke' && (
+                <StrokeFillEditor layer={layer} effect={effect} idx={idx} />
+            )}
+            {(effect.kind === 'outer-glow' || effect.kind === 'inner-glow') && (
+                <GlowGradientEditor layer={layer} effect={effect} idx={idx} />
+            )}
         </div>
+    );
+}
+
+function BevelTextureEditor({ layer, effect, idx }: { layer: Layer; effect: LayerEffect; idx: number }) {
+    const { setLayerEffectParams } = useEditorStore();
+    const patternPresets = useEditorStore(s => s.patternPresets);
+    const defaults = (getEffect('bevel-emboss')?.defaultParams ?? {}) as Record<string, unknown>;
+    const params = effect.params ?? {};
+    const tx = { ...(defaults.texture as Record<string, unknown>), ...((params.texture as Record<string, unknown>) ?? {}) } as {
+        enabled: boolean; patternId: string; scale: number; depth: number; invert: boolean; linkWithLayer: boolean;
+    };
+    const setTexture = (patch: Partial<typeof tx>) => {
+        setLayerEffectParams(layer.id, idx, { texture: { ...tx, ...patch } });
+    };
+    return (
+        <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4, borderTop: '1px dashed hsl(var(--border-mid))', paddingTop: 4 }}>
+            <div style={rowStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        type="checkbox"
+                        data-testid={`effect-${idx}-texture-enabled`}
+                        checked={!!tx.enabled}
+                        onChange={e => setTexture({ enabled: e.target.checked })}
+                    />
+                    Texture
+                </label>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 60 }}>Pattern</span>
+                <select
+                    data-testid={`effect-${idx}-texture-pattern`}
+                    value={tx.patternId}
+                    onChange={e => setTexture({ patternId: e.target.value })}
+                    style={{ ...inputStyle, flex: 1 }}
+                >
+                    <option value="">(none)</option>
+                    {patternPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 60 }}>Scale</span>
+                <input type="range" min={1} max={200} value={tx.scale}
+                    data-testid={`effect-${idx}-texture-scale`}
+                    onChange={e => setTexture({ scale: +e.target.value })} style={{ flex: 1 }} />
+                <span style={{ width: 40, textAlign: 'right' }}>{tx.scale}%</span>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 60 }}>Depth</span>
+                <input type="range" min={-100} max={100} value={Math.round(tx.depth * 100)}
+                    data-testid={`effect-${idx}-texture-depth`}
+                    onChange={e => setTexture({ depth: +e.target.value / 100 })} style={{ flex: 1 }} />
+                <span style={{ width: 40, textAlign: 'right' }}>{Math.round(tx.depth * 100)}%</span>
+            </div>
+            <div style={rowStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input type="checkbox" data-testid={`effect-${idx}-texture-invert`}
+                        checked={!!tx.invert} onChange={e => setTexture({ invert: e.target.checked })} />
+                    Invert
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 12 }}>
+                    <input type="checkbox" data-testid={`effect-${idx}-texture-link`}
+                        checked={!!tx.linkWithLayer} onChange={e => setTexture({ linkWithLayer: e.target.checked })} />
+                    Link with Layer
+                </label>
+            </div>
+        </div>
+    );
+}
+
+function StrokeFillEditor({ layer, effect, idx }: { layer: Layer; effect: LayerEffect; idx: number }) {
+    const { setLayerEffectParams } = useEditorStore();
+    const patternPresets = useEditorStore(s => s.patternPresets);
+    const [gradientOpen, setGradientOpen] = useState(false);
+    const defaults = (getEffect('stroke')?.defaultParams ?? {}) as Record<string, unknown>;
+    const params = effect.params ?? {};
+    const fillType = (params.fillType as string | undefined) ?? (defaults.fillType as string | undefined) ?? 'color';
+    const grad = (params.gradient as Record<string, unknown> | undefined)
+        ?? (defaults.gradient as Record<string, unknown> | undefined)
+        ?? {};
+    const colorStops = (grad.colorStops as GradientColorStop[] | undefined)
+        ?? [{ position: 0, color: '#000000' }, { position: 1, color: '#ffffff' }];
+    const opacityStops = (grad.opacityStops as GradientOpacityStop[] | undefined)
+        ?? [{ position: 0, opacity: 1 }, { position: 1, opacity: 1 }];
+    const gradType = (grad.type as string | undefined) ?? 'linear';
+    const gradAngle = (grad.angle as number | undefined) ?? 0;
+    const gradScale = (grad.scale as number | undefined) ?? 100;
+    const pat = (params.pattern as Record<string, unknown> | undefined) ?? {};
+    const patternId = (pat.patternId as string | undefined) ?? '';
+    const patternScale = (pat.scale as number | undefined) ?? 100;
+    const patternLink = (pat.link as boolean | undefined) ?? true;
+
+    return (
+        <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+            {fillType === 'gradient' && (
+                <>
+                    <div style={rowStyle}>
+                        <span style={{ width: 60 }}>Type</span>
+                        <select
+                            data-testid={`effect-${idx}-stroke-grad-type`}
+                            value={gradType}
+                            onChange={e => setLayerEffectParams(layer.id, idx, { gradient: { ...grad, type: e.target.value } })}
+                            style={{ ...inputStyle, flex: 1 }}
+                        >
+                            <option value="linear">Linear</option>
+                            <option value="radial">Radial</option>
+                            <option value="angle">Angle</option>
+                            <option value="reflected">Reflected</option>
+                            <option value="diamond">Diamond</option>
+                        </select>
+                    </div>
+                    <div style={rowStyle}>
+                        <span style={{ width: 60 }}>Angle</span>
+                        <input type="range" min={0} max={360} value={gradAngle}
+                            data-testid={`effect-${idx}-stroke-grad-angle`}
+                            onChange={e => setLayerEffectParams(layer.id, idx, { gradient: { ...grad, angle: +e.target.value } })}
+                            style={{ flex: 1 }} />
+                        <span style={{ width: 40, textAlign: 'right' }}>{gradAngle}°</span>
+                    </div>
+                    <div style={rowStyle}>
+                        <span style={{ width: 60 }}>Scale</span>
+                        <input type="range" min={10} max={300} value={gradScale}
+                            data-testid={`effect-${idx}-stroke-grad-scale`}
+                            onChange={e => setLayerEffectParams(layer.id, idx, { gradient: { ...grad, scale: +e.target.value } })}
+                            style={{ flex: 1 }} />
+                        <span style={{ width: 40, textAlign: 'right' }}>{gradScale}%</span>
+                    </div>
+                    <div style={rowStyle}>
+                        <button
+                            data-testid={`effect-${idx}-stroke-edit-gradient`}
+                            onClick={() => setGradientOpen(true)}
+                            style={{ ...inputStyle, cursor: 'pointer', flex: 1 }}
+                        >Edit Gradient…</button>
+                    </div>
+                    <GradientEditorDialog
+                        isOpen={gradientOpen}
+                        initialColorStops={colorStops.map(s => ({ ...s }))}
+                        initialOpacityStops={opacityStops.map(s => ({ ...s }))}
+                        initialSmoothness={100}
+                        onClose={() => setGradientOpen(false)}
+                        onConfirm={(result: GradientEditorResult) => {
+                            setLayerEffectParams(layer.id, idx, {
+                                gradient: { ...grad, colorStops: result.colorStops, opacityStops: result.opacityStops },
+                            });
+                        }}
+                    />
+                </>
+            )}
+            {fillType === 'pattern' && (
+                <>
+                    <div style={rowStyle}>
+                        <span style={{ width: 60 }}>Pattern</span>
+                        <select
+                            data-testid={`effect-${idx}-stroke-pattern`}
+                            value={patternId}
+                            onChange={e => setLayerEffectParams(layer.id, idx, { pattern: { ...pat, patternId: e.target.value } })}
+                            style={{ ...inputStyle, flex: 1 }}
+                        >
+                            <option value="">(none)</option>
+                            {patternPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                    <div style={rowStyle}>
+                        <span style={{ width: 60 }}>Scale</span>
+                        <input type="range" min={10} max={300} value={patternScale}
+                            data-testid={`effect-${idx}-stroke-pat-scale`}
+                            onChange={e => setLayerEffectParams(layer.id, idx, { pattern: { ...pat, scale: +e.target.value } })}
+                            style={{ flex: 1 }} />
+                        <span style={{ width: 40, textAlign: 'right' }}>{patternScale}%</span>
+                    </div>
+                    <div style={rowStyle}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <input type="checkbox" data-testid={`effect-${idx}-stroke-pat-link`}
+                                checked={patternLink}
+                                onChange={e => setLayerEffectParams(layer.id, idx, { pattern: { ...pat, link: e.target.checked } })} />
+                            Link with Layer
+                        </label>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+function GlowGradientEditor({ layer, effect, idx }: { layer: Layer; effect: LayerEffect; idx: number }) {
+    const { setLayerEffectParams } = useEditorStore();
+    const [gradientOpen, setGradientOpen] = useState(false);
+    const defaults = (getEffect(effect.kind)?.defaultParams ?? {}) as Record<string, unknown>;
+    const params = effect.params ?? {};
+    const colorSource = (params.colorSource as string | undefined) ?? (defaults.colorSource as string | undefined) ?? 'solid';
+    if (colorSource !== 'gradient') return null;
+    const grad = (params.gradient as Record<string, unknown> | undefined)
+        ?? (defaults.gradient as Record<string, unknown> | undefined) ?? {};
+    const colorStops = (grad.colorStops as GradientColorStop[] | undefined)
+        ?? [{ position: 0, color: '#ffff80' }, { position: 1, color: '#ff8080' }];
+    const opacityStops = (grad.opacityStops as GradientOpacityStop[] | undefined)
+        ?? [{ position: 0, opacity: 1 }, { position: 1, opacity: 0 }];
+    return (
+        <>
+            <div style={rowStyle}>
+                <button
+                    data-testid={`effect-${idx}-glow-edit-gradient`}
+                    onClick={() => setGradientOpen(true)}
+                    style={{ ...inputStyle, cursor: 'pointer', flex: 1 }}
+                >Edit Glow Gradient…</button>
+            </div>
+            <GradientEditorDialog
+                isOpen={gradientOpen}
+                initialColorStops={colorStops.map(s => ({ ...s }))}
+                initialOpacityStops={opacityStops.map(s => ({ ...s }))}
+                initialSmoothness={100}
+                onClose={() => setGradientOpen(false)}
+                onConfirm={(result: GradientEditorResult) => {
+                    setLayerEffectParams(layer.id, idx, {
+                        gradient: { ...grad, colorStops: result.colorStops, opacityStops: result.opacityStops },
+                    });
+                }}
+            />
+        </>
     );
 }
 
