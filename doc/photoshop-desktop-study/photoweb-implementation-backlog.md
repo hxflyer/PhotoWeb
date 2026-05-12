@@ -299,20 +299,20 @@ Status key:
   - Dependencies: `HIST-03`
   - Implementation notes: `src/tools/colorRange.ts` composites visible layers, builds a color-distance mask from add/subtract samples, and writes it as a selection operation. `ColorRangeDialog` exposes sample color, fuzziness, Add Sample, Subtract Sample, and Replace controls; `Select > Color Range…` opens the dialog.
 
-- [~] `SEL-02` Select and Mask refinement upgrade
+- [x] `SEL-02` Select and Mask refinement upgrade
   - Priority: `P0`
   - Source notes: `pages/` notes `0199`, `0201`; `pages/` note `0212`
   - Function description: Improve the existing Refine Edge/Select and Mask dialog into a practical non-AI edge refinement workflow.
   - Acceptance criteria:
     - Smooth, Feather, Contrast, and Shift Edge produce observable mask changes.  `Implemented`
-    - Output to selection and output to layer mask are supported.  `Partial — current output is honestly labeled as Selection; true layer-mask/new-layer destinations remain pending`
-    - Preview view modes remain usable.  `UI present; live preview still needs verification against the notes`
-    - Operation is undoable.  `Implemented`
+    - Output destinations cover Selection, Layer Mask, New Layer, New Layer with Layer Mask, New Document, and New Document with Layer Mask.  `Implemented`
+    - Preview view modes match Photoshop: Onion Skin, Marching Ants, Overlay, On Black, On White, Black & White, On Layers — all wired to a SelectAndMaskCanvas preview.  `Implemented`
+    - Operation is undoable as a single history entry covering refine + output.  `Implemented`
   - Required tests:
-    - `src/test/refineEdge.test.ts`: each slider changes the mask in the expected direction.
-    - Output to layer mask not yet wired — pending test.
+    - `src/test/selectionDialogBatchB.test.tsx`: per-view-mode composite pixel asserts and Output To Layer / Document undo coverage.
+    - `src/test/refineEdgeSliceH.test.tsx`: each slider changes the mask in the expected direction.
   - Dependencies: `HIST-03`
-  - Implementation notes: `selectionSlice.refineEdge(opts)` rasterizes the current selection ops into an alpha mask, applies blur (Radius), median filter (Smooth), threshold steepening (Contrast), Feather, and Shift Edge, and stores the result as a single raster op. The dialog now labels output as `Selection (updates current selection)`. Smart Radius is wired: when enabled, a Sobel gradient on the active layer modulates the per-pixel radius so sharp luminance edges keep a narrow blur band. Decontaminate remains pending.
+  - Implementation notes: `selectionSlice.applyRefineEdgeOutput(opts, target)` rolls the refine math and the output (selection / layer mask / new layer / new layer with layer mask / new document / new document with layer mask) into a single `executeDocumentCommand`, so undo reverts everything together. View-mode preview is rendered by `src/utils/selectAndMaskCompositor.ts` and `src/components/Canvas/SelectAndMaskCanvas.tsx`. Smart Radius modulates per-pixel blur radius from a Sobel gradient on the active layer. Decontaminate Colors remains pending follow-up.
 
 - [x] `SEL-03` Modify Selection dialogs
   - Priority: `P0`

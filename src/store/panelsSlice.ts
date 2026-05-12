@@ -1,19 +1,33 @@
 import type { StateCreator } from 'zustand';
-import type { EditorStore, PanelId, PanelsSlice, PanelVisibility } from './types';
+import type { EditorStore, PanelId, PanelsSlice, PanelVisibility, SelectionDialogPrefs } from './types';
 
 const PANEL_VIS_STORAGE_KEY = 'photoweb-panel-visibility';
 const SELECTION_DIALOG_PREFS_KEY = 'photoweb-selection-dialog-prefs';
 
-interface SelectionDialogPrefs {
-    defringeWidth: number;
-    borderWidth: number;
-    smoothRadius: number;
-    expandPx: number;
-    contractPx: number;
-}
-
 function defaultSelectionDialogPrefs(): SelectionDialogPrefs {
-    return { defringeWidth: 1, borderWidth: 5, smoothRadius: 3, expandPx: 5, contractPx: 5 };
+    return {
+        defringeWidth: 1,
+        borderWidth: 5,
+        smoothRadius: 3,
+        expandPx: 5,
+        contractPx: 5,
+        refineEdge: {
+            remember: false,
+            radius: 0,
+            smooth: 0,
+            feather: 0,
+            contrast: 0,
+            shiftEdge: 0,
+            smartRadius: false,
+        },
+        colorRange: {
+            select: 'sampled',
+            fuzziness: 40,
+            localized: false,
+            range: 100,
+            invert: false,
+        },
+    };
 }
 
 function loadSelectionDialogPrefs(): SelectionDialogPrefs {
@@ -22,7 +36,13 @@ function loadSelectionDialogPrefs(): SelectionDialogPrefs {
         const raw = localStorage.getItem(SELECTION_DIALOG_PREFS_KEY);
         if (!raw) return defaultSelectionDialogPrefs();
         const parsed = JSON.parse(raw) as Partial<SelectionDialogPrefs>;
-        return { ...defaultSelectionDialogPrefs(), ...parsed };
+        const base = defaultSelectionDialogPrefs();
+        return {
+            ...base,
+            ...parsed,
+            refineEdge: { ...base.refineEdge, ...(parsed.refineEdge ?? {}) },
+            colorRange: { ...base.colorRange, ...(parsed.colorRange ?? {}) },
+        };
     } catch {
         return defaultSelectionDialogPrefs();
     }

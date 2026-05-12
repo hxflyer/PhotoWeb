@@ -1,6 +1,17 @@
 import type { StateCreator } from 'zustand';
-import type { EditorStore, RefineEdgeOptions, SavedSelection, SelectionMode, SelectionSlice, SelectionOperation } from './types';
+import { Layer } from '../core/Layer';
+import type {
+    EditorStore,
+    RefineEdgeOptions,
+    RefineEdgeOutputTarget,
+    SaveSelectionMode,
+    SavedSelection,
+    SelectionMode,
+    SelectionSlice,
+    SelectionOperation,
+} from './types';
 import { rasterizeSelectionOperations as rasterizeSelection } from '../utils/selectionUtils';
+import { computeRefinedSelectionOperation } from '../utils/refineEdgePreview';
 
 function blurMask(mask: Uint8ClampedArray, width: number, height: number, radius: number): Uint8ClampedArray {
     const r = Math.max(1, Math.round(radius));
@@ -557,16 +568,203 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
         }),
     }),
 
-    saveSelection: (name) => set(state => {
-        const saved: SavedSelection = {
-            name,
-            ops: [...state.selection.operations],
-        };
-        const existing = state.savedSelections.findIndex(s => s.name === name);
+    saveSelection: (name, mode: SaveSelectionMode = 'new') => set(state => {
+        const { width, height } = state;
+        const cloneOps = (ops: SelectionOperation[]): SelectionOperation[] => ops.map(op => ({
+            ...op,
+            path: op.path.map(p => ({ ...p })),
+            mask: op.mask
+                ? { width: op.mask.width, height: op.mask.height, data: new Uint8ClampedArray(op.mask.data) }
+                : undefined,
+        }));
+        const currentOps = cloneOps(state.selection.operations);
+        const existingIdx = state.savedSelections.findIndex(s => s.name === name);
         const next = [...state.savedSelections];
-        if (existing >= 0) next[existing] = saved;
-        else next.push(saved);
+
+        // "new" or "replace" both overwrite the channel by name; "new" creates a
+        // fresh entry when the name doesn't exist. The combining modes (add /
+        // subtract / intersect) require a destination row to combine against.
+        if (mode === 'new' || mode === 'replace' || existingIdx < 0) {
+            const saved: SavedSelection = { name, ops: currentOps };
+            if (existingIdx >= 0) next[existingIdx] = saved;
+            else next.push(saved);
+            return { savedSelections: next };
+        }
+
+        // Combine: rasterize both, apply union/subtract/intersect.
+        const destOps = cloneOps(next[existingIdx].ops);
+        const destMask = rasterizeSelection(destOps, width, height);
+        const curMask = rasterizeSelection(currentOps, width, height);
+        const out = new Uint8ClampedArray(width * height);
+        if (mode === 'add') {
+            for (let i = 0; i < out.length; i++) out[i] = Math.max(destMask[i], curMask[i]);
+        } else if (mode === 'sub') {
+            for (let i = 0; i < out.length; i++) out[i] = Math.max(0, destMask[i] - curMask[i]);
+        } else {
+            for (let i = 0; i < out.length; i++) out[i] = Math.min(destMask[i], curMask[i]);
+        }
+        const combinedOps: SelectionOperation[] = [
+            { mode: 'add', type: 'lasso', path: [], mask: { data: out, width, height } },
+        ];
+        next[existingIdx] = { name, ops: combinedOps };
         return { savedSelections: next };
+    }),
+
+    applyRefineEdgeOutput: (opts: RefineEdgeOptions, target: RefineEdgeOutputTarget) => get().executeDocumentCommand({
+        kind: 'selection',
+        label: target === 'selection' ? 'Refine Edge' : `Refine Edge — ${target}`,
+        affectedIds: ['selection'],
+        run: () => set(state => {
+            if (!state.selection.hasSelection) return state;
+            const { width, height } = state;
+            const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+            const layerData = activeLayer ? activeLayer.ctx.getImageData(0, 0, width, height) : null;
+            const refined = computeRefinedSelectionOperation(
+                state.selection.operations,
+                opts,
+                width,
+                height,
+                layerData,
+            );
+            const refinedMask = refined?.mask?.data ?? rasterizeSelection(state.selection.operations, width, height);
+
+            // Step 1 — write the refined selection into the slice.
+            const baseSelection = {
+                ...state.selection,
+                feather: opts.feather,
+                path: [],
+                operations: refined ? [refined] : [],
+                hasSelection: !!refined,
+            };
+
+            if (target === 'selection') {
+                return { selection: baseSelection };
+            }
+
+            // Step 2 — produce the chosen output. All branches mutate `layers`
+            // directly inside the same `executeDocumentCommand`, so undo
+            // captures everything in a single history entry.
+            const layers = [...state.layers];
+            const writeMaskCanvasFromAlpha = (alpha: Uint8ClampedArray): HTMLCanvasElement | null => {
+                const c = document.createElement('canvas');
+                c.width = width; c.height = height;
+                const ctx = c.getContext('2d');
+                if (!ctx) return null;
+                const img = ctx.createImageData(width, height);
+                for (let i = 0; i < alpha.length; i++) {
+                    const v = alpha[i];
+                    img.data[i * 4] = v;
+                    img.data[i * 4 + 1] = v;
+                    img.data[i * 4 + 2] = v;
+                    img.data[i * 4 + 3] = 255;
+                }
+                ctx.putImageData(img, 0, 0);
+                return c;
+            };
+
+            const attachMaskTo = (layer: Layer) => {
+                const c = writeMaskCanvasFromAlpha(refinedMask);
+                if (!c) return;
+                const ctx = c.getContext('2d');
+                if (!ctx) return;
+                layer.mask = { canvas: c, ctx, enabled: true, linked: true };
+                layer.markDirty(null);
+            };
+
+            const cloneActiveLayer = (suffix: string): Layer | null => {
+                if (!activeLayer) return null;
+                const fresh = new Layer(width, height, `${activeLayer.name} ${suffix}`);
+                fresh.ctx.drawImage(activeLayer.canvas, 0, 0);
+                fresh.opacity = activeLayer.opacity;
+                fresh.fill = activeLayer.fill;
+                fresh.blendMode = activeLayer.blendMode;
+                fresh.markDirty(null);
+                return fresh;
+            };
+
+            if (target === 'layer-mask') {
+                if (!activeLayer) return { selection: baseSelection };
+                const c = writeMaskCanvasFromAlpha(refinedMask);
+                if (!c) return { selection: baseSelection };
+                const mctx = c.getContext('2d');
+                if (!mctx) return { selection: baseSelection };
+                activeLayer.mask = { canvas: c, ctx: mctx, enabled: true, linked: true };
+                activeLayer.markDirty(null);
+                return { selection: baseSelection, layers };
+            }
+
+            if (target === 'new-layer') {
+                const fresh = cloneActiveLayer('Copy');
+                if (!fresh) return { selection: baseSelection };
+                // Bake the mask into pixel alpha so the new layer is the
+                // refined cutout with no attached mask.
+                const img = fresh.ctx.getImageData(0, 0, width, height);
+                for (let i = 0; i < refinedMask.length; i++) {
+                    img.data[i * 4 + 3] = Math.round((img.data[i * 4 + 3] * refinedMask[i]) / 255);
+                }
+                fresh.ctx.putImageData(img, 0, 0);
+                fresh.markDirty(null);
+                layers.push(fresh);
+                return {
+                    selection: baseSelection,
+                    layers,
+                    activeLayerId: fresh.id,
+                    selectedLayerIds: [fresh.id],
+                    layerSelectionAnchorId: fresh.id,
+                };
+            }
+
+            if (target === 'new-layer-with-mask') {
+                const fresh = cloneActiveLayer('Copy');
+                if (!fresh) return { selection: baseSelection };
+                attachMaskTo(fresh);
+                layers.push(fresh);
+                return {
+                    selection: baseSelection,
+                    layers,
+                    activeLayerId: fresh.id,
+                    selectedLayerIds: [fresh.id],
+                    layerSelectionAnchorId: fresh.id,
+                };
+            }
+
+            if (target === 'new-document' || target === 'new-document-with-mask') {
+                // Compose a single-layer document holding the cutout. Use
+                // newDocument so it integrates with the document slice's
+                // book-keeping (dirty flag, autosave, etc.).
+                const cutout = cloneActiveLayer('Output');
+                if (!cutout) return { selection: baseSelection };
+                if (target === 'new-document') {
+                    const img = cutout.ctx.getImageData(0, 0, width, height);
+                    for (let i = 0; i < refinedMask.length; i++) {
+                        img.data[i * 4 + 3] = Math.round((img.data[i * 4 + 3] * refinedMask[i]) / 255);
+                    }
+                    cutout.ctx.putImageData(img, 0, 0);
+                    cutout.markDirty(null);
+                } else {
+                    attachMaskTo(cutout);
+                }
+                return {
+                    width,
+                    height,
+                    documentName: 'Untitled',
+                    isDirty: true,
+                    layers: [cutout],
+                    activeLayerId: cutout.id,
+                    selectedLayerIds: [cutout.id],
+                    layerSelectionAnchorId: cutout.id,
+                    selection: {
+                        ...baseSelection,
+                        hasSelection: false,
+                        operations: [],
+                        path: [],
+                        polyPoints: [],
+                    },
+                };
+            }
+
+            return { selection: baseSelection };
+        }),
     }),
 
     loadSelection: (name, mode = 'replace') => get().executeDocumentCommand({

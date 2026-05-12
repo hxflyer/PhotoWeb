@@ -54,7 +54,15 @@ beforeEach(() => {
     useEditorStore.getState().clearHistory();
     useEditorStore.setState(s => ({
         ...s,
-        selectionDialogPrefs: { defringeWidth: 1, borderWidth: 5, smoothRadius: 3, expandPx: 5, contractPx: 5 },
+        selectionDialogPrefs: {
+            defringeWidth: 1,
+            borderWidth: 5,
+            smoothRadius: 3,
+            expandPx: 5,
+            contractPx: 5,
+            refineEdge: { remember: false, radius: 0, smooth: 0, feather: 0, contrast: 0, shiftEdge: 0, smartRadius: false },
+            colorRange: { select: 'sampled', fuzziness: 40, localized: false, range: 100, invert: false },
+        },
         isBorderSelectionDialogOpen: false,
         isSmoothSelectionDialogOpen: false,
         isTransformSelectionOpen: false,

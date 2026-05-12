@@ -1,29 +1,36 @@
 /**
  * RefineEdgeDialog — Select and Mask workspace controls.
- * Simplified: applies dilate/erode to the selection mask on commit.
  *
  * Live preview: snapshots the selection on open, then re-runs the refine
  * math against the snapshot as sliders change (bypassing history). Cancel
- * restores the snapshot; OK commits the final result through `refineEdge()`
- * which records a single history entry.
+ * restores the snapshot. OK funnels every output through
+ * `applyRefineEdgeOutput` so the refined selection plus any layer / mask /
+ * document changes are committed inside a single undoable history entry.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { rasterizeSelectionOperations } from '../../utils/selectionUtils';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { computeRefinedSelectionOperation } from '../../utils/refineEdgePreview';
-import type { SelectionOperation } from '../../store/types';
+import type { RefineEdgeOutputTarget, SelectionOperation } from '../../store/types';
+import { SelectAndMaskCanvas } from '../Canvas/SelectAndMaskCanvas';
+import {
+    compositeLayersBelow,
+    type SelectAndMaskViewMode,
+} from '../../utils/selectAndMaskCompositor';
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
 }
 
-type ViewMode = 'on-white' | 'on-black' | 'on-transparent' | 'overlay';
-type OutputTarget = 'selection' | 'layer-mask' | 'new-layer-with-mask';
+type ViewMode = SelectAndMaskViewMode;
+type OutputTarget = RefineEdgeOutputTarget;
 
 export function RefineEdgeDialog({ isOpen, onClose }: Props) {
-    const { refineEdge } = useEditorStore();
+    const applyRefineEdgeOutput = useEditorStore(s => s.applyRefineEdgeOutput);
+    const initialPrefs = useEditorStore.getState().selectionDialogPrefs.refineEdge;
+
     const [radius, setRadius] = useState(0);
     const [smartRadius, setSmartRadius] = useState(false);
     const [smooth, setSmooth] = useState(0);
@@ -32,6 +39,11 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
     const [shiftEdge, setShiftEdge] = useState(0);
     const [viewMode, setViewMode] = useState<ViewMode>('on-white');
     const [output, setOutput] = useState<OutputTarget>('selection');
+    const [remember, setRemember] = useState(initialPrefs.remember);
+    const [previewSource, setPreviewSource] = useState<ImageData | null>(null);
+    const [previewUnderlay, setPreviewUnderlay] = useState<ImageData | null>(null);
+    const [previewMask, setPreviewMask] = useState<Uint8ClampedArray | null>(null);
+    const [previewDims, setPreviewDims] = useState({ width: 0, height: 0 });
     const dialogRef = useDialogA11y(isOpen, onClose);
 
     // Live preview: snapshot the original selection on open and reset on close.
@@ -43,6 +55,23 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
         }
         const state = useEditorStore.getState();
         originalOpsRef.current = state.selection.operations.map(op => ({ ...op }));
+        const stored = state.selectionDialogPrefs.refineEdge;
+        if (stored.remember) {
+            setRadius(stored.radius);
+            setSmooth(stored.smooth);
+            setFeather(stored.feather);
+            setContrast(stored.contrast);
+            setShiftEdge(stored.shiftEdge);
+            setSmartRadius(stored.smartRadius);
+        } else {
+            setRadius(0);
+            setSmooth(0);
+            setFeather(0);
+            setContrast(0);
+            setShiftEdge(0);
+            setSmartRadius(false);
+        }
+        setRemember(stored.remember);
     }, [isOpen]);
 
     // Recompute the preview mask whenever any slider changes.
@@ -67,99 +96,46 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                 hasSelection: refined ? true : (originalOpsRef.current?.length ?? 0) > 0,
             },
         }));
+        const refinedMask = refined?.mask?.data
+            ?? rasterizeSelectionOperations(originalOpsRef.current ?? [], width, height);
+        setPreviewMask(refinedMask);
+        setPreviewSource(layerData);
+        setPreviewUnderlay(compositeLayersBelow(state.layers, state.activeLayerId, width, height));
+        setPreviewDims({ width, height });
     }, [isOpen, radius, smooth, feather, contrast, shiftEdge, smartRadius]);
 
+    function restoreOriginal() {
+        if (!originalOpsRef.current) return;
+        useEditorStore.setState(s => ({
+            selection: {
+                ...s.selection,
+                operations: originalOpsRef.current!,
+                hasSelection: originalOpsRef.current!.length > 0,
+            },
+        }));
+    }
+
     function handleCancel() {
-        // Restore the pre-dialog selection.
-        if (originalOpsRef.current) {
-            useEditorStore.setState(s => ({
-                selection: {
-                    ...s.selection,
-                    operations: originalOpsRef.current!,
-                    hasSelection: originalOpsRef.current!.length > 0,
-                },
-            }));
-        }
+        restoreOriginal();
         onClose();
     }
 
+    function persistPrefs() {
+        useEditorStore.getState().setSelectionDialogPref('refineEdge', {
+            remember,
+            radius,
+            smooth,
+            feather,
+            contrast,
+            shiftEdge,
+            smartRadius,
+        });
+    }
+
     function handleApply() {
-        // Restore the original selection so refineEdge records a single
-        // history entry (otherwise the preview state would be the "before").
-        if (originalOpsRef.current) {
-            useEditorStore.setState(s => ({
-                selection: {
-                    ...s.selection,
-                    operations: originalOpsRef.current!,
-                    hasSelection: originalOpsRef.current!.length > 0,
-                },
-            }));
-        }
-        // Always refine the selection first so the output reflects the refined edges.
-        refineEdge({ radius, smooth, feather, contrast, shiftEdge, smartRadius });
-
-        if (output === 'selection') {
-            onClose();
-            return;
-        }
-
-        const state = useEditorStore.getState();
-        const { width, height } = state;
-        const refinedMaskData = rasterizeSelectionOperations(state.selection.operations, width, height);
-
-        if (output === 'layer-mask') {
-            const id = state.activeLayerId;
-            if (!id) { onClose(); return; }
-            const layer = state.layers.find(l => l.id === id);
-            if (!layer) { onClose(); return; }
-            // Add (or replace) the layer mask using the refined alpha.
-            if (layer.mask) state.removeLayerMask(id);
-            state.addLayerMask(id, 'hide-all');
-            const refreshed = useEditorStore.getState().layers.find(l => l.id === id);
-            if (refreshed?.mask) {
-                const mctx = refreshed.mask.ctx;
-                const img = mctx.createImageData(width, height);
-                for (let i = 0; i < refinedMaskData.length; i++) {
-                    const v = refinedMaskData[i];
-                    img.data[i * 4] = v;
-                    img.data[i * 4 + 1] = v;
-                    img.data[i * 4 + 2] = v;
-                    img.data[i * 4 + 3] = 255;
-                }
-                mctx.putImageData(img, 0, 0);
-                refreshed.markDirty(null);
-                useEditorStore.setState(s => ({ layers: [...s.layers] }));
-            }
-            onClose();
-            return;
-        }
-
-        // new-layer-with-mask: clone the active layer, attach the refined alpha
-        // as a mask, and make the clone active.
-        if (state.activeLayerId) {
-            state.duplicateLayer(state.activeLayerId);
-            const after = useEditorStore.getState();
-            const dupId = after.activeLayerId;
-            if (dupId) {
-                if (after.layers.find(l => l.id === dupId)?.mask) after.removeLayerMask(dupId);
-                after.addLayerMask(dupId, 'hide-all');
-                const dup = useEditorStore.getState().layers.find(l => l.id === dupId);
-                if (dup?.mask) {
-                    const mctx = dup.mask.ctx;
-                    const img = mctx.createImageData(width, height);
-                    for (let i = 0; i < refinedMaskData.length; i++) {
-                        const v = refinedMaskData[i];
-                        img.data[i * 4] = v;
-                        img.data[i * 4 + 1] = v;
-                        img.data[i * 4 + 2] = v;
-                        img.data[i * 4 + 3] = 255;
-                    }
-                    mctx.putImageData(img, 0, 0);
-                    dup.markDirty(null);
-                    useEditorStore.setState(s => ({ layers: [...s.layers] }));
-                }
-            }
-        }
+        restoreOriginal();
+        persistPrefs();
+        applyRefineEdgeOutput({ radius, smooth, feather, contrast, shiftEdge, smartRadius }, output);
         onClose();
     }
 
@@ -179,7 +155,7 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                     border: '1px solid #444',
                     borderRadius: '6px',
                     padding: '16px',
-                    minWidth: '320px',
+                    minWidth: '360px',
                     color: 'white',
                     fontSize: '12px',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
@@ -193,16 +169,31 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                     <select
                         value={viewMode}
                         onChange={e => setViewMode(e.target.value as ViewMode)}
+                        data-testid="refine-edge-view-mode"
                         style={{ width: '100%', background: '#333', border: '1px solid #555', borderRadius: '3px', color: 'white', padding: '4px 8px', fontSize: '12px' }}
                     >
-                        <option value="on-white" style={{ background: '#333' }}>On White</option>
-                        <option value="on-black" style={{ background: '#333' }}>On Black</option>
-                        <option value="on-transparent" style={{ background: '#333' }}>On Transparent</option>
+                        <option value="onion-skin" style={{ background: '#333' }}>Onion Skin</option>
+                        <option value="marching-ants" style={{ background: '#333' }}>Marching Ants</option>
                         <option value="overlay" style={{ background: '#333' }}>Overlay</option>
+                        <option value="on-black" style={{ background: '#333' }}>On Black</option>
+                        <option value="on-white" style={{ background: '#333' }}>On White</option>
+                        <option value="black-and-white" style={{ background: '#333' }}>Black &amp; White</option>
+                        <option value="on-layers" style={{ background: '#333' }}>On Layers</option>
                     </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                    <SelectAndMaskCanvas
+                        width={previewDims.width}
+                        height={previewDims.height}
+                        mask={previewMask}
+                        source={previewSource}
+                        underlay={previewUnderlay}
+                        viewMode={viewMode}
+                    />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                     {([
                         ['Radius', radius, setRadius, 0, 250] as [string, number, (v: number) => void, number, number],
                         ['Smooth', smooth, setSmooth, 0, 100],
@@ -234,17 +225,31 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                     </label>
                 </div>
 
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={e => setRemember(e.target.checked)}
+                        data-testid="refine-edge-remember"
+                    />
+                    <span style={{ fontSize: '11px' }}>Remember Settings</span>
+                </label>
+
                 {/* Output section */}
                 <div style={{ marginBottom: '12px' }}>
                     <div style={{ marginBottom: '4px', opacity: 0.7, fontSize: '11px' }}>Output To</div>
                     <select
                         value={output}
                         onChange={e => setOutput(e.target.value as OutputTarget)}
+                        data-testid="refine-edge-output"
                         style={{ width: '100%', background: '#333', border: '1px solid #555', borderRadius: '3px', color: 'white', padding: '4px 8px', fontSize: '12px' }}
                     >
                         <option value="selection" style={{ background: '#333' }}>Selection</option>
                         <option value="layer-mask" style={{ background: '#333' }}>Layer Mask</option>
-                        <option value="new-layer-with-mask" style={{ background: '#333' }}>New Layer With Mask</option>
+                        <option value="new-layer" style={{ background: '#333' }}>New Layer</option>
+                        <option value="new-layer-with-mask" style={{ background: '#333' }}>New Layer with Layer Mask</option>
+                        <option value="new-document" style={{ background: '#333' }}>New Document</option>
+                        <option value="new-document-with-mask" style={{ background: '#333' }}>New Document with Layer Mask</option>
                     </select>
                 </div>
 
@@ -252,6 +257,7 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                     <button onClick={handleCancel} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid #555', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
                     <button
                         onClick={handleApply}
+                        data-testid="refine-edge-ok"
                         style={{ padding: '4px 12px', background: '#0090ff', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '12px' }}
                     >
                         OK
