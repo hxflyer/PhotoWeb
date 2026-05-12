@@ -10,6 +10,7 @@ import { InputNumberDialog } from '../components/Dialogs/InputNumberDialog';
 import { DefringeDialog } from '../components/Dialogs/DefringeDialog';
 import { CanvasSizeDialog } from '../components/Dialogs/CanvasSizeDialog';
 import { ImageSizeDialog } from '../components/Dialogs/ImageSizeDialog';
+import { ExportDialog } from '../components/Dialogs/ExportDialog';
 import { buildColorRangeMask } from '../tools/colorRange';
 import { runScript } from './simulator';
 
@@ -250,6 +251,25 @@ describe('Batch A — ImageSize chain-link icon', () => {
         await runScript([{ type: 'click', target: btn }]);
         expect(btn.getAttribute('aria-pressed')).toBe('false');
         expect(queryByTestId('chain-link-broken')).toBeTruthy();
+    });
+});
+
+describe('Batch A — Export PNG transparency toggle', () => {
+    it('defaults to ON and shows a background color input that is disabled', () => {
+        const { getByTestId } = render(<ExportDialog isOpen onClose={() => { /* noop */ }} />);
+        const toggle = getByTestId('export-png-transparency') as HTMLInputElement;
+        expect(toggle.checked).toBe(true);
+        const bg = getByTestId('export-png-background') as HTMLInputElement;
+        expect(bg.disabled).toBe(true);
+    });
+
+    it('enables the background color input when transparency is OFF', async () => {
+        const { getByTestId } = render(<ExportDialog isOpen onClose={() => { /* noop */ }} />);
+        const toggle = getByTestId('export-png-transparency') as HTMLInputElement;
+        fireEvent.click(toggle);
+        const bg = getByTestId('export-png-background') as HTMLInputElement;
+        expect(toggle.checked).toBe(false);
+        expect(bg.disabled).toBe(false);
     });
 });
 

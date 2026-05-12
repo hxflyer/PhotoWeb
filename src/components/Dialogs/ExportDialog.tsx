@@ -27,6 +27,8 @@ export function ExportDialog({ isOpen, onClose }: Props) {
     const [sizeEstimate, setSizeEstimate] = useState('');
     const [flattenOnColor, setFlattenOnColor] = useState(true);
     const [flattenColor, setFlattenColor] = useState('#ffffff');
+    const [pngTransparency, setPngTransparency] = useState(true);
+    const [pngBackground, setPngBackground] = useState('#ffffff');
     const dialogRef = useDialogA11y(isOpen, onClose);
 
     useEffect(() => {
@@ -80,6 +82,26 @@ export function ExportDialog({ isOpen, onClose }: Props) {
                 const fctx = flat.getContext('2d');
                 if (fctx) {
                     fctx.fillStyle = flattenColor;
+                    fctx.fillRect(0, 0, width, height);
+                    fctx.drawImage(canvas, 0, 0);
+                    canvas = flat;
+                }
+            } catch {
+                reportExportError('Export failed: could not flatten on background color.');
+                return;
+            }
+        }
+
+        // PNG: when "Transparency" is off, composite over a solid background
+        // color so transparent regions encode as that color instead of alpha.
+        if (format === 'png' && !pngTransparency) {
+            try {
+                const flat = document.createElement('canvas');
+                flat.width = width;
+                flat.height = height;
+                const fctx = flat.getContext('2d');
+                if (fctx) {
+                    fctx.fillStyle = pngBackground;
                     fctx.fillRect(0, 0, width, height);
                     fctx.drawImage(canvas, 0, 0);
                     canvas = flat;
@@ -171,6 +193,28 @@ export function ExportDialog({ isOpen, onClose }: Props) {
                                 style={{ flex: 1 }}
                             />
                             <span style={{ width: '32px', textAlign: 'right' }}>{quality}%</span>
+                        </label>
+                    )}
+
+                    {/* PNG transparency toggle (PNG has alpha; when off, flatten on color) */}
+                    {format === 'png' && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '80px' }}>Transparency</span>
+                            <input
+                                type="checkbox"
+                                checked={pngTransparency}
+                                onChange={e => setPngTransparency(e.target.checked)}
+                                data-testid="export-png-transparency"
+                            />
+                            <input
+                                type="color"
+                                value={pngBackground}
+                                onChange={e => setPngBackground(e.target.value)}
+                                disabled={pngTransparency}
+                                data-testid="export-png-background"
+                                style={{ width: '40px', height: '24px', border: '1px solid #555', background: 'transparent', cursor: pngTransparency ? 'not-allowed' : 'pointer' }}
+                            />
+                            <span style={{ opacity: 0.7 }}>background</span>
                         </label>
                     )}
 
