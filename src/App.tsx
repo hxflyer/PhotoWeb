@@ -35,6 +35,7 @@ import { NewGuideDialog } from './components/Dialogs/NewGuideDialog';
 import { StorageUsageDialog } from './components/Dialogs/StorageUsageDialog';
 import { StrokePathDialog } from './components/Dialogs/StrokePathDialog';
 import { FillPathDialog } from './components/Dialogs/FillPathDialog';
+import { FadeDialog } from './components/Dialogs/FadeDialog';
 import { RequirementsOverlay } from './components/Overlay/RequirementsOverlay';
 import { getLastFilter, getFilter, applyFilterToLayer, setLastFilter } from './filters/index';
 import { applyAdjustmentToLayer } from './adjustments';
@@ -92,21 +93,27 @@ function App() {
   const [storageOpen, setStorageOpen] = useState(false);
   const [strokePathOpen, setStrokePathOpen] = useState(false);
   const [fillPathOpen, setFillPathOpen] = useState(false);
+  const [fadeDialogOpen, setFadeDialogOpen] = useState(false);
 
   useEffect(() => {
     const openPrefs = () => setPreferencesOpen(true);
     const openStorage = () => setStorageOpen(true);
     const openStroke = () => setStrokePathOpen(true);
     const openFill = () => setFillPathOpen(true);
+    const openFade = () => {
+      if (useEditorStore.getState().lastEffect) setFadeDialogOpen(true);
+    };
     window.addEventListener('photoweb:open-preferences', openPrefs);
     window.addEventListener('photoweb:open-storage-usage', openStorage);
     window.addEventListener('photoweb:open-stroke-path', openStroke);
     window.addEventListener('photoweb:open-fill-path', openFill);
+    window.addEventListener('photoweb:open-fade', openFade);
     return () => {
       window.removeEventListener('photoweb:open-preferences', openPrefs);
       window.removeEventListener('photoweb:open-storage-usage', openStorage);
       window.removeEventListener('photoweb:open-stroke-path', openStroke);
       window.removeEventListener('photoweb:open-fill-path', openFill);
+      window.removeEventListener('photoweb:open-fade', openFade);
     };
   }, []);
   const autoSaveStarted = useRef(false);
@@ -196,6 +203,11 @@ function App() {
       if (meta && key === 'f' && e.altKey) {
         e.preventDefault();
         const last = getLastFilter(); if (last) gs().openFilterDialog(last.id, last.params);
+        return;
+      }
+      if (meta && key === 'f' && e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        if (gs().lastEffect) setFadeDialogOpen(true);
         return;
       }
 
@@ -708,11 +720,15 @@ function App() {
         onConfirm={(params) => {
           const s = gs();
           const layer = s.layers.find(l => l.id === s.activeLayerId);
-          if (layer && getFilter(filterDlg.filterId)) {
-            const before = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+          const filter = getFilter(filterDlg.filterId);
+          if (layer && filter) {
+            const rect = { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height };
+            const before = captureLayerRegion(layer, rect);
             applyFilterToLayer(layer, filterDlg.filterId, params, s.selection);
-            s.commitHistory(createPixelHistoryAction(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height }, before, `Filter: ${filterDlg.filterId}`));
+            const after = captureLayerRegion(layer, rect);
+            s.commitHistory(createPixelHistoryAction(layer, rect, before, `Filter: ${filterDlg.filterId}`));
             setLastFilter(filterDlg.filterId, params);
+            s.setLastEffect({ kind: 'filter', label: filter.label, layerId: layer.id, dirtyRect: rect, before, after });
           }
         }}
         onClose={() => gs().closeFilterDialog()} />
@@ -723,9 +739,14 @@ function App() {
         onConfirm={(params) => {
           const s = gs();
           const layer = s.layers.find(l => l.id === s.activeLayerId);
-          const before = layer ? captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height }) : null;
-          if (layer && applyAdjustmentToLayer(layer, adjustmentDlg.adjustmentId, params, s.selection)) {
-            s.commitHistory(createPixelHistoryAction(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height }, before!, `Adjustment: ${adjustmentDlg.adjustmentId}`));
+          if (!layer) return;
+          const rect = { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height };
+          const before = captureLayerRegion(layer, rect);
+          if (applyAdjustmentToLayer(layer, adjustmentDlg.adjustmentId, params, s.selection)) {
+            const after = captureLayerRegion(layer, rect);
+            s.commitHistory(createPixelHistoryAction(layer, rect, before, `Adjustment: ${adjustmentDlg.adjustmentId}`));
+            const idLabel = adjustmentDlg.adjustmentId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            s.setLastEffect({ kind: 'adjustment', label: idLabel, layerId: layer.id, dirtyRect: rect, before, after });
           }
         }}
         onClose={() => gs().closeAdjustmentDialog()} />
@@ -780,6 +801,23 @@ function App() {
       <StorageUsageDialog isOpen={storageOpen} onClose={() => setStorageOpen(false)} />
       <StrokePathDialog open={strokePathOpen} onClose={() => setStrokePathOpen(false)} />
       <FillPathDialog open={fillPathOpen} onClose={() => setFillPathOpen(false)} />
+      <FadeDialog
+        isOpen={fadeDialogOpen}
+        snapshot={gs().lastEffect}
+        onConfirm={(_opacity, _mode, result) => {
+          const s = gs();
+          const snap = s.lastEffect;
+          if (!snap) return;
+          const layer = s.layers.find(l => l.id === snap.layerId);
+          if (!layer) return;
+          const before = captureLayerRegion(layer, snap.dirtyRect);
+          layer.ctx.putImageData(result, snap.dirtyRect.x, snap.dirtyRect.y);
+          layer.markDirty(null);
+          s.commitHistory(createPixelHistoryAction(layer, snap.dirtyRect, before, `Fade ${snap.label}`));
+          useEditorStore.setState(state => ({ layers: [...state.layers] }));
+        }}
+        onClose={() => setFadeDialogOpen(false)}
+      />
 
       {freeTransform && (
         <FreeTransformOverlay state={freeTransform} zoom={zoom} panX={pan.x} panY={pan.y}

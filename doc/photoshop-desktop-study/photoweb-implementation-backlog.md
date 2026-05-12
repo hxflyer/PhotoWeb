@@ -808,6 +808,15 @@ Status key:
   - Required tests: `src/test/panelFlyoutBatchF.test.tsx`.
   - Implementation notes: Single shared component intended to be reused across all panels. LayersPanel is the first consumer; remaining panels can adopt incrementally without API changes.
 
+## Batch E - Adjustment / Filter UX
+
+- [x] `BATCH-E-01` Edit > Fade dialog
+  - Priority: `P1`
+  - Function description: After any destructive filter or adjustment, the history slice remembers the before/after `ImageData` of the affected layer rect. `Edit > Fade <Last>` (⌘⇧F) opens a modal with Opacity 0..100 + Blend Mode dropdown (mirrors `src/core/blendModes.ts`). Confirming blends the cached `after` onto the cached `before` per the chosen mode + opacity and writes the result through history.
+  - Acceptance criteria: lastEffect is captured on AdjustmentDialog and FilterDialog confirm; menu item is disabled when no effect has been applied; opacity 0 returns before pixels; opacity 1 + mode=normal returns after; mode=multiply produces (s*d)/255 per channel; Cmd+Shift+F shortcut opens the dialog.
+  - Required tests: `src/test/fadeDialogBatchE.test.ts` — opacity endpoints, multiply formula, alpha preservation, mismatched-dimensions guard.
+  - Implementation notes: `src/utils/fadeBlend.ts` exports `fadeImageData(before, after, opacity, mode)` + `BLEND_MODE_OPTIONS`. `src/components/Dialogs/FadeDialog.tsx` is the modal. App.tsx listens for `photoweb:open-fade` and the Cmd+Shift+F shortcut; MenuBar inserts the menu item under Edit. `lastEffect` lives on the history slice via `setLastEffect`.
+
 ## Batch C - Color / Gradient / Path Dialogs
 
 - [x] `BATCH-C-01` Fill Path: Mode + Preserve Transparency

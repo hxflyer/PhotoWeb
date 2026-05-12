@@ -174,6 +174,16 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       act('Undo', () => useEditorStore.getState().undo(), '⌘Z'),
       act('Redo', () => useEditorStore.getState().redo(), '⌘⇧Z'),
       sep,
+      (() => {
+        const last = useEditorStore.getState().lastEffect;
+        return act(
+          last ? `Fade ${last.label}` : 'Fade',
+          () => { window.dispatchEvent(new Event('photoweb:open-fade')); },
+          '⌘⇧F',
+          !last,
+        );
+      })(),
+      sep,
       act('Cut', () => document.execCommand('cut'), '⌘X'),
       act('Copy', () => document.execCommand('copy'), '⌘C'),
       act('Copy Merged', () => {}, '⌘⇧C', true),

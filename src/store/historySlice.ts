@@ -136,6 +136,8 @@ export const createHistorySlice: StateCreator<EditorStore, [], [], HistorySlice>
     historyMaxSize: globalHistory.getMaxSize(),
     canUndo: false,
     canRedo: false,
+    lastEffect: null,
+    setLastEffect: (snapshot) => set({ lastEffect: snapshot }),
     commitHistory: (action: HistoryAction) => {
         const entry = globalHistory.commit(action);
         set(historyStateUpdate(get()));

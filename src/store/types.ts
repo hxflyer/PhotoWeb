@@ -319,6 +319,21 @@ export interface RefineEdgeOptions {
     smartRadius?: boolean; // per-pixel radius modulated by local edge gradient when true
 }
 
+export type RefineEdgeOutputTarget =
+    | 'selection'
+    | 'layer-mask'
+    | 'new-layer'
+    | 'new-layer-with-mask'
+    | 'new-document'
+    | 'new-document-with-mask';
+
+export type SaveSelectionMode =
+    | 'new'
+    | 'replace'
+    | 'add'
+    | 'sub'
+    | 'intersect';
+
 export interface SelectionSlice {
     selection: SelectionState;
     savedSelections: SavedSelection[];
@@ -344,7 +359,8 @@ export interface SelectionSlice {
     growSelection: (tolerance?: number) => void;
     similarSelection: (tolerance?: number) => void;
     refineEdge: (opts: RefineEdgeOptions) => void;
-    saveSelection: (name: string) => void;
+    applyRefineEdgeOutput: (opts: RefineEdgeOptions, target: RefineEdgeOutputTarget) => void;
+    saveSelection: (name: string, mode?: SaveSelectionMode) => void;
     loadSelection: (name: string, mode?: 'replace' | 'add' | 'sub' | 'intersect') => void;
     pathToSelection: () => void;
     selectionToPath: () => void;
@@ -513,12 +529,36 @@ export type PanelId =
 
 export type PanelVisibility = Record<PanelId, boolean>;
 
+export interface RefineEdgePrefs {
+    /** When true, opening Refine Edge restores the last-used slider values. */
+    remember: boolean;
+    radius: number;
+    smooth: number;
+    feather: number;
+    contrast: number;
+    shiftEdge: number;
+    smartRadius: boolean;
+}
+
+export interface ColorRangePrefs {
+    /** Built-in preset selected in the Select dropdown. */
+    select: 'sampled' | 'reds' | 'yellows' | 'greens' | 'cyans' | 'blues' | 'magentas' | 'highlights' | 'midtones' | 'shadows' | 'skin-tones';
+    fuzziness: number;
+    /** Localized Color Clusters checkbox state. */
+    localized: boolean;
+    /** Range slider in pixels (only used when `localized` is true). 0..255. */
+    range: number;
+    invert: boolean;
+}
+
 export interface SelectionDialogPrefs {
     defringeWidth: number;
     borderWidth: number;
     smoothRadius: number;
     expandPx: number;
     contractPx: number;
+    refineEdge: RefineEdgePrefs;
+    colorRange: ColorRangePrefs;
 }
 
 export interface PanelsSlice {
@@ -532,7 +572,7 @@ export interface PanelsSlice {
     isContractSelectionDialogOpen: boolean;
     isTransformSelectionOpen: boolean;
     selectionDialogPrefs: SelectionDialogPrefs;
-    setSelectionDialogPref: (key: keyof SelectionDialogPrefs, value: number) => void;
+    setSelectionDialogPref: <K extends keyof SelectionDialogPrefs>(key: K, value: SelectionDialogPrefs[K]) => void;
     openBorderSelectionDialog: () => void;
     closeBorderSelectionDialog: () => void;
     openSmoothSelectionDialog: () => void;
@@ -579,6 +619,20 @@ export interface PanelsSlice {
     closeDefringeDialog: () => void;
 }
 
+/**
+ * Snapshot of the most recently applied destructive filter or adjustment.
+ * Edit > Fade replays the same `after` pixels blended back into `before`
+ * using the user's chosen Opacity + Blend Mode.
+ */
+export interface LastEffectSnapshot {
+    kind: 'filter' | 'adjustment';
+    label: string;
+    layerId: string;
+    dirtyRect: { x: number; y: number; width: number; height: number };
+    before: ImageData;
+    after: ImageData;
+}
+
 export interface HistorySlice {
     historyTick: number;
     historyEntries: HistoryEntry[];
@@ -586,6 +640,7 @@ export interface HistorySlice {
     historyMaxSize: number;
     canUndo: boolean;
     canRedo: boolean;
+    lastEffect: LastEffectSnapshot | null;
     commitHistory: (action: HistoryAction) => HistoryEntry;
     executeCommand: (action: GenericHistoryAction) => HistoryEntry;
     executeCompoundCommand: (action: CompoundHistoryAction) => HistoryEntry;
@@ -596,6 +651,7 @@ export interface HistorySlice {
     clearHistory: () => void;
     setHistoryMaxSize: (maxSize: number) => void;
     commitSnapshot: (label?: string) => void;
+    setLastEffect: (snapshot: LastEffectSnapshot | null) => void;
 }
 
 export interface Toast {
