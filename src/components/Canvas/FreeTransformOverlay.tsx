@@ -13,6 +13,7 @@ import { commitTypeLayer, type TypeLayerData } from '../../tools/type';
 import { buildSnapCandidates, snapPoint, type SnapTarget } from '../../tools/snap';
 import { moveShapeTarget } from '../../tools/shapeCommands';
 import { rerenderShapeLayer } from '../../tools/shapeRender';
+import { drawQuadWarp } from '../../utils/quadWarp';
 import type { ShapeData } from '../../store/types';
 
 const FREE_TRANSFORM_SNAP_HYSTERESIS = 6;
@@ -47,14 +48,24 @@ interface Props {
 
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'move' | 'rotate';
 
+// Per-corner offsets in canvas space, layered on top of the bbox for the
+// Photoshop modifier modes (Cmd = distort, Cmd+Shift = skew, Cmd+Alt+Shift =
+// perspective). When all four offsets are zero, the overlay falls back to the
+// pure bbox affine path (applyFreeTransform). Otherwise it routes the live
+// preview through drawQuadWarp.
+type CornerDeltas = { nw: { dx: number; dy: number }; ne: { dx: number; dy: number }; se: { dx: number; dy: number }; sw: { dx: number; dy: number } };
+const ZERO_CORNERS: CornerDeltas = { nw: { dx: 0, dy: 0 }, ne: { dx: 0, dy: 0 }, se: { dx: 0, dy: 0 }, sw: { dx: 0, dy: 0 } };
+type DragMode = 'scale' | 'distort' | 'skew' | 'perspective' | 'rotate' | 'move';
+
 export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCancel }: Props) {
     const [tx, setTx] = useState(state.x);
     const [ty, setTy] = useState(state.y);
     const [tw, setTw] = useState(state.width);
     const [th, setTh] = useState(state.height);
     const [rot, setRot] = useState(state.rotation);
+    const [cornerDeltas, setCornerDeltas] = useState<CornerDeltas>(ZERO_CORNERS);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-    const dragRef = useRef<{ handle: Handle; startX: number; startY: number; origTx: number; origTy: number; origTw: number; origTh: number; origRot: number; snapCandidates: SnapTarget[] } | null>(null);
+    const dragRef = useRef<{ handle: Handle; mode: DragMode; startX: number; startY: number; origTx: number; origTy: number; origTw: number; origTh: number; origRot: number; origCorners: CornerDeltas; snapCandidates: SnapTarget[] } | null>(null);
     const overlayRef = useRef<SVGSVGElement>(null);
     const { layers } = useEditorStore();
     const [documentRect, setDocumentRect] = useState<DOMRect | null>(null);
@@ -83,20 +94,50 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
     const cx = sx + sw / 2;
     const cy2 = sy + sh / 2;
 
-    // Handles: corners + edge midpoints
+    // Handles: corners + edge midpoints. Each corner is the bbox corner plus
+    // the per-corner distort delta (in canvas px) scaled to screen px. Side
+    // handles ride the midpoint of the corresponding pair so skew/perspective
+    // moves them along with the corners.
+    const cornerNW = { x: sx + cornerDeltas.nw.dx * zoom, y: sy + cornerDeltas.nw.dy * zoom };
+    const cornerNE = { x: sx + sw + cornerDeltas.ne.dx * zoom, y: sy + cornerDeltas.ne.dy * zoom };
+    const cornerSE = { x: sx + sw + cornerDeltas.se.dx * zoom, y: sy + sh + cornerDeltas.se.dy * zoom };
+    const cornerSW = { x: sx + cornerDeltas.sw.dx * zoom, y: sy + sh + cornerDeltas.sw.dy * zoom };
+    const midN = { x: (cornerNW.x + cornerNE.x) / 2, y: (cornerNW.y + cornerNE.y) / 2 };
+    const midE = { x: (cornerNE.x + cornerSE.x) / 2, y: (cornerNE.y + cornerSE.y) / 2 };
+    const midS = { x: (cornerSW.x + cornerSE.x) / 2, y: (cornerSW.y + cornerSE.y) / 2 };
+    const midW = { x: (cornerNW.x + cornerSW.x) / 2, y: (cornerNW.y + cornerSW.y) / 2 };
     const handles: Record<Handle, { x: number; y: number }> = {
-        nw: { x: sx, y: sy }, n: { x: cx, y: sy }, ne: { x: sx + sw, y: sy },
-        e: { x: sx + sw, y: cy2 }, se: { x: sx + sw, y: sy + sh },
-        s: { x: cx, y: sy + sh }, sw: { x: sx, y: sy + sh }, w: { x: sx, y: cy2 },
-        move: { x: cx, y: cy2 }, rotate: { x: cx, y: sy - 20 },
+        nw: cornerNW, n: midN, ne: cornerNE,
+        e: midE, se: cornerSE,
+        s: midS, sw: cornerSW, w: midW,
+        move: { x: cx, y: cy2 }, rotate: { x: cx, y: Math.min(cornerNW.y, cornerNE.y) - 20 },
     };
 
     const handleMouseDown = useCallback((e: React.MouseEvent, handle: Handle) => {
         e.stopPropagation();
         const store = useEditorStore.getState();
         const snapCandidates = store.snapEnabled ? buildSnapCandidates(store) : [];
-        dragRef.current = { handle, startX: e.clientX, startY: e.clientY, origTx: tx, origTy: ty, origTw: tw, origTh: th, origRot: rot, snapCandidates };
-    }, [tx, ty, tw, th, rot]);
+        // Photoshop modifier modes — captured at down-time so the mode is
+        // stable for the duration of the drag even if the user lifts a key.
+        const isCorner = handle === 'nw' || handle === 'ne' || handle === 'se' || handle === 'sw';
+        const isSide = handle === 'n' || handle === 's' || handle === 'e' || handle === 'w';
+        let mode: DragMode = 'scale';
+        if (handle === 'move') mode = 'move';
+        else if (handle === 'rotate') mode = 'rotate';
+        else if (e.metaKey || e.ctrlKey) {
+            if (isCorner && e.altKey && e.shiftKey) mode = 'perspective';
+            else if (isSide && e.shiftKey) mode = 'skew';
+            else if (isCorner) mode = 'distort';
+            else mode = 'scale';
+        }
+        dragRef.current = {
+            handle, mode,
+            startX: e.clientX, startY: e.clientY,
+            origTx: tx, origTy: ty, origTw: tw, origTh: th, origRot: rot,
+            origCorners: cornerDeltas,
+            snapCandidates,
+        };
+    }, [tx, ty, tw, th, rot, cornerDeltas]);
 
     useEffect(() => {
         const publishTargets = (xSnap: SnapTarget | undefined, ySnap: SnapTarget | undefined) => {
@@ -107,11 +148,66 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
         };
         const onMove = (e: MouseEvent) => {
             if (!dragRef.current) return;
-            const { handle, startX, startY, origTx, origTy, origTw, origTh, origRot, snapCandidates } = dragRef.current;
+            const { handle, mode, startX, startY, origTx, origTy, origTw, origTh, origRot, origCorners, snapCandidates } = dragRef.current;
             let dx = (e.clientX - startX) / zoom;
             let dy = (e.clientY - startY) / zoom;
             const shift = e.shiftKey;
             const alt = e.altKey;
+
+            // ── Cmd-modified modes ──────────────────────────────────────────
+            // Distort: only the dragged corner moves.
+            if (mode === 'distort') {
+                if (handle === 'nw') setCornerDeltas({ ...origCorners, nw: { dx: origCorners.nw.dx + dx, dy: origCorners.nw.dy + dy } });
+                else if (handle === 'ne') setCornerDeltas({ ...origCorners, ne: { dx: origCorners.ne.dx + dx, dy: origCorners.ne.dy + dy } });
+                else if (handle === 'se') setCornerDeltas({ ...origCorners, se: { dx: origCorners.se.dx + dx, dy: origCorners.se.dy + dy } });
+                else if (handle === 'sw') setCornerDeltas({ ...origCorners, sw: { dx: origCorners.sw.dx + dx, dy: origCorners.sw.dy + dy } });
+                return;
+            }
+            // Skew: both endpoints of the dragged side translate along the
+            // side's parallel axis (the perpendicular axis is fixed).
+            if (mode === 'skew') {
+                if (handle === 'n') {
+                    setCornerDeltas({ ...origCorners,
+                        nw: { dx: origCorners.nw.dx + dx, dy: origCorners.nw.dy },
+                        ne: { dx: origCorners.ne.dx + dx, dy: origCorners.ne.dy } });
+                } else if (handle === 's') {
+                    setCornerDeltas({ ...origCorners,
+                        sw: { dx: origCorners.sw.dx + dx, dy: origCorners.sw.dy },
+                        se: { dx: origCorners.se.dx + dx, dy: origCorners.se.dy } });
+                } else if (handle === 'w') {
+                    setCornerDeltas({ ...origCorners,
+                        nw: { dx: origCorners.nw.dx, dy: origCorners.nw.dy + dy },
+                        sw: { dx: origCorners.sw.dx, dy: origCorners.sw.dy + dy } });
+                } else if (handle === 'e') {
+                    setCornerDeltas({ ...origCorners,
+                        ne: { dx: origCorners.ne.dx, dy: origCorners.ne.dy + dy },
+                        se: { dx: origCorners.se.dx, dy: origCorners.se.dy + dy } });
+                }
+                return;
+            }
+            // Perspective: dragged corner moves; the corner along the SAME
+            // edge (its horizontal neighbor for top/bottom, vertical neighbor
+            // for left/right) mirrors. This produces the trapezoidal shape.
+            if (mode === 'perspective') {
+                if (handle === 'nw') {
+                    setCornerDeltas({ ...origCorners,
+                        nw: { dx: origCorners.nw.dx + dx, dy: origCorners.nw.dy + dy },
+                        ne: { dx: origCorners.ne.dx - dx, dy: origCorners.ne.dy + dy } });
+                } else if (handle === 'ne') {
+                    setCornerDeltas({ ...origCorners,
+                        ne: { dx: origCorners.ne.dx + dx, dy: origCorners.ne.dy + dy },
+                        nw: { dx: origCorners.nw.dx - dx, dy: origCorners.nw.dy + dy } });
+                } else if (handle === 'se') {
+                    setCornerDeltas({ ...origCorners,
+                        se: { dx: origCorners.se.dx + dx, dy: origCorners.se.dy + dy },
+                        sw: { dx: origCorners.sw.dx - dx, dy: origCorners.sw.dy + dy } });
+                } else if (handle === 'sw') {
+                    setCornerDeltas({ ...origCorners,
+                        sw: { dx: origCorners.sw.dx + dx, dy: origCorners.sw.dy + dy },
+                        se: { dx: origCorners.se.dx - dx, dy: origCorners.se.dy + dy } });
+                }
+                return;
+            }
 
             // Snap the dragged edge / corner / center to nearby candidates.
             if (snapCandidates.length > 0 && handle !== 'rotate') {
@@ -324,6 +420,28 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
         const tempCtx = tempSrc.getContext('2d')!;
         tempCtx.putImageData(source, 0, 0);
 
+        const distorted = cornerDeltas.nw.dx !== 0 || cornerDeltas.nw.dy !== 0
+            || cornerDeltas.ne.dx !== 0 || cornerDeltas.ne.dy !== 0
+            || cornerDeltas.se.dx !== 0 || cornerDeltas.se.dy !== 0
+            || cornerDeltas.sw.dx !== 0 || cornerDeltas.sw.dy !== 0;
+
+        if (distorted) {
+            // Compute the four target corners in canvas space from the bbox
+            // plus the per-corner offsets. (Rotation isn't combined with
+            // distort/skew/perspective in this MVP — Photoshop also treats
+            // them as separate modes you commit between.)
+            const corners = {
+                nw: { x: tx + cornerDeltas.nw.dx, y: ty + cornerDeltas.nw.dy },
+                ne: { x: tx + tw + cornerDeltas.ne.dx, y: ty + cornerDeltas.ne.dy },
+                se: { x: tx + tw + cornerDeltas.se.dx, y: ty + th + cornerDeltas.se.dy },
+                sw: { x: tx + cornerDeltas.sw.dx, y: ty + th + cornerDeltas.sw.dy },
+            };
+            layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+            drawQuadWarp(layer.ctx, tempSrc, corners);
+            layer.markDirty(null);
+            return;
+        }
+
         const result = applyFreeTransform(tempSrc, {
             x: tx, y: ty, scaleX: tw / tempSrc.width, scaleY: th / tempSrc.height,
             rotation: rot, skewX: 0, skewY: 0,
@@ -331,7 +449,7 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
         layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
         layer.ctx.drawImage(result, 0, 0);
         layer.markDirty(null);
-    }, [tx, ty, tw, th, rot]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [tx, ty, tw, th, rot, cornerDeltas]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -404,8 +522,10 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
                         setContextMenu({ x: e.clientX, y: e.clientY });
                     }}
                 />
-                <rect x={sx} y={sy} width={sw} height={sh}
-                    fill="none" stroke="#0090ff" strokeWidth={1} strokeDasharray="4 2" />
+                <polygon
+                    points={`${cornerNW.x},${cornerNW.y} ${cornerNE.x},${cornerNE.y} ${cornerSE.x},${cornerSE.y} ${cornerSW.x},${cornerSW.y}`}
+                    fill="none" stroke="#0090ff" strokeWidth={1} strokeDasharray="4 2"
+                />
 
                 {/* Handles */}
                 {HANDLE_IDS.map(id => (
