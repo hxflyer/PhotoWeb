@@ -20,7 +20,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 06-crop                    (7) — Crop Tool, Perspective Crop, single-layer / circular  commit: f37df51
 - [x] 07a-layers-panel           (8) — Layers panel structure, rows, shortcuts  commit: 9349ab8
 - [x] 07b-background-layer       (3) — Locked Background layer, convert-to-normal  commit: f9c1e8b
-- [ ] 08a-layer-ops              (5) — Stamp visible, copy effects, auto-select, align, groups
+- [x] 08a-layer-ops              (5) — Stamp visible, copy effects, auto-select, align, groups  commit: c0c1e8b
 - [ ] 08b-properties-panel       (1) — Per-layer-type Properties panel
 - [ ] 08c-doc-transfer           (2) — Move layers between documents
 - [ ] 09-blend-modes             (3) — Blend mode menu, live preview, Shift+/- cycle
