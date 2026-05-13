@@ -553,6 +553,8 @@ export interface ViewSlice {
     screenMode: ScreenMode;
     setScreenMode: (mode: ScreenMode) => void;
     cycleScreenMode: (direction: 1 | -1) => void;
+    neutralColorMode: boolean;
+    setNeutralColorMode: (on: boolean) => void;
 }
 
 export type PanelGroupId = 'top' | 'middle' | 'bottom';

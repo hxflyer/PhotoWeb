@@ -104,6 +104,7 @@ function App() {
   const colorTheme = useEditorStore(s => s.colorTheme);
   const pasteboardColor = useEditorStore(s => s.pasteboardColor);
   const pasteboardCustomColor = useEditorStore(s => s.pasteboardCustomColor);
+  const neutralColorMode = useEditorStore(s => s.neutralColorMode);
 
   // Apply colorTheme as data-theme on :root so all CSS-variable-driven
   // components re-skin without a React subscription.
@@ -111,6 +112,23 @@ function App() {
     if (typeof document === 'undefined') return;
     document.documentElement.dataset.theme = colorTheme;
   }, [colorTheme]);
+
+  // Neutral Color Mode (Photoshop 23.5): overrides --accent-primary and
+  // --accent-highlight to gray so static "blue" UI accents (active tabs,
+  // commit buttons, etc.) read as neutral. Color-related surfaces (Color
+  // Picker, Gradient Editor) don't read from these tokens, so they're
+  // unaffected — matching Photoshop's documented carve-out.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (neutralColorMode) {
+      root.style.setProperty('--accent-primary', '0 0% 56%');
+      root.style.setProperty('--accent-highlight', '0 0% 70%');
+    } else {
+      root.style.removeProperty('--accent-primary');
+      root.style.removeProperty('--accent-highlight');
+    }
+  }, [neutralColorMode]);
 
   // Apply pasteboardColor by setting --pasteboard-bg. `default` clears the
   // override so the theme's --bg-canvas takes over.

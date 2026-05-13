@@ -125,3 +125,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** In Full Screen Mode, Ctrl+Tab cycles forward through open documents; Ctrl+Shift+Tab cycles backward.
 **Photoweb behavior:** Not implemented. Photoweb is single-document per CLAUDE.md §4 (multi_doc_ui excluded).
 **Rationale:** Scope.
+
+## 2026-05-13 — 01e-neutral-color-mode — No Share button to neutralise; toggle affects other accents instead
+
+**Photoshop behavior:** Neutral Color Mode primarily removes the blue color from the Share button in the upper right.
+**Photoweb behavior:** photoweb has no Share button (CLAUDE.md §4 excludes Creative Cloud), so the toggle instead neutralises the same `--accent-primary` / `--accent-highlight` tokens that drive active tool buttons, active panel tabs, and dialog commit buttons. Color-related surfaces (Color Picker, Gradient Editor, Swatches) don't use these tokens and remain unaffected — matching Photoshop's carve-out.
+**Rationale:** Same UI, same label, different blue surfaces affected — adapted to the photoweb chrome inventory.

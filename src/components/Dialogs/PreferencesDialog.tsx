@@ -58,6 +58,8 @@ export function PreferencesDialog({ isOpen, onClose }: Props) {
     const setHistoryMaxSize = useEditorStore.getState().setHistoryMaxSize;
     const colorTheme = useEditorStore(s => s.colorTheme);
     const setColorTheme = useEditorStore(s => s.setColorTheme);
+    const neutralColorMode = useEditorStore(s => s.neutralColorMode);
+    const setNeutralColorMode = useEditorStore(s => s.setNeutralColorMode);
     const [prefs, setPrefs] = useState<StoredUserPrefs>(loadPrefs);
     const dialogRef = useDialogA11y(isOpen, onClose);
 
@@ -86,7 +88,7 @@ export function PreferencesDialog({ isOpen, onClose }: Props) {
             <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="preferences-title" tabIndex={-1} style={cardStyle} onClick={e => e.stopPropagation()}>
                 <div id="preferences-title" style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Preferences</div>
 
-                {/* Interface — color theme. */}
+                {/* Interface — color theme + neutral color mode. */}
                 <div style={{ marginBottom: 16 }}>
                     <div style={{ opacity: 0.85, marginBottom: 6 }}>Interface</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -115,6 +117,15 @@ export function PreferencesDialog({ isOpen, onClose }: Props) {
                             ))}
                         </div>
                     </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                        <input
+                            type="checkbox"
+                            data-testid="pref-neutral-color-mode"
+                            checked={neutralColorMode}
+                            onChange={e => setNeutralColorMode(e.target.checked)}
+                        />
+                        <span style={{ opacity: 0.85 }}>Neutral Color Mode</span>
+                    </label>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
