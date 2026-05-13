@@ -10,6 +10,22 @@ The user picked a **fixed-interval /loop** (foreground, ~60 min) with a **conser
 
 ---
 
+## 0. Design principle (read first; applies to every section below)
+
+photoweb is **not a Photoshop clone**. It's a user-friendly, professional web photo-editing app whose target audience is **Photoshop-fluent users who must be able to use photoweb immediately, with zero learning, by carrying over their existing habits**.
+
+Three commitments, in order of priority:
+
+1. **Match Photoshop's UI vocabulary, keyboard shortcuts, mouse behavior, modifier keys, and panel layout exactly when there is no good reason not to.** A Photoshop user's muscle memory should just work — same `Ctrl/Cmd+T` for Free Transform, same `Shift` to constrain proportions, same Layers panel structure, same menu item names, same dialog button labels. This is the strongest default and the bar every plan must clear.
+2. **Choose Photoshop fidelity over reinvention when in doubt.** If a "better" alternative would force the user to relearn something they already know, prefer Photoshop. Novelty is not a feature.
+3. **Diverge deliberately, never accidentally, with good taste.** When a Photoshop behavior cannot or should not be reproduced in the browser (file-system access, OS-level dialogs, Adobe ecosystem features, legacy UI confusion) or has been explicitly excluded in CLAUDE.md §4, make a reasoned departure and record it in [divergence-log.md](divergence-log.md). The departure should still feel native to a Photoshop user — same vocabulary, similar discoverability. "I prefer X" is never a valid reason; "browser cannot do X" and "scope excludes X" are.
+
+**Failure modes to avoid:** modern-web UX patterns that confuse Photoshop users (floating action buttons, gesture-only interactions, hamburger menus, mobile-style toasts as primary feedback, settings hidden behind a single ☰ icon); renaming Photoshop-standard commands to "friendlier" wording; reordering panels because "it's cleaner"; introducing new hotkeys that conflict with Photoshop muscle memory.
+
+The plan.md you write per cluster MUST apply this principle. Each goal answers: *what does a Photoshop user expect here, and are we matching it?* Each deliberate divergence is a one-sentence entry in §5.5 with a hard-constraint reason.
+
+---
+
 ## 1. Pre-flight (refuse to start if any fail)
 
 - `git status --porcelain` must be empty. No resuming on a dirty tree.
@@ -53,8 +69,9 @@ Path: `doc/photoshop-essentials-basics/<cluster-id>/gap-report.md`. Sections, in
 1. **Lessons reviewed** — bullet list: `slug — one-line abstract`.
 2. **Current photoweb coverage** — file:line refs grouped by feature.
 3. **Gaps** — missing features, broken behaviors, half-implementations, bugs.
-4. **UI / UX issues** — wrong layout, ugly visuals, awkward interactions, hotkey mismatches.
-5. **Photoshop divergences worth keeping** — deliberate departures we will NOT change.
+4. **Photoshop-habit mismatches** — anything that would surprise or stall a Photoshop user: wrong/missing hotkey, renamed menu item, different modifier behavior, panel in the wrong place, dialog button order swapped, vocabulary mismatch (CLAUDE.md §6: "Photoshop vocabulary in all UI strings"). Cite the lesson screenshot that grounds each observation.
+5. **UI / UX issues** — wrong layout, ugly visuals, awkward interactions, accessibility problems separate from #4.
+6. **Photoshop divergences worth keeping** — deliberate existing departures we will NOT change (already in [divergence-log.md](divergence-log.md) or about to be added there).
 
 Use markdown link syntax for file refs: `[Layer.ts:42](src/core/Layer.ts#L42)`.
 
@@ -64,11 +81,29 @@ Use markdown link syntax for file refs: `[Layer.ts:42](src/core/Layer.ts#L42)`.
 
 Path: `doc/photoshop-essentials-basics/<cluster-id>/plan.md`. Sections, in order:
 
-1. **Goals** — one bullet per gap that will be closed in this tick.
+1. **Goals — write one Feature spec subsection per gap that will be closed in this tick.** A bullet list of titles is not enough. **plan.md is where final quality is won or lost.** Each Feature spec MUST include, in this order:
+
+   - **What it does** — one paragraph in plain prose. State the outcome a user gets, not the implementation.
+   - **Photoshop habit preserved** — the exact hotkey, modifier, menu path, panel position, Options Bar control, dialog button, or terminology that Photoshop users already know. Cite the lesson slug and the screenshot filename that grounds it. If you can't name the habit, you're inventing — re-read the lesson and image.
+   - **Invocation** — every Photoshop-equivalent way to trigger this feature: menu path (`Layer > Layer Mask > Reveal All`), toolbar slot + keyboard letter, keyboard shortcut with all modifiers, right-click context entry, Options Bar control, double-click on canvas / panel thumbnail, panel button. Photoshop usually offers multiple paths to the same action — list them all.
+   - **Pre-conditions** — required document, layer, selection, mask, or path state. What's grayed-out / disallowed when these aren't met.
+   - **Interaction choreography** — numbered steps of the user's mouse + key sequence as they actually perform the gesture. **This is the section that matters most in a professional tool.** Capture every detail that a Photoshop user notices:
+     - cursor shape at each step (default arrow, crosshair, hand, eyedropper, transform-rotate, gradient-loaded crosshair, brush-tip ring, "move with arrow" cursor, etc.),
+     - modifier-key effects mid-gesture (`Shift` constrain to proportions or 15° increments, `Alt`/`Option` resize-from-center or duplicate, `Space` reposition while dragging a marquee, `Ctrl/Cmd` temporary Move Tool, etc.),
+     - live preview state on the canvas during the gesture (marching ants, transform bounding box with handles, gradient line, brush ring, ruler line, crop rule-of-thirds overlay, etc.),
+     - what `Esc` / `Enter` / clicking outside the gesture does — commit vs cancel vs nothing,
+     - how the Options Bar / Properties panel / status bar text updates as the gesture progresses (size readout, angle readout, "W: 100px H: 100px", etc.),
+     - debounce / threshold behavior (click vs drag distinction, double-click timing, hover-preview delays).
+   - **Visual feedback** — what the user sees during and after the action, grounded in a specific lesson screenshot (reference its filename under `images/`).
+   - **Post-conditions** — final document, layer, selection, history-step state. Whether the gesture creates a single undo entry, or several, and what each is named.
+   - **Edge cases** — empty selection, locked Background layer, zero-size drag, gesture started off-canvas, conflicting tool already active, undo/redo interplay with the gesture, oversize or zero input, modifier pressed before vs during the gesture, etc.
+
+   Professional tools are won and lost on this choreography. `Ctrl+T` that scales but ignores `Shift` to constrain is broken, not "good enough". A marquee that doesn't reposition with `Space` mid-drag is broken. Specify the dance precisely so the implementation matches *and the tests can pin every step*.
+
 2. **Out-of-scope-this-tick** — deferred to a future cluster (with a reason).
-3. **Files to edit / files to create**.
-4. **Test cases** — each maps to a goal; simulator-driven per CLAUDE.md §5.
-5. **Divergences from Photoshop** — each one sentence. Also append to [divergence-log.md](divergence-log.md).
+3. **Files to edit / files to create** — grouped by Feature spec; note which spec each file change serves.
+4. **Test cases** — each maps to a Feature spec and exercises its choreography; simulator-driven per CLAUDE.md §5. **At least one test per Feature spec asserts the Photoshop hotkey / shortcut / modifier behavior end-to-end.** Multi-step gestures need multi-step tests (mouse-down → modifier-press → drag → modifier-release → mouse-up) — don't collapse a gesture into a single store-action assertion. Cursor changes, Options Bar text updates, and `Esc`/`Enter` outcomes are testable and should be tested.
+5. **Divergences from Photoshop** — each one sentence in the form: *Photoshop does X; photoweb does Y because <browser constraint | scope decision in CLAUDE.md §4 | hard-constraint reason>*. "I prefer X", "it's cleaner", "modern UX" are never valid reasons. Append every divergence to [divergence-log.md](divergence-log.md).
 6. **Stop conditions specific to this cluster**.
 
 ---

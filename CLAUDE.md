@@ -8,6 +8,8 @@ Read first on every session. Keep this file focused on durable workflow, scope, 
 
 Build photoweb: a browser-based, layer-aware raster editor that feels like Photoshop for ~80% of common photo-editing tasks. Lightweight in scope, professional in finish. Curated subset; not Photoshop parity.
 
+**Audience and design principle:** the target user is a Photoshop-fluent photographer or designer who must be able to sit down in photoweb and work immediately, **with zero learning, by carrying over their existing habits**. Match Photoshop's UI vocabulary, keyboard shortcuts, mouse behavior, modifier keys, panel layout, menu paths, and dialog button labels exactly. Photoshop fidelity beats reinvention — novelty is not a feature. Diverge **only** when a browser constraint or an explicit scope decision in §4 forces it; record every deliberate divergence in [doc/photoshop-essentials-basics/divergence-log.md](doc/photoshop-essentials-basics/divergence-log.md). Modern-web UX patterns that confuse Photoshop users (floating action buttons, gesture-only flows, hamburger menus, renamed commands) are explicit anti-patterns. The full principle, including how each plan must apply it, lives in [RUN-CONTRACT.md §0](doc/photoshop-essentials-basics/RUN-CONTRACT.md).
+
 ---
 
 ## 2. Where everything lives
