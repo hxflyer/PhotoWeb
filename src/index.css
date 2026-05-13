@@ -1,5 +1,26 @@
+/*
+ * Photoshop's Preferences > Interface > Color Theme exposes four ladder
+ * steps from darkest to lightest. We mirror the ladder via a data-attribute
+ * on :root so a single class swap re-themes the whole app. `dark` is the
+ * Photoshop default and matches our prior palette exactly. Shared tokens
+ * (accents, fonts, shadows) live in :root once.
+ */
 :root {
-  /* Photoshop-matched dark gray palette */
+  --accent-primary: 210 50% 52%;   /* #4c90b6 PS selection blue */
+  --accent-secondary: 210 60% 64%; /* lighter accent */
+  --accent-highlight: 210 100% 56%; /* bright blue for active focus */
+  --border-active: 210 50% 52%;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.7);
+  --shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.8);
+  --font-sans: 'Adobe Clean', 'Helvetica Neue', Arial, sans-serif;
+  --font-size-ui: 11px;
+  --font-size-menu: 12px;
+}
+
+/* Default + `dark` theme: original Photoshop gray (matches CC default). */
+:root,
+:root[data-theme='dark'] {
   --bg-dark: 0 0% 20%;       /* #333 workspace behind canvas */
   --bg-panel: 0 0% 23%;      /* #3b3b3b panel backgrounds */
   --bg-header: 0 0% 18%;     /* #2d2d2d menu/options bar */
@@ -7,27 +28,63 @@
   --bg-hover: 0 0% 30%;      /* #4c4c4c hover state */
   --bg-active: 0 0% 35%;     /* #595959 active/pressed */
   --bg-canvas: 0 0% 13%;     /* #212121 canvas area background */
+  --text-main: 0 0% 85%;
+  --text-muted: 0 0% 56%;
+  --text-disabled: 0 0% 38%;
+  --text-label: 0 0% 73%;
+  --border-light: 0 0% 13%;
+  --border-mid: 0 0% 17%;
+}
 
-  --accent-primary: 210 50% 52%;   /* #4c90b6 PS selection blue */
-  --accent-secondary: 210 60% 64%; /* lighter accent */
-  --accent-highlight: 210 100% 56%; /* bright blue for active focus */
+/* `darkest` theme: deepest gray, near-black panels. */
+:root[data-theme='darkest'] {
+  --bg-dark: 0 0% 12%;
+  --bg-panel: 0 0% 15%;
+  --bg-header: 0 0% 10%;
+  --bg-input: 0 0% 18%;
+  --bg-hover: 0 0% 22%;
+  --bg-active: 0 0% 28%;
+  --bg-canvas: 0 0% 7%;
+  --text-main: 0 0% 85%;
+  --text-muted: 0 0% 56%;
+  --text-disabled: 0 0% 38%;
+  --text-label: 0 0% 73%;
+  --border-light: 0 0% 7%;
+  --border-mid: 0 0% 11%;
+}
 
-  --text-main: 0 0% 85%;      /* #d9d9d9 primary text */
-  --text-muted: 0 0% 56%;     /* #8f8f8f secondary text */
-  --text-disabled: 0 0% 38%;  /* #616161 disabled text */
-  --text-label: 0 0% 73%;     /* #bababa label text */
+/* `light` theme: medium gray with inverted text. */
+:root[data-theme='light'] {
+  --bg-dark: 0 0% 70%;
+  --bg-panel: 0 0% 75%;
+  --bg-header: 0 0% 68%;
+  --bg-input: 0 0% 88%;
+  --bg-hover: 0 0% 80%;
+  --bg-active: 0 0% 60%;
+  --bg-canvas: 0 0% 62%;
+  --text-main: 0 0% 12%;
+  --text-muted: 0 0% 32%;
+  --text-disabled: 0 0% 55%;
+  --text-label: 0 0% 22%;
+  --border-light: 0 0% 56%;
+  --border-mid: 0 0% 60%;
+}
 
-  --border-light: 0 0% 13%;   /* #212121 subtle border */
-  --border-mid: 0 0% 17%;     /* #2b2b2b mid border */
-  --border-active: 210 50% 52%;
-
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.7);
-  --shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.8);
-
-  --font-sans: 'Adobe Clean', 'Helvetica Neue', Arial, sans-serif;
-  --font-size-ui: 11px;
-  --font-size-menu: 12px;
+/* `lightest` theme: near-white. Matches Photoshop's lightest gray theme. */
+:root[data-theme='lightest'] {
+  --bg-dark: 0 0% 86%;
+  --bg-panel: 0 0% 90%;
+  --bg-header: 0 0% 84%;
+  --bg-input: 0 0% 96%;
+  --bg-hover: 0 0% 92%;
+  --bg-active: 0 0% 78%;
+  --bg-canvas: 0 0% 78%;
+  --text-main: 0 0% 10%;
+  --text-muted: 0 0% 28%;
+  --text-disabled: 0 0% 52%;
+  --text-label: 0 0% 18%;
+  --border-light: 0 0% 70%;
+  --border-mid: 0 0% 74%;
 }
 
 * { box-sizing: border-box; }

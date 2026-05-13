@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import type { ColorTheme } from '../../store/types';
+
+const THEME_THUMBS: { id: ColorTheme; label: string; sample: string }[] = [
+    // Photoshop orders thumbnails darkest → lightest left-to-right.
+    { id: 'darkest',  label: 'Darkest',  sample: 'hsl(0 0% 15%)' },
+    { id: 'dark',     label: 'Dark',     sample: 'hsl(0 0% 23%)' },
+    { id: 'light',    label: 'Light',    sample: 'hsl(0 0% 75%)' },
+    { id: 'lightest', label: 'Lightest', sample: 'hsl(0 0% 90%)' },
+];
 
 interface Props {
     isOpen: boolean;
@@ -47,6 +56,8 @@ const inputStyle: React.CSSProperties = {
 
 export function PreferencesDialog({ isOpen, onClose }: Props) {
     const setHistoryMaxSize = useEditorStore.getState().setHistoryMaxSize;
+    const colorTheme = useEditorStore(s => s.colorTheme);
+    const setColorTheme = useEditorStore(s => s.setColorTheme);
     const [prefs, setPrefs] = useState<StoredUserPrefs>(loadPrefs);
     const dialogRef = useDialogA11y(isOpen, onClose);
 
@@ -74,6 +85,37 @@ export function PreferencesDialog({ isOpen, onClose }: Props) {
         <div style={overlayStyle} onClick={onClose}>
             <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="preferences-title" tabIndex={-1} style={cardStyle} onClick={e => e.stopPropagation()}>
                 <div id="preferences-title" style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Preferences</div>
+
+                {/* Interface — color theme. */}
+                <div style={{ marginBottom: 16 }}>
+                    <div style={{ opacity: 0.85, marginBottom: 6 }}>Interface</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 152, opacity: 0.85 }}>Color Theme</span>
+                        <div data-testid="color-theme-thumbs" style={{ display: 'flex', gap: 6 }}>
+                            {THEME_THUMBS.map(t => (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    data-testid={`color-theme-thumb-${t.id}`}
+                                    data-active={colorTheme === t.id || undefined}
+                                    onClick={() => setColorTheme(t.id)}
+                                    title={t.label}
+                                    style={{
+                                        width: 40,
+                                        height: 28,
+                                        background: t.sample,
+                                        border: colorTheme === t.id
+                                            ? '2px solid hsl(var(--accent-highlight))'
+                                            : '1px solid hsl(var(--border-mid))',
+                                        borderRadius: 2,
+                                        padding: 0,
+                                        cursor: 'pointer',
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

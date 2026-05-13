@@ -1,13 +1,51 @@
 import type { StateCreator } from 'zustand';
 import { createCommandAction } from '../core/history';
-import type { EditorStore, ViewSlice } from './types';
+import type {
+    ColorTheme,
+    EditorStore,
+    PasteboardColor,
+    StatusBarInfoMode,
+    ViewSlice,
+} from './types';
 
 const VIEW_PREFS_STORAGE_KEY = 'photoweb:viewPrefs:v1';
+const CHROME_PREFS_STORAGE_KEY = 'photoweb:chromePrefs:v1';
 
 interface StoredViewPrefs {
     showSelectionEdges?: boolean;
     showGuides?: boolean;
     guidesLocked?: boolean;
+}
+
+interface StoredChromePrefs {
+    statusBarInfoMode?: StatusBarInfoMode;
+    pasteboardColor?: PasteboardColor;
+    pasteboardCustomColor?: string;
+    colorTheme?: ColorTheme;
+}
+
+// Photoshop's color-theme cycle: Shift+F2 forward (darker -> lighter).
+// Cycle wraps so Shift+F1 from `darkest` jumps to `lightest`.
+const THEME_ORDER: readonly ColorTheme[] = ['darkest', 'dark', 'light', 'lightest'] as const;
+
+function loadStoredChromePrefs(): StoredChromePrefs {
+    if (typeof localStorage === 'undefined') return {};
+    try {
+        const raw = localStorage.getItem(CHROME_PREFS_STORAGE_KEY);
+        return raw ? (JSON.parse(raw) as StoredChromePrefs) : {};
+    } catch {
+        return {};
+    }
+}
+
+function persistStoredChromePrefs(prefs: StoredChromePrefs): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        const current = loadStoredChromePrefs();
+        localStorage.setItem(CHROME_PREFS_STORAGE_KEY, JSON.stringify({ ...current, ...prefs }));
+    } catch {
+        // Chrome preferences should never block editing.
+    }
 }
 
 function loadStoredViewPrefs(): StoredViewPrefs {
@@ -50,6 +88,15 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
             showSelectionEdges: prefs.showSelectionEdges ?? true,
             showGuides: prefs.showGuides ?? true,
             guidesLocked: prefs.guidesLocked ?? false,
+        };
+    })(),
+    ...(() => {
+        const chrome = loadStoredChromePrefs();
+        return {
+            statusBarInfoMode: chrome.statusBarInfoMode ?? 'documentSizes',
+            pasteboardColor: chrome.pasteboardColor ?? 'default',
+            pasteboardCustomColor: chrome.pasteboardCustomColor ?? '#7b9dc5',
+            colorTheme: chrome.colorTheme ?? 'dark',
         };
     })(),
     zoom: 1,
@@ -218,4 +265,29 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
     toggleChannelVisibility: (channel) => set(state => ({
         channelVisibility: { ...state.channelVisibility, [channel]: !state.channelVisibility[channel] },
     })),
+    setStatusBarInfoMode: (mode) => {
+        persistStoredChromePrefs({ statusBarInfoMode: mode });
+        set({ statusBarInfoMode: mode });
+    },
+    setPasteboardColor: (color) => {
+        persistStoredChromePrefs({ pasteboardColor: color });
+        set({ pasteboardColor: color });
+    },
+    setPasteboardCustomColor: (hex) => {
+        persistStoredChromePrefs({ pasteboardCustomColor: hex });
+        set({ pasteboardCustomColor: hex });
+    },
+    setColorTheme: (theme) => {
+        persistStoredChromePrefs({ colorTheme: theme });
+        set({ colorTheme: theme });
+    },
+    cycleColorTheme: (direction) => {
+        const current = get().colorTheme;
+        const idx = THEME_ORDER.indexOf(current);
+        const len = THEME_ORDER.length;
+        const nextIdx = ((idx === -1 ? 0 : idx) + direction + len) % len;
+        const next = THEME_ORDER[nextIdx];
+        persistStoredChromePrefs({ colorTheme: next });
+        set({ colorTheme: next });
+    },
 });

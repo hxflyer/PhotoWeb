@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { computeMemoryEstimate, formatMemoryMB } from '../../utils/storageEstimate';
-import type { ToolId } from '../../store/types';
+import type { StatusBarInfoMode, ToolId } from '../../store/types';
 
 const TOOL_LABELS: Record<ToolId, string> = {
   move: 'Move',
@@ -47,6 +47,19 @@ const TOOL_LABELS: Record<ToolId, string> = {
   'red-eye': 'Red Eye',
 };
 
+const INFO_MODES: { id: StatusBarInfoMode; label: string }[] = [
+  { id: 'documentSizes', label: 'Document Sizes' },
+  { id: 'documentProfile', label: 'Document Profile' },
+  { id: 'documentDimensions', label: 'Document Dimensions' },
+  { id: 'currentTool', label: 'Current Tool' },
+  { id: 'layerCount', label: 'Layer Count' },
+];
+
+// Photoshop's press-and-hold popover threshold. ~150ms feels like a hold,
+// shorter feels like an accidental click.
+const HOLD_DELAY_MS = 150;
+const HOLD_CANCEL_PX = 4;
+
 export function StatusBar() {
   const zoom = useEditorStore(s => s.zoom);
   const width = useEditorStore(s => s.width);
@@ -56,8 +69,15 @@ export function StatusBar() {
   const isDirty = useEditorStore(s => s.isDirty);
   const activeTool = useEditorStore(s => s.activeTool);
   const pan = useEditorStore(s => s.pan);
+  const infoMode = useEditorStore(s => s.statusBarInfoMode);
+  const setInfoMode = useEditorStore(s => s.setStatusBarInfoMode);
 
   const cursorRef = useRef<HTMLSpanElement>(null);
+  const holdTimerRef = useRef<number | null>(null);
+  const holdAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const infoFieldRef = useRef<HTMLDivElement | null>(null);
 
   // Track cursor in canvas-space using the document canvas geometry. The
   // document is rendered with `transform: translate(pan) scale(zoom)` on a
@@ -86,17 +106,89 @@ export function StatusBar() {
     // pan/zoom are read indirectly via getBoundingClientRect on the rendered doc.
   }, [width, height, pan.x, pan.y, zoom]);
 
+  // Close the info-mode menu on Esc or outside-click.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMenuOpen(false);
+      }
+    };
+    const onDown = (e: MouseEvent) => {
+      if (!infoFieldRef.current) return;
+      if (infoFieldRef.current.contains(e.target as Node)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('mousedown', onDown, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('mousedown', onDown, true);
+    };
+  }, [menuOpen]);
+
+  function startHold(e: React.MouseEvent) {
+    if (e.button !== 0) return;
+    holdAnchorRef.current = { x: e.clientX, y: e.clientY };
+    if (holdTimerRef.current) window.clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = window.setTimeout(() => {
+      setPopoverOpen(true);
+      holdTimerRef.current = null;
+    }, HOLD_DELAY_MS);
+  }
+
+  function moveHold(e: React.MouseEvent) {
+    const anchor = holdAnchorRef.current;
+    if (!anchor) return;
+    const dx = e.clientX - anchor.x;
+    const dy = e.clientY - anchor.y;
+    if (dx * dx + dy * dy > HOLD_CANCEL_PX * HOLD_CANCEL_PX) {
+      // Drag detected: cancel the pending hold without showing popover.
+      if (holdTimerRef.current) {
+        window.clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      setPopoverOpen(false);
+      holdAnchorRef.current = null;
+    }
+  }
+
+  function endHold() {
+    if (holdTimerRef.current) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    holdAnchorRef.current = null;
+    setPopoverOpen(false);
+  }
+
   const pct = Math.round(zoom * 100);
   const visibleLayers = layers.filter(l => l.visible).length;
-  // Memory estimate accounts for layers, masks, and undo-history buffers.
   const estimate = computeMemoryEstimate(useEditorStore.getState());
   const docSizeMB = formatMemoryMB(estimate.totalBytes);
   const flatSizeMB = formatMemoryMB(width * height * 4);
-
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [infoMode, setInfoMode] = useState<'size' | 'layers'>('size');
-
   const toolLabel = TOOL_LABELS[activeTool] ?? activeTool;
+
+  let infoText: string;
+  switch (infoMode) {
+    case 'documentProfile':
+      infoText = 'sRGB IEC61966-2.1 (8bpc)';
+      break;
+    case 'documentDimensions':
+      infoText = `${width} px × ${height} px (72 ppi)`;
+      break;
+    case 'currentTool':
+      infoText = toolLabel;
+      break;
+    case 'layerCount':
+      infoText = `Layers: ${visibleLayers}/${layers.length}`;
+      break;
+    case 'documentSizes':
+    default:
+      infoText = `Doc: ${flatSizeMB}M / ${docSizeMB}M`;
+      break;
+  }
 
   return (
     <div style={{
@@ -111,44 +203,114 @@ export function StatusBar() {
       color: 'hsl(var(--text-muted))',
       userSelect: 'none',
     }}>
-      {/* Zoom */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <span style={{ color: 'hsl(var(--text-main))' }}>{pct}%</span>
       </div>
 
       <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
 
-      {/* Doc info */}
+      {/* Info field + click-and-hold popover + > arrow menu */}
       <div
-        style={{ position: 'relative', cursor: 'default' }}
-        onMouseDown={() => setDropdownOpen(o => !o)}
+        ref={infoFieldRef}
+        style={{ position: 'relative', cursor: 'default', display: 'flex', alignItems: 'center', gap: 4 }}
       >
-        <span>
-          {infoMode === 'size'
-            ? `Doc: ${flatSizeMB}M / ${docSizeMB}M`
-            : `Layers: ${visibleLayers}/${layers.length}`}
+        <span
+          data-testid="status-info-text"
+          onMouseDown={startHold}
+          onMouseMove={moveHold}
+          onMouseUp={endHold}
+          onMouseLeave={endHold}
+        >
+          {infoText}
         </span>
-        {dropdownOpen && (
-          <div style={{
-            position: 'absolute', bottom: '100%', left: 0,
-            background: 'hsl(var(--bg-header))',
-            border: '1px solid hsl(var(--border-light))',
-            padding: '4px 0',
-            zIndex: 9000,
-            minWidth: 160,
-          }}>
-            {(['size', 'layers'] as const).map(m => (
-              <div key={m}
-                onMouseDown={(e) => { e.stopPropagation(); setInfoMode(m); setDropdownOpen(false); }}
+        <span
+          data-testid="status-info-arrow"
+          aria-label="Status info mode menu"
+          role="button"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            setMenuOpen(o => !o);
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 12,
+            height: 12,
+            color: menuOpen ? 'hsl(var(--text-main))' : 'hsl(var(--text-muted))',
+            cursor: 'default',
+            fontSize: 9,
+          }}
+        >
+          ▶
+        </span>
+        {popoverOpen && (
+          <div
+            data-testid="status-info-popover"
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: 0,
+              marginBottom: 6,
+              background: 'hsl(var(--bg-header))',
+              border: '1px solid hsl(var(--border-light))',
+              boxShadow: 'var(--shadow-menu)',
+              padding: '6px 10px',
+              fontSize: 11,
+              color: 'hsl(var(--text-main))',
+              whiteSpace: 'nowrap',
+              zIndex: 9100,
+              lineHeight: 1.5,
+            }}
+          >
+            <div>Width: {width} pixels</div>
+            <div>Height: {height} pixels</div>
+            <div>Channels: 3 (RGB Color, 8bpc)</div>
+            <div>Resolution: 72 pixels/inch</div>
+          </div>
+        )}
+        {menuOpen && (
+          <div
+            data-testid="status-info-menu"
+            role="menu"
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: 0,
+              marginBottom: 4,
+              background: 'hsl(var(--bg-header))',
+              border: '1px solid hsl(var(--border-light))',
+              boxShadow: 'var(--shadow-menu)',
+              padding: '3px 0',
+              minWidth: 200,
+              zIndex: 9100,
+            }}
+          >
+            {INFO_MODES.map(m => (
+              <div
+                key={m.id}
+                role="menuitem"
+                data-testid={`status-info-mode-${m.id}`}
+                data-active={infoMode === m.id || undefined}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setInfoMode(m.id);
+                  setMenuOpen(false);
+                }}
                 style={{
-                  padding: '3px 16px',
+                  padding: '4px 20px 4px 24px',
                   fontSize: 11,
                   cursor: 'default',
-                  background: infoMode === m ? 'hsl(var(--accent-primary))' : 'transparent',
-                  color: infoMode === m ? 'white' : 'hsl(var(--text-main))',
+                  position: 'relative',
+                  color: 'hsl(var(--text-main))',
                 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--accent-primary))'; (e.currentTarget as HTMLDivElement).style.color = 'white'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = 'hsl(var(--text-main))'; }}
               >
-                {m === 'size' ? 'Document Sizes' : 'Layer Count'}
+                {infoMode === m.id && (
+                  <span style={{ position: 'absolute', left: 8, fontSize: 10 }}>✓</span>
+                )}
+                {m.label}
               </div>
             ))}
           </div>
@@ -157,26 +319,22 @@ export function StatusBar() {
 
       <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
 
-      {/* Dimensions */}
       <span>{width} × {height} px</span>
 
       <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
 
-      {/* Active tool */}
       <span data-testid="status-active-tool" style={{ color: 'hsl(var(--text-main))' }}>
         {toolLabel}
       </span>
 
       <div style={{ flex: 1 }} />
 
-      {/* Cursor coordinates */}
       <span ref={cursorRef} data-testid="status-cursor-coords" style={{ fontVariantNumeric: 'tabular-nums', minWidth: 110 }}>
         X: —  Y: —
       </span>
 
       <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
 
-      {/* Dirty-state indicator */}
       {isDirty && (
         <span data-testid="dirty-indicator" style={{ color: 'hsl(var(--accent-warning, 38 92% 60%))', fontVariantNumeric: 'tabular-nums' }}>
           ● Unsaved changes
@@ -185,7 +343,6 @@ export function StatusBar() {
 
       <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
 
-      {/* Document name */}
       <span style={{ color: 'hsl(var(--text-muted))', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {documentName}
       </span>

@@ -1,20 +1,31 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 
 interface MainLayoutProps {
   menuBar: ReactNode;
   optionsBar: ReactNode;
+  documentTab: ReactNode;
   toolbar: ReactNode;
   canvas: ReactNode;
   rightPanel: ReactNode;
   statusBar: ReactNode;
+  onPasteboardContextMenu?: (e: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
-export function MainLayout({ menuBar, optionsBar, toolbar, canvas, rightPanel, statusBar }: MainLayoutProps) {
+export function MainLayout({
+  menuBar,
+  optionsBar,
+  documentTab,
+  toolbar,
+  canvas,
+  rightPanel,
+  statusBar,
+  onPasteboardContextMenu,
+}: MainLayoutProps) {
   return (
     <div style={{
       display: 'grid',
       gridTemplateColumns: '48px 1fr 260px',
-      gridTemplateRows: '24px 30px 1fr 22px',
+      gridTemplateRows: '24px 30px 26px 1fr 22px',
       width: '100vw',
       height: '100vh',
       backgroundColor: 'hsl(var(--bg-dark))',
@@ -41,10 +52,15 @@ export function MainLayout({ menuBar, optionsBar, toolbar, canvas, rightPanel, s
         {optionsBar}
       </div>
 
-      {/* ── Row 3: Left toolbar ── */}
+      {/* ── Row 3: Document tab (full width above canvas) ── */}
+      <div style={{ gridColumn: '1 / -1', gridRow: 3, zIndex: 40 }}>
+        {documentTab}
+      </div>
+
+      {/* ── Row 4: Left toolbar ── */}
       <div style={{
         gridColumn: 1,
-        gridRow: 3,
+        gridRow: 4,
         backgroundColor: 'hsl(var(--bg-panel))',
         borderRight: '1px solid hsl(var(--border-light))',
         display: 'flex',
@@ -57,24 +73,31 @@ export function MainLayout({ menuBar, optionsBar, toolbar, canvas, rightPanel, s
         {toolbar}
       </div>
 
-      {/* ── Row 3: Canvas area ── */}
-      <div style={{
-        gridColumn: 2,
-        gridRow: 3,
-        position: 'relative',
-        overflow: 'hidden',
-        backgroundColor: 'hsl(var(--bg-canvas))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
+      {/* ── Row 4: Canvas area (pasteboard) ── */}
+      <div
+        data-testid="pasteboard"
+        onContextMenu={onPasteboardContextMenu}
+        style={{
+          gridColumn: 2,
+          gridRow: 4,
+          position: 'relative',
+          overflow: 'hidden',
+          // The CSS variable --pasteboard-bg is set by App.tsx whenever the
+          // user picks a preset or custom pasteboard color; otherwise we
+          // fall back to the theme's canvas background.
+          backgroundColor: 'var(--pasteboard-bg, hsl(var(--bg-canvas)))',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {canvas}
       </div>
 
-      {/* ── Row 3: Right panel ── */}
+      {/* ── Row 4: Right panel ── */}
       <div style={{
         gridColumn: 3,
-        gridRow: 3,
+        gridRow: 4,
         backgroundColor: 'hsl(var(--bg-panel))',
         borderLeft: '1px solid hsl(var(--border-light))',
         display: 'flex',
@@ -85,8 +108,8 @@ export function MainLayout({ menuBar, optionsBar, toolbar, canvas, rightPanel, s
         {rightPanel}
       </div>
 
-      {/* ── Row 4: Status bar (full width) ── */}
-      <div style={{ gridColumn: '1 / -1', gridRow: 4, zIndex: 20 }}>
+      {/* ── Row 5: Status bar (full width) ── */}
+      <div style={{ gridColumn: '1 / -1', gridRow: 5, zIndex: 20 }}>
         {statusBar}
       </div>
     </div>

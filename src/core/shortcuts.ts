@@ -74,6 +74,8 @@ export const SHORTCUTS: ShortcutEntry[] = [
     { group: 'View', label: 'Toggle Grid',      keys: "⌘'",   action: 'view.grid' },
     { group: 'View', label: 'Toggle Snap',      keys: '⌘⇧;', action: 'view.snap' },
     { group: 'View', label: 'Keyboard Shortcuts…', keys: '⌘/', action: 'view.shortcuts' },
+    { group: 'View', label: 'Cycle interface theme (lighter)', keys: '⇧F2', action: 'view.cycleThemeForward' },
+    { group: 'View', label: 'Cycle interface theme (darker)',  keys: '⇧F1', action: 'view.cycleThemeBackward' },
 
     // Tools
     { group: 'Tools', label: 'Move',                            keys: 'V',           action: 'tool.move' },

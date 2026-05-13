@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { MainLayout } from './components/layout/MainLayout';
+import { DocumentTab } from './components/layout/DocumentTab';
+import { PasteboardContextMenu, type PasteboardContextMenuState } from './components/layout/PasteboardContextMenu';
 import { MenuBar } from './components/layout/MenuBar';
 import { StatusBar } from './components/layout/StatusBar';
 import { ToastContainer } from './components/layout/ToastContainer';
@@ -103,6 +105,56 @@ function App() {
   const [strokePathOpen, setStrokePathOpen] = useState(false);
   const [fillPathOpen, setFillPathOpen] = useState(false);
   const [fadeDialogOpen, setFadeDialogOpen] = useState(false);
+  const [pasteboardMenu, setPasteboardMenu] = useState<PasteboardContextMenuState | null>(null);
+  const [pickingPasteboardColor, setPickingPasteboardColor] = useState(false);
+  const colorTheme = useEditorStore(s => s.colorTheme);
+  const pasteboardColor = useEditorStore(s => s.pasteboardColor);
+  const pasteboardCustomColor = useEditorStore(s => s.pasteboardCustomColor);
+
+  // Apply colorTheme as data-theme on :root so all CSS-variable-driven
+  // components re-skin without a React subscription.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.dataset.theme = colorTheme;
+  }, [colorTheme]);
+
+  // Apply pasteboardColor by setting --pasteboard-bg. `default` clears the
+  // override so the theme's --bg-canvas takes over.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const preset: Record<typeof pasteboardColor, string | null> = {
+      default: null,
+      black: 'hsl(0 0% 0%)',
+      darkGray: 'hsl(0 0% 20%)',
+      mediumGray: 'hsl(0 0% 40%)',
+      lightGray: 'hsl(0 0% 70%)',
+      custom: pasteboardCustomColor,
+    };
+    const value = preset[pasteboardColor];
+    if (value == null) {
+      root.style.removeProperty('--pasteboard-bg');
+    } else {
+      root.style.setProperty('--pasteboard-bg', value);
+    }
+  }, [pasteboardColor, pasteboardCustomColor]);
+
+  // Shift+F2 / Shift+F1 cycle the interface color theme (lighter / darker).
+  // Suppress inside editable elements so a literal F1 inside an input is
+  // never hijacked.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== 'F1' && e.key !== 'F2') return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
+      e.preventDefault();
+      useEditorStore.getState().cycleColorTheme(e.key === 'F2' ? 1 : -1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     const openPrefs = () => setPreferencesOpen(true);
@@ -678,11 +730,37 @@ function App() {
           />
         }
         optionsBar={<OptionsBar />}
+        documentTab={<DocumentTab />}
         toolbar={<Toolbar />}
         canvas={<Viewport toolsBlocked={!!freeTransform} />}
         rightPanel={<RightPanelDock />}
         statusBar={<StatusBar />}
+        onPasteboardContextMenu={(e) => {
+          e.preventDefault();
+          setPasteboardMenu({ x: e.clientX, y: e.clientY });
+        }}
       />
+      {pasteboardMenu && (
+        <PasteboardContextMenu
+          state={pasteboardMenu}
+          onClose={() => setPasteboardMenu(null)}
+          onPickCustom={() => { setPasteboardMenu(null); setPickingPasteboardColor(true); }}
+        />
+      )}
+      {pickingPasteboardColor && (
+        <ColorPickerDialog
+          isOpen={true}
+          initialColor={gs().pasteboardCustomColor}
+          title="Pasteboard Color"
+          onConfirm={(hex) => {
+            const normalized = hex.startsWith('#') ? hex : `#${hex}`;
+            gs().setPasteboardCustomColor(normalized);
+            gs().setPasteboardColor('custom');
+            setPickingPasteboardColor(false);
+          }}
+          onClose={() => setPickingPasteboardColor(false)}
+        />
+      )}
 
       {/* Hidden open-file input */}
       <input ref={openFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleOpenFile} />

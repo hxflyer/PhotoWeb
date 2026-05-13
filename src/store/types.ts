@@ -526,7 +526,23 @@ export interface ViewSlice {
     setActiveChannel: (channel: ActiveChannel) => void;
     setChannelVisibility: (channel: 'r' | 'g' | 'b', visible: boolean) => void;
     toggleChannelVisibility: (channel: 'r' | 'g' | 'b') => void;
+
+    // Chrome state: status-bar info mode, pasteboard color, interface theme.
+    // All three persist to localStorage and never flow through history.
+    statusBarInfoMode: StatusBarInfoMode;
+    setStatusBarInfoMode: (mode: StatusBarInfoMode) => void;
+    pasteboardColor: PasteboardColor;
+    pasteboardCustomColor: string;
+    setPasteboardColor: (color: PasteboardColor) => void;
+    setPasteboardCustomColor: (hex: string) => void;
+    colorTheme: ColorTheme;
+    setColorTheme: (theme: ColorTheme) => void;
+    cycleColorTheme: (direction: 1 | -1) => void;
 }
+
+export type StatusBarInfoMode = 'documentSizes' | 'documentProfile' | 'documentDimensions' | 'currentTool' | 'layerCount';
+export type PasteboardColor = 'default' | 'black' | 'darkGray' | 'mediumGray' | 'lightGray' | 'custom';
+export type ColorTheme = 'darkest' | 'dark' | 'light' | 'lightest';
 
 export interface ColorSlice {
     primaryColor: string;
