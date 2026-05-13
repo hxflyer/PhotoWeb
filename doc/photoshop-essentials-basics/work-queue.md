@@ -39,7 +39,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 19a-free-transform         (3) — Ctrl/Cmd+T scale / rotate / skew / distort / perspective  commit: ea9039a
 - [x] 19b-warp                   (1) — Warp grid, enhanced Warp 2020  commit: 5ebe985
 - [x] 20a-brush-tool             (3) — Brush Tool, cursor, eraser-via-Clear  commit: 0b103c5
-- [ ] 20b-brush-presets          (3) — Custom brushes, save/load, Brushes panel
+- [x] 20b-brush-presets          (3) — Custom brushes, save/load, Brushes panel  commit: 85dfc8c
 - [ ] 20c-paint-symmetry         (1) — Paint Symmetry (butterfly icon)
 - [ ] 21-brush-dynamics          (6) — Shape / Scatter / Texture / Dual / Color / Other
 - [ ] 22a-gradient-tool-and-editor(3) — Gradient Tool + Gradient Editor + recipes

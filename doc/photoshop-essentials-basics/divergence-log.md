@@ -210,6 +210,18 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoweb behavior:** Right-clicking with Brush or Eraser opens a compact Size / Hardness picker only.
 **Rationale:** Preset authoring and full Brushes panel workflows belong to `20b-brush-presets`; this tick keeps the canvas picker focused on the controls needed for basic painting.
 
+## 2026-05-14 — 20b-brush-presets — Get More Brushes browser handoff
+
+**Photoshop behavior:** Brushes panel menu > Get More Brushes opens Adobe's brush catalog, and downloaded `.abr` files can be installed into Photoshop by OS double-click while Photoshop is running.
+**Photoweb behavior:** The command opens Adobe's brush page in a new browser tab and shows toast feedback; photoweb does not parse `.abr` files or install OS-associated brush packs.
+**Rationale:** Creative Cloud catalog access and native file-association install flows are outside browser scope; the discoverable Photoshop command is preserved.
+
+## 2026-05-14 — 20b-brush-presets — Brush dynamics deferred
+
+**Photoshop behavior:** Saved brush presets can include the full Brush Settings engine, including angle control, roundness, scattering, texture, dual brush, color dynamics, and pen-pressure behavior.
+**Photoweb behavior:** This tick stores and restores custom tip data plus current basic Brush tool settings: size, hardness, opacity, flow, mode, smoothing, spacing, and optional color.
+**Rationale:** The full dynamics engine is already scheduled for `21-brush-dynamics`; duplicating it here would blur the cluster boundary.
+
 ## 2026-05-13 — 04a-file-open-place — Load Files into Stack omits auto-align + Smart Object options
 
 **Photoshop behavior:** File > Scripts > Load Files into Stack opens a dialog with "Attempt to Automatically Align Source Images" and "Create Smart Object after Loading Layers" checkboxes.
