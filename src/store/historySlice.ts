@@ -24,10 +24,11 @@ function cloneValue<T>(value: T): T {
 }
 
 function captureDocumentSnapshot(state: EditorStore): SerializedDocumentSnapshot {
-    return {
-        width: state.width,
-        height: state.height,
-        selection: cloneValue(state.selection),
+        return {
+            width: state.width,
+            height: state.height,
+            resolution: state.resolution,
+            selection: cloneValue(state.selection),
         quickMaskMode: state.quickMaskMode,
         selectedLayerIds: [...state.selectedLayerIds],
         layerSelectionAnchorId: state.layerSelectionAnchorId,
@@ -66,7 +67,7 @@ function captureDocumentSnapshot(state: EditorStore): SerializedDocumentSnapshot
     };
 }
 
-function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<Pick<EditorStore, 'width' | 'height' | 'selection' | 'quickMaskMode' | 'selectedLayerIds' | 'layerSelectionAnchorId' | 'layers' | 'activeLayerId'>> {
+function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<Pick<EditorStore, 'width' | 'height' | 'resolution' | 'selection' | 'quickMaskMode' | 'selectedLayerIds' | 'layerSelectionAnchorId' | 'layers' | 'activeLayerId'>> {
     const layers = snapshot.layers.map(data => {
         const layer = new Layer(data.imageData.width, data.imageData.height, data.name, data.kind) as LayerSnapshotExtras;
         layer.id = data.id;
@@ -103,9 +104,10 @@ function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<
         layer.markDirty(null);
         return layer;
     });
-    return {
+        return {
         ...(snapshot.width !== undefined ? { width: snapshot.width } : {}),
         ...(snapshot.height !== undefined ? { height: snapshot.height } : {}),
+        ...(snapshot.resolution !== undefined ? { resolution: snapshot.resolution } : {}),
         ...(snapshot.selection ? { selection: cloneValue(snapshot.selection) as EditorStore['selection'] } : {}),
         ...(snapshot.quickMaskMode !== undefined ? { quickMaskMode: snapshot.quickMaskMode } : {}),
         ...(snapshot.selectedLayerIds ? { selectedLayerIds: [...snapshot.selectedLayerIds] } : {}),

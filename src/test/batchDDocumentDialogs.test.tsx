@@ -110,13 +110,15 @@ describe('Batch D Item 1 — ImageSize resample methods', () => {
                 isOpen={true}
                 currentWidth={100}
                 currentHeight={100}
-                onConfirm={(w, h, method) => { captured = { w, h, method }; }}
+                currentResolution={72}
+                onConfirm={(w, h, _resolution, method) => { captured = { w, h, method }; }}
                 onClose={() => { /* noop */ }}
             />,
         );
         // Type a new width
         const w = container.querySelector('[data-testid="img-size-w"]') as HTMLInputElement;
         fireEvent.change(w, { target: { value: '200' } });
+        fireEvent.blur(w);
         await runScript([
             { type: 'click', target: '[data-testid="img-size-ok"]' },
         ], container);
@@ -133,7 +135,8 @@ describe('Batch D Item 1 — ImageSize resample methods', () => {
                 isOpen={true}
                 currentWidth={123}
                 currentHeight={45}
-                onConfirm={(w, h, method) => { captured = { w, h, method }; }}
+                currentResolution={72}
+                onConfirm={(w, h, _resolution, method) => { captured = { w, h, method }; }}
                 onClose={() => { /* noop */ }}
             />,
         );
@@ -150,12 +153,13 @@ describe('Batch D Item 1 — ImageSize resample methods', () => {
         expect(captured!.h).toBe(45);
     });
 
-    it('ImageSizeDialog renders all six method options', () => {
+    it('ImageSizeDialog renders Photoshop method options', () => {
         const { container } = render(
             <ImageSizeDialog
                 isOpen={true}
                 currentWidth={100}
                 currentHeight={100}
+                currentResolution={72}
                 onConfirm={() => { /* noop */ }}
                 onClose={() => { /* noop */ }}
             />,
@@ -164,11 +168,13 @@ describe('Batch D Item 1 — ImageSize resample methods', () => {
         const opts = Array.from(select.options).map(o => o.value);
         expect(opts).toEqual([
             'automatic',
+            'preserve-details',
+            'preserve-details-2',
             'bicubic-smoother',
             'bicubic-sharper',
             'bicubic',
-            'bilinear',
             'nearest',
+            'bilinear',
         ]);
     });
 });
@@ -343,6 +349,7 @@ describe('Batch D Item 3 — Shared math expression + unit helpers', () => {
                 isOpen={true}
                 currentWidth={100}
                 currentHeight={100}
+                currentResolution={72}
                 onConfirm={() => { /* noop */ }}
                 onClose={() => { /* noop */ }}
             />,

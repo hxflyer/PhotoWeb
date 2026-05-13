@@ -997,8 +997,8 @@ function App() {
         onClose={() => gs().closeAdjustmentDialog()} />
 
       <ImageSizeDialog isOpen={dialogs.isImageSizeOpen}
-        currentWidth={gs().width} currentHeight={gs().height}
-        onConfirm={(w, h, method) => gs().resizeImage(w, h, method)} onClose={() => gs().closeImageSizeDialog()} />
+        currentWidth={gs().width} currentHeight={gs().height} currentResolution={gs().resolution}
+        onConfirm={(w, h, resolution, method, resample) => gs().resizeImage(w, h, method, resolution, resample)} onClose={() => gs().closeImageSizeDialog()} />
 
       <CanvasSizeDialog isOpen={dialogs.isCanvasSizeOpen}
         currentWidth={gs().width} currentHeight={gs().height}

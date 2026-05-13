@@ -207,7 +207,7 @@ function NewDocumentDialogContent({ onClose }: { onClose: () => void }) {
 
     function handleCreate() {
         const bgColor = bgKindToColor(bgKind, customBg);
-        const created = newDocument(width, height, bgColor, name.trim());
+        const created = newDocument(width, height, bgColor, name.trim(), resolution);
         if (!created) return;
         if (nameIsAutoUntitled) consumeNextUntitledIndex();
         pushRecentPreset({

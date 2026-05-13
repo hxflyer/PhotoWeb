@@ -51,6 +51,7 @@ export interface DocumentManifest {
     name: string;
     width: number;
     height: number;
+    resolution?: number;
     activeLayerId: string | null;
     layers: LayerManifest[];
     timestamp: number;
@@ -142,6 +143,7 @@ type StoreGet = () => {
     activeLayerId: string | null;
     width: number;
     height: number;
+    resolution: number;
     documentName: string;
     savedSelections?: { name: string; ops: import('../store/types').SelectionOperation[] }[];
 };
@@ -152,6 +154,7 @@ type StoreSet = (partial: Partial<{
     layerSelectionAnchorId: string | null;
     width: number;
     height: number;
+    resolution: number;
     documentName: string;
     savedSelections: { name: string; ops: import('../store/types').SelectionOperation[] }[];
 }>) => void;
@@ -174,6 +177,7 @@ export async function saveDocument(
             name: filename,
             width: store.width,
             height: store.height,
+            resolution: store.resolution,
             activeLayerId: store.activeLayerId,
             layers: store.layers.map(layerToManifest),
             timestamp: Date.now(),
@@ -340,6 +344,9 @@ export async function loadDocument(filename: string, _get: StoreGet, set: StoreS
         set({
             width: manifest.width,
             height: manifest.height,
+            resolution: Number.isFinite(manifest.resolution) && manifest.resolution !== undefined && manifest.resolution > 0
+                ? manifest.resolution
+                : 72,
             layers,
             activeLayerId: manifest.activeLayerId,
             selectedLayerIds: manifest.activeLayerId ? [manifest.activeLayerId] : [],

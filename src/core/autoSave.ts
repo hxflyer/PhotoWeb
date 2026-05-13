@@ -11,6 +11,7 @@ type MinimalStore = {
     activeLayerId: string | null;
     width: number;
     height: number;
+    resolution: number;
     documentName: string;
     historyTick?: number;
     setHasAutosave: (has: boolean) => void;

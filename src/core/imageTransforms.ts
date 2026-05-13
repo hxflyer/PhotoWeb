@@ -5,6 +5,8 @@
 
 export type ResampleMethod =
     | 'automatic'
+    | 'preserve-details'
+    | 'preserve-details-2'
     | 'bicubic-smoother'
     | 'bicubic-sharper'
     | 'bicubic'
@@ -15,11 +17,13 @@ export type TrimBasis = 'transparent' | 'top-left' | 'bottom-right';
 
 export const RESAMPLE_METHOD_LABELS: Record<ResampleMethod, string> = {
     'automatic': 'Automatic',
+    'preserve-details': 'Preserve Details (enlargement)',
+    'preserve-details-2': 'Preserve Details 2.0',
     'bicubic-smoother': 'Bicubic Smoother (enlargement)',
     'bicubic-sharper': 'Bicubic Sharper (reduction)',
-    'bicubic': 'Bicubic',
+    'bicubic': 'Bicubic (smooth gradients)',
     'bilinear': 'Bilinear',
-    'nearest': 'Nearest Neighbor',
+    'nearest': 'Nearest Neighbor (hard edges)',
 };
 
 export function resolveAutomaticResample(
@@ -98,6 +102,7 @@ export function resampleImageData(
     if (method === 'nearest') return resampleNearest(src, newW, newH);
     if (method === 'bilinear') return resampleBilinear(src, newW, newH);
     if (method === 'bicubic') return resampleBicubic(src, newW, newH, 0);
+    if (method === 'preserve-details' || method === 'preserve-details-2') return resampleBicubic(src, newW, newH, +0.35);
     if (method === 'bicubic-smoother') return resampleBicubic(src, newW, newH, +0.35);
     return resampleBicubic(src, newW, newH, -0.35);
 }
