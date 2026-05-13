@@ -1,4 +1,5 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { useEditorStore } from '../../store/editorStore';
 
 interface MainLayoutProps {
   menuBar: ReactNode;
@@ -21,10 +22,13 @@ export function MainLayout({
   statusBar,
   onPasteboardContextMenu,
 }: MainLayoutProps) {
+  const toolbarColumns = useEditorStore(s => s.toolbarColumns);
+  // 48px = single column (one 36px button + padding). 84px = double column.
+  const toolbarWidth = toolbarColumns === 2 ? 84 : 48;
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '48px 1fr 260px',
+      gridTemplateColumns: `${toolbarWidth}px 1fr 260px`,
       gridTemplateRows: '24px 30px 26px 1fr 22px',
       width: '100vw',
       height: '100vh',

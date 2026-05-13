@@ -3,7 +3,7 @@ import {
     PaintBucket, Pentagon, Stamp, Crop, Square, Circle,
     Wand2, Pencil, Move,
     PenTool, PenLine, MousePointer, Pipette, Type, Hand, ZoomIn,
-    Hexagon, Minus, Star, Lasso, ChevronRight, Repeat2,
+    Hexagon, Minus, Star, Lasso, ChevronRight, ChevronsLeft, ChevronsRight, Repeat2,
 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { loadImage } from '../../utils/imageLoader';
@@ -131,6 +131,10 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
 const SEP_BEFORE = new Set([2, 4, 5, 6, 12, 15, 16]);
 
 const BTN = 36;
+// Press-and-hold threshold for opening a tool's flyout (Photoshop's primary
+// "show hidden tools" gesture). 300ms feels deliberate without fighting taps.
+const HOLD_DELAY_MS = 300;
+const HOLD_CANCEL_PX = 4;
 
 export function Toolbar() {
     const activeTool = useEditorStore(s => s.activeTool);
@@ -145,12 +149,21 @@ export function Toolbar() {
     const setQuickMaskMode = useEditorStore(s => s.setQuickMaskMode);
     const openColorPicker = useEditorStore(s => s.openColorPicker);
     const addLayerFromImage = useEditorStore(s => s.addLayerFromImage);
+    const toolbarColumns = useEditorStore(s => s.toolbarColumns);
+    const setToolbarColumns = useEditorStore(s => s.setToolbarColumns);
+    const groupActive = useEditorStore(s => s.toolbarGroupActive);
+    const setToolbarGroupActive = useEditorStore(s => s.setToolbarGroupActive);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [flyout, setFlyout] = useState<number | null>(null);
     const [flyoutPos, setFlyoutPos] = useState<{ left: number; top: number } | null>(null);
-    // Track last-used tool per group
-    const [groupActive, setGroupActive] = useState<Record<number, ToolId>>({});
+    // Press-and-hold state for the click-and-hold flyout gesture. We start a
+    // timer on mousedown and cancel it on mouseup or drag. If the timer
+    // fires, the flyout opens and the upcoming mouseup will NOT activate the
+    // displayed tool (we suppress the click).
+    const holdTimerRef = useRef<number | null>(null);
+    const holdAnchorRef = useRef<{ x: number; y: number } | null>(null);
+    const holdSuppressClickRef = useRef(false);
 
     const openFlyout = useCallback((gi: number, btnEl: HTMLElement) => {
         const rect = btnEl.getBoundingClientRect();
@@ -196,7 +209,54 @@ export function Toolbar() {
         return group.primary;
     };
 
+    const startHold = (gi: number, e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        // Only arm the timer for groups with hidden tools; otherwise the
+        // click-and-hold is a no-op.
+        if (!TOOL_GROUPS[gi].subs?.length) return;
+        holdAnchorRef.current = { x: e.clientX, y: e.clientY };
+        if (holdTimerRef.current) window.clearTimeout(holdTimerRef.current);
+        const btn = e.currentTarget as HTMLElement;
+        holdTimerRef.current = window.setTimeout(() => {
+            holdTimerRef.current = null;
+            holdSuppressClickRef.current = true;
+            openFlyout(gi, btn);
+        }, HOLD_DELAY_MS);
+    };
+
+    const moveHold = (e: React.MouseEvent) => {
+        const anchor = holdAnchorRef.current;
+        if (!anchor) return;
+        const dx = e.clientX - anchor.x;
+        const dy = e.clientY - anchor.y;
+        if (dx * dx + dy * dy > HOLD_CANCEL_PX * HOLD_CANCEL_PX) {
+            // Drag detected: cancel the pending hold AND suppress activation
+            // (Photoshop treats a drag-abandon as a no-op).
+            if (holdTimerRef.current) {
+                window.clearTimeout(holdTimerRef.current);
+                holdTimerRef.current = null;
+            }
+            holdSuppressClickRef.current = true;
+            holdAnchorRef.current = null;
+        }
+    };
+
+    const endHold = () => {
+        if (holdTimerRef.current) {
+            window.clearTimeout(holdTimerRef.current);
+            holdTimerRef.current = null;
+        }
+        holdAnchorRef.current = null;
+    };
+
     const handleGroupClick = (gi: number, e: React.MouseEvent) => {
+        // Hold gesture fired (or drag-aborted): swallow the click so the
+        // displayed tool doesn't activate from the same press.
+        if (holdSuppressClickRef.current) {
+            holdSuppressClickRef.current = false;
+            e.stopPropagation();
+            return;
+        }
         const display = getDisplayTool(gi);
         if (isGroupActive(gi)) {
             // Already active: open flyout to switch sub-tool
@@ -207,7 +267,7 @@ export function Toolbar() {
             }
         } else {
             selectTool(display);
-            setGroupActive(prev => ({ ...prev, [gi]: display.id }));
+            setToolbarGroupActive(gi, display.id);
             closeFlyout();
         }
     };
@@ -215,7 +275,7 @@ export function Toolbar() {
     const handleSubClick = (gi: number, tool: ToolDef, e: React.MouseEvent) => {
         e.stopPropagation();
         selectTool(tool);
-        setGroupActive(prev => ({ ...prev, [gi]: tool.id }));
+        setToolbarGroupActive(gi, tool.id);
         closeFlyout();
     };
 
@@ -240,8 +300,32 @@ export function Toolbar() {
         flexShrink: 0,
     });
 
+    const twoUp = toolbarColumns === 2;
+
     return (
         <>
+            {/* ── Single/double column toggle (Photoshop's `>>` / `<<`) ── */}
+            <button
+                aria-label={twoUp ? 'Collapse to single column' : 'Expand to double column'}
+                aria-pressed={twoUp}
+                data-testid="toolbar-column-toggle"
+                title={twoUp ? 'Collapse Toolbar' : 'Expand Toolbar'}
+                onClick={() => setToolbarColumns(twoUp ? 1 : 2)}
+                style={{
+                    width: twoUp ? 76 : BTN,
+                    height: 22,
+                    border: 'none',
+                    borderRadius: 3,
+                    background: 'transparent',
+                    color: 'hsl(var(--text-muted))',
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: 2,
+                }}
+            >
+                {twoUp ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
+            </button>
+
             {/* ── Import image ── */}
             <button
                 aria-label="Import Image as Top Layer"
@@ -255,7 +339,15 @@ export function Toolbar() {
             <div style={{ width: 28, height: 1, background: 'hsl(var(--border-mid))', marginBottom: 4 }} />
 
             {/* ── Tool groups ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flex: 1 }}
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: twoUp ? `${BTN}px ${BTN}px` : `${BTN}px`,
+                    rowGap: 1,
+                    columnGap: 1,
+                    justifyContent: 'center',
+                    flex: 1,
+                }}
                 onClick={() => setFlyout(null)}
             >
                 {TOOL_GROUPS.map((group, gi) => {
@@ -265,8 +357,19 @@ export function Toolbar() {
                     const Icon = display.icon;
 
                     return (
-                        <div key={gi} style={{ position: 'relative', width: BTN }}>
-                            {SEP_BEFORE.has(gi) && (
+                        <div
+                            key={gi}
+                            style={{
+                                position: 'relative',
+                                width: BTN,
+                            }}
+                        >
+                            {/*
+                              Group separators are rendered in single-column
+                              mode only — Photoshop's double-column toolbar
+                              omits them too (the layout packs tools tight).
+                            */}
+                            {!twoUp && SEP_BEFORE.has(gi) && (
                                 <div style={{ width: 28, height: 1, background: 'hsl(var(--border-mid))', margin: '3px auto' }} />
                             )}
 
@@ -276,6 +379,10 @@ export function Toolbar() {
                                 data-testid={`toolbar-${display.id}`}
                                 title={`${display.label}${display.shortcut ? ` (${display.shortcut})` : ''}`}
                                 style={toolBtn(active)}
+                                onMouseDown={(e) => startHold(gi, e)}
+                                onMouseMove={moveHold}
+                                onMouseUp={endHold}
+                                onMouseLeave={endHold}
                                 onClick={(e) => handleGroupClick(gi, e)}
                                 onContextMenu={(e) => {
                                     e.preventDefault();
@@ -418,6 +525,8 @@ export function Toolbar() {
                             return (
                                 <div
                                     key={t.id}
+                                    data-testid={`toolbar-flyout-${t.id}`}
+                                    role="menuitem"
                                     onClick={(e) => handleSubClick(flyout, t, e)}
                                     style={{
                                         display: 'flex', alignItems: 'center', gap: 10,

@@ -5,6 +5,8 @@ import type {
     EditorStore,
     PasteboardColor,
     StatusBarInfoMode,
+    ToolbarColumns,
+    ToolId,
     ViewSlice,
 } from './types';
 
@@ -22,6 +24,8 @@ interface StoredChromePrefs {
     pasteboardColor?: PasteboardColor;
     pasteboardCustomColor?: string;
     colorTheme?: ColorTheme;
+    toolbarColumns?: ToolbarColumns;
+    toolbarGroupActive?: Record<number, ToolId>;
 }
 
 // Photoshop's color-theme cycle: Shift+F2 forward (darker -> lighter).
@@ -97,6 +101,8 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
             pasteboardColor: chrome.pasteboardColor ?? 'default',
             pasteboardCustomColor: chrome.pasteboardCustomColor ?? '#7b9dc5',
             colorTheme: chrome.colorTheme ?? 'dark',
+            toolbarColumns: (chrome.toolbarColumns === 2 ? 2 : 1) as ToolbarColumns,
+            toolbarGroupActive: chrome.toolbarGroupActive ?? {},
         };
     })(),
     zoom: 1,
@@ -289,5 +295,14 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
         const next = THEME_ORDER[nextIdx];
         persistStoredChromePrefs({ colorTheme: next });
         set({ colorTheme: next });
+    },
+    setToolbarColumns: (cols) => {
+        persistStoredChromePrefs({ toolbarColumns: cols });
+        set({ toolbarColumns: cols });
+    },
+    setToolbarGroupActive: (groupIdx, toolId) => {
+        const next = { ...get().toolbarGroupActive, [groupIdx]: toolId };
+        persistStoredChromePrefs({ toolbarGroupActive: next });
+        set({ toolbarGroupActive: next });
     },
 });

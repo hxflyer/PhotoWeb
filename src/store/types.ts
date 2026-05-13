@@ -538,11 +538,16 @@ export interface ViewSlice {
     colorTheme: ColorTheme;
     setColorTheme: (theme: ColorTheme) => void;
     cycleColorTheme: (direction: 1 | -1) => void;
+    toolbarColumns: ToolbarColumns;
+    setToolbarColumns: (cols: ToolbarColumns) => void;
+    toolbarGroupActive: Record<number, ToolId>;
+    setToolbarGroupActive: (groupIdx: number, toolId: ToolId) => void;
 }
 
 export type StatusBarInfoMode = 'documentSizes' | 'documentProfile' | 'documentDimensions' | 'currentTool' | 'layerCount';
 export type PasteboardColor = 'default' | 'black' | 'darkGray' | 'mediumGray' | 'lightGray' | 'custom';
 export type ColorTheme = 'darkest' | 'dark' | 'light' | 'lightest';
+export type ToolbarColumns = 1 | 2;
 
 export interface ColorSlice {
     primaryColor: string;

@@ -53,3 +53,21 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoweb behavior:** Opens photoweb's own dark-themed context menu (same component family as LayersPanel right-click).
 **Rationale:** Browser constraint — native menu styling can't be themed to match the rest of the dark photoweb UI cross-OS. Using the in-app menu keeps dark/light theme correctness consistent.
 
+## 2026-05-13 — 01b-toolbar — Double-column toolbar omits group separators
+
+**Photoshop behavior:** In single-column mode the toolbar shows thin horizontal separators between tool groups; double-column drops them.
+**Photoweb behavior:** Same — separators render in single-column only; double-column packs tools tight without dividers.
+**Rationale:** Matching Photoshop's actual double-column screenshot (`interface-tools-photoshop-double-column-toolbar-a03bf319.png`), where Photoshop itself drops the separators.
+
+## 2026-05-13 — 01b-toolbar — Double-column tool pairing flows naturally instead of Photoshop's curated pairs
+
+**Photoshop behavior:** Photoshop's double-column toolbar hand-curates pairings (Move↔Artboard, Marquee↔Frame, etc.).
+**Photoweb behavior:** Tools flow two-up in `TOOL_GROUPS` order; whatever index pair results is what renders.
+**Rationale:** photoweb omits several Photoshop tools per CLAUDE.md §4 (Artboard, Frame, Rotate View, 3D variants, Slice tools, Content-Aware Move), so Photoshop's exact pairings can't be reproduced. Flow-two-up is the closest non-broken alternative.
+
+## 2026-05-13 — 01b-toolbar — Slide-and-release sub-tool selection deferred
+
+**Photoshop behavior:** Press-and-hold opens the hidden-tools flyout AND lets the user slide-cursor-to-target and release in one gesture.
+**Photoweb behavior:** Press-and-hold opens the flyout; user clicks the desired sub-tool in a separate gesture.
+**Rationale:** Slide-and-release needs document-level mouseup capture with target-detection. Convenient polish but not load-bearing for the Photoshop muscle-memory contract — the flyout still opens on the press-and-hold gesture; the second click is a small ergonomic delta. Deferred polish.
+
