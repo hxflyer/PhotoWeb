@@ -55,6 +55,9 @@ const primaryBtn: React.CSSProperties = { ...btn, background: '#0090ff', border:
 const PREVIEW_W = 300;
 const PREVIEW_H = 200;
 
+type DialogPreviewMode = 'selection' | 'image';
+type SelectionPreviewMode = 'none' | 'grayscale' | 'quick-mask' | 'on-black' | 'on-white';
+
 function compositeForPreview(): ImageData | null {
     const s = useEditorStore.getState();
     const { width, height, layers } = s;
@@ -72,18 +75,80 @@ function compositeForPreview(): ImageData | null {
     return ctx.getImageData(0, 0, width, height);
 }
 
+function drawImageDataFit(
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    image: ImageData,
+): void {
+    const tmp = document.createElement('canvas');
+    tmp.width = image.width;
+    tmp.height = image.height;
+    const tctx = tmp.getContext('2d');
+    if (!tctx) return;
+    tctx.putImageData(image, 0, 0);
+    const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
+    const dw = Math.max(1, Math.round(image.width * scale));
+    const dh = Math.max(1, Math.round(image.height * scale));
+    const dx = Math.round((canvas.width - dw) / 2);
+    const dy = Math.round((canvas.height - dh) / 2);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tmp, dx, dy, dw, dh);
+}
+
+function renderColorRangePreviewImage(
+    image: ImageData,
+    mask: ReturnType<typeof buildColorRangeMask>,
+    dialogPreviewMode: DialogPreviewMode,
+    selectionPreviewMode: SelectionPreviewMode,
+): ImageData {
+    if (dialogPreviewMode === 'image') return image;
+
+    const mode = selectionPreviewMode === 'none' ? 'grayscale' : selectionPreviewMode;
+    const out = new ImageData(image.width, image.height);
+    for (let i = 0; i < mask.data.length; i++) {
+        const src = i * 4;
+        const selected = mask.data[i] / 255;
+        const r = image.data[src];
+        const g = image.data[src + 1];
+        const b = image.data[src + 2];
+        if (mode === 'grayscale') {
+            const v = mask.data[i];
+            out.data[src] = v;
+            out.data[src + 1] = v;
+            out.data[src + 2] = v;
+            out.data[src + 3] = 255;
+        } else if (mode === 'on-black' || mode === 'on-white') {
+            const bg = mode === 'on-white' ? 255 : 0;
+            out.data[src] = Math.round(r * selected + bg * (1 - selected));
+            out.data[src + 1] = Math.round(g * selected + bg * (1 - selected));
+            out.data[src + 2] = Math.round(b * selected + bg * (1 - selected));
+            out.data[src + 3] = 255;
+        } else {
+            const overlay = 0.55 * (1 - selected);
+            out.data[src] = Math.round(r * (1 - overlay) + 255 * overlay);
+            out.data[src + 1] = Math.round(g * (1 - overlay));
+            out.data[src + 2] = Math.round(b * (1 - overlay));
+            out.data[src + 3] = 255;
+        }
+    }
+    return out;
+}
+
 export function ColorRangeDialog() {
     const isOpen = useEditorStore(s => s.dialogs.isColorRangeDialogOpen);
     const primaryColor = useEditorStore(s => s.primaryColor);
+    const colorRangePrefs = useEditorStore(s => s.selectionDialogPrefs.colorRange);
     const close = useEditorStore.getState().closeColorRangeDialog;
     const [mode, setMode] = useState<ColorRangeMode>('replace');
     const [color, setColor] = useState(primaryColor);
-    const [fuzziness, setFuzziness] = useState(40);
+    const [fuzziness, setFuzziness] = useState(colorRangePrefs.fuzziness);
     const [samples, setSamples] = useState<ColorRangeSample[]>([{ color: primaryColor, mode: 'add' }]);
-    const [invert, setInvert] = useState(false);
-    const [preset, setPreset] = useState<ColorRangePresetId>('sampled');
-    const [localized, setLocalized] = useState(false);
-    const [rangePx, setRangePx] = useState(100);
+    const [invert, setInvert] = useState(colorRangePrefs.invert);
+    const [preset, setPreset] = useState<ColorRangePresetId>(colorRangePrefs.select);
+    const [localized, setLocalized] = useState(colorRangePrefs.localized);
+    const [rangePx, setRangePx] = useState(colorRangePrefs.range);
+    const [dialogPreviewMode, setDialogPreviewMode] = useState<DialogPreviewMode>('selection');
+    const [selectionPreviewMode, setSelectionPreviewMode] = useState<SelectionPreviewMode>('none');
     const dialogRef = useDialogA11y(isOpen, close);
     const previewRef = useRef<HTMLCanvasElement>(null);
 
@@ -91,14 +156,16 @@ export function ColorRangeDialog() {
         if (isOpen) {
             setMode('replace');
             setColor(primaryColor);
-            setFuzziness(40);
+            setFuzziness(colorRangePrefs.fuzziness);
             setSamples([{ color: primaryColor, mode: 'add' }]);
-            setInvert(false);
-            setPreset('sampled');
-            setLocalized(false);
-            setRangePx(100);
+            setInvert(colorRangePrefs.invert);
+            setPreset(colorRangePrefs.select);
+            setLocalized(colorRangePrefs.localized);
+            setRangePx(colorRangePrefs.range);
+            setDialogPreviewMode('selection');
+            setSelectionPreviewMode('none');
         }
-    }, [isOpen, primaryColor]);
+    }, [isOpen, primaryColor, colorRangePrefs]);
 
     // On-canvas eyedropper sampling. While the dialog is open, clicking on the
     // document canvas samples the composite pixel and appends a sample.
@@ -163,28 +230,9 @@ export function ColorRangeDialog() {
             preset,
             range: localized ? rangePx : undefined,
         });
-        const maskImage = ctx.createImageData(image.width, image.height);
-        for (let i = 0; i < mask.data.length; i++) {
-            const v = mask.data[i];
-            maskImage.data[i * 4] = v;
-            maskImage.data[i * 4 + 1] = v;
-            maskImage.data[i * 4 + 2] = v;
-            maskImage.data[i * 4 + 3] = 255;
-        }
-        const tmp = document.createElement('canvas');
-        tmp.width = image.width; tmp.height = image.height;
-        const tctx = tmp.getContext('2d');
-        if (!tctx) return;
-        tctx.putImageData(maskImage, 0, 0);
-        // Fit-to-preview while preserving aspect.
-        const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
-        const dw = Math.max(1, Math.round(image.width * scale));
-        const dh = Math.max(1, Math.round(image.height * scale));
-        const dx = Math.round((canvas.width - dw) / 2);
-        const dy = Math.round((canvas.height - dh) / 2);
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(tmp, dx, dy, dw, dh);
-    }, [isOpen, samples, fuzziness, invert, preset, localized, rangePx]);
+        const previewImage = renderColorRangePreviewImage(image, mask, dialogPreviewMode, selectionPreviewMode);
+        drawImageDataFit(ctx, canvas, previewImage);
+    }, [isOpen, samples, fuzziness, invert, preset, localized, rangePx, dialogPreviewMode, selectionPreviewMode]);
 
     if (!isOpen) return null;
 
@@ -220,6 +268,13 @@ export function ColorRangeDialog() {
     }
 
     function apply() {
+        useEditorStore.getState().setSelectionDialogPref('colorRange', {
+            select: preset,
+            fuzziness,
+            localized,
+            range: rangePx,
+            invert,
+        });
         applyColorRangeSelectionWithMode(useEditorStore.getState(), {
             samples,
             fuzziness,
@@ -388,6 +443,43 @@ export function ColorRangeDialog() {
                             data-testid="color-range-preview"
                             style={{ background: '#000', border: '1px solid #444', borderRadius: 3, width: PREVIEW_W, height: PREVIEW_H }}
                         />
+                        <div style={{ display: 'flex', gap: 10, fontSize: 12 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="color-range-dialog-preview"
+                                    checked={dialogPreviewMode === 'selection'}
+                                    onChange={() => setDialogPreviewMode('selection')}
+                                    data-testid="color-range-dialog-preview-selection"
+                                />
+                                Selection
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="color-range-dialog-preview"
+                                    checked={dialogPreviewMode === 'image'}
+                                    onChange={() => setDialogPreviewMode('image')}
+                                    data-testid="color-range-dialog-preview-image"
+                                />
+                                Image
+                            </label>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                            <span style={{ opacity: 0.75 }}>Selection Preview</span>
+                            <select
+                                value={selectionPreviewMode}
+                                onChange={e => setSelectionPreviewMode(e.target.value as SelectionPreviewMode)}
+                                data-testid="color-range-preview-mode"
+                                style={{ ...input, width: 120 }}
+                            >
+                                <option value="none" style={{ background: '#333' }}>None</option>
+                                <option value="grayscale" style={{ background: '#333' }}>Grayscale</option>
+                                <option value="on-black" style={{ background: '#333' }}>On Black</option>
+                                <option value="on-white" style={{ background: '#333' }}>On White</option>
+                                <option value="quick-mask" style={{ background: '#333' }}>Quick Mask</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 

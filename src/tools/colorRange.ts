@@ -48,10 +48,18 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 function matchesSample(r: number, g: number, b: number, sample: [number, number, number], fuzziness: number): boolean {
+    return sampleStrength(r, g, b, sample, fuzziness) > 0;
+}
+
+function sampleStrength(r: number, g: number, b: number, sample: [number, number, number], fuzziness: number): number {
     const dr = r - sample[0];
     const dg = g - sample[1];
     const db = b - sample[2];
-    return Math.sqrt(dr * dr + dg * dg + db * db) <= Math.max(0, fuzziness);
+    const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+    const range = Math.max(0, fuzziness);
+    if (range === 0) return distance === 0 ? 255 : 0;
+    if (distance > range) return 0;
+    return Math.max(1, Math.round(255 * (1 - distance / range)));
 }
 
 function compositeVisibleLayers(layers: Layer[], width: number, height: number): ImageData {
@@ -110,21 +118,21 @@ export function buildColorRangeMask(
         const b = image.data[pixel + 2];
         const px = i % width;
         const py = (i / width) | 0;
-        let matched = false;
+        let value = 0;
         for (let sIdx = 0; sIdx < addRgb.length; sIdx++) {
-            if (!matchesSample(r, g, b, addRgb[sIdx], options.fuzziness)) continue;
+            const strength = sampleStrength(r, g, b, addRgb[sIdx], options.fuzziness);
+            if (strength === 0) continue;
             const anchor = addAnchors[sIdx];
             if (range !== undefined && anchor) {
                 const dx = px - anchor.x;
                 const dy = py - anchor.y;
                 if (dx * dx + dy * dy > rangeSquared) continue;
             }
-            matched = true;
-            break;
+            value = Math.max(value, strength);
         }
-        if (!matched) continue;
+        if (value === 0) continue;
         const inSub = subRgb.some(sample => matchesSample(r, g, b, sample, options.fuzziness));
-        data[i] = inSub ? 0 : 255;
+        data[i] = inSub ? 0 : value;
     }
     if (options.invert) {
         for (let i = 0; i < data.length; i++) {

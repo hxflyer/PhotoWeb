@@ -31,7 +31,10 @@ describe('Color Range selection', () => {
         expect([...tight.data]).toEqual([255, 0, 0]);
 
         const fuzzy = buildColorRangeMask(image, { samples: [{ color: '#ff0000', mode: 'add' }], fuzziness: 10 });
-        expect([...fuzzy.data]).toEqual([255, 255, 0]);
+        expect(fuzzy.data[0]).toBe(255);
+        expect(fuzzy.data[1]).toBeGreaterThan(0);
+        expect(fuzzy.data[1]).toBeLessThan(255);
+        expect(fuzzy.data[2]).toBe(0);
     });
 
     it('applies color range as an undoable selection operation', () => {
