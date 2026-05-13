@@ -310,6 +310,8 @@ export function applyMeshWarp(
     controlPoints: WarpControlPoint[],
     outW: number,
     outH: number,
+    gridColumns = 4,
+    gridRows = 4,
 ): HTMLCanvasElement {
     const out = document.createElement('canvas');
     out.width = outW;
@@ -320,7 +322,10 @@ export function applyMeshWarp(
     const srcData = srcCtx.getImageData(0, 0, src.width, src.height);
     const outData = outCtx.createImageData(outW, outH);
 
-    const GRID = 3; // 4×4 control points = 3×3 cells
+    const cols = Math.max(2, Math.floor(gridColumns));
+    const rows = Math.max(2, Math.floor(gridRows));
+    const gridX = cols - 1;
+    const gridY = rows - 1;
 
     for (let oy = 0; oy < outH; oy++) {
         for (let ox = 0; ox < outW; ox++) {
@@ -329,18 +334,18 @@ export function applyMeshWarp(
             const v = oy / (outH - 1 || 1);
 
             // Which cell does this fall in?
-            const cellU = Math.min(Math.floor(u * GRID), GRID - 1);
-            const cellV = Math.min(Math.floor(v * GRID), GRID - 1);
+            const cellU = Math.min(Math.floor(u * gridX), gridX - 1);
+            const cellV = Math.min(Math.floor(v * gridY), gridY - 1);
 
             // Local [0,1] within cell
-            const lu = (u * GRID) - cellU;
-            const lv = (v * GRID) - cellV;
+            const lu = (u * gridX) - cellU;
+            const lv = (v * gridY) - cellV;
 
             // Four corners of this cell in control point grid
-            const i00 = cellV * 4 + cellU;
-            const i10 = cellV * 4 + cellU + 1;
-            const i01 = (cellV + 1) * 4 + cellU;
-            const i11 = (cellV + 1) * 4 + cellU + 1;
+            const i00 = cellV * cols + cellU;
+            const i10 = cellV * cols + cellU + 1;
+            const i01 = (cellV + 1) * cols + cellU;
+            const i11 = (cellV + 1) * cols + cellU + 1;
 
             const p00 = controlPoints[i00];
             const p10 = controlPoints[i10];
@@ -387,21 +392,25 @@ export function warpPresetControlPoints(
     preset: WarpPreset,
     w: number,
     h: number,
+    gridColumns = 4,
+    gridRows = 4,
 ): WarpControlPoint[] {
     const pts: WarpControlPoint[] = [];
-    for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 4; col++) {
-            pts.push({ x: (col / 3) * w, y: (row / 3) * h });
+    const cols = Math.max(2, Math.floor(gridColumns));
+    const rows = Math.max(2, Math.floor(gridRows));
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            pts.push({ x: (col / (cols - 1)) * w, y: (row / (rows - 1)) * h });
         }
     }
     if (preset === 'none') return pts;
 
     const bend = 0.25 * h;
-    for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 4; col++) {
-            const u = col / 3;
-            const v = row / 3;
-            const idx = row * 4 + col;
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            const u = col / (cols - 1);
+            const v = row / (rows - 1);
+            const idx = row * cols + col;
             const p = pts[idx];
             switch (preset) {
                 case 'arc':
@@ -458,11 +467,11 @@ export function warpPresetControlPoints(
     }
     // fix unused squeeze:
     if (preset === 'squeeze') {
-        for (let row = 0; row < 4; row++) {
-            for (let col = 0; col < 4; col++) {
-                const u = col / 3;
-                const v = row / 3;
-                const idx = row * 4 + col;
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                const u = col / (cols - 1);
+                const v = row / (rows - 1);
+                const idx = row * cols + col;
                 pts[idx].x = u * w + (w * 0.1) * Math.sin(v * Math.PI) * (u < 0.5 ? 1 : -1);
                 pts[idx].y = v * h;
             }

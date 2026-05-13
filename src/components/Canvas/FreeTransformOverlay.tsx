@@ -44,6 +44,7 @@ interface Props {
     panY: number;
     onCommit: () => void;
     onCancel: () => void;
+    onSwitchToWarp?: () => void;
 }
 
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'move' | 'rotate';
@@ -57,7 +58,7 @@ type CornerDeltas = { nw: { dx: number; dy: number }; ne: { dx: number; dy: numb
 const ZERO_CORNERS: CornerDeltas = { nw: { dx: 0, dy: 0 }, ne: { dx: 0, dy: 0 }, se: { dx: 0, dy: 0 }, sw: { dx: 0, dy: 0 } };
 type DragMode = 'scale' | 'distort' | 'skew' | 'perspective' | 'rotate' | 'move';
 
-export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCancel }: Props) {
+export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCancel, onSwitchToWarp }: Props) {
     const [tx, setTx] = useState(state.x);
     const [ty, setTy] = useState(state.y);
     const [tw, setTw] = useState(state.width);
@@ -614,7 +615,7 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
             )}
 
             {/* Options bar: W/H/X/Y/Rotation */}
-            <foreignObject x={0} y={0} width={400} height={36} style={{ pointerEvents: 'all' }}>
+            <foreignObject x={0} y={0} width={470} height={36} style={{ pointerEvents: 'all' }}>
                 <div style={{ display: 'flex', gap: '8px', padding: '4px 8px', background: 'rgba(0,0,0,0.7)', borderRadius: '4px', fontSize: '11px', color: 'white' }}>
                     {([['X', tx, setTx], ['Y', ty, setTy], ['W', tw, setTw], ['H', th, setTh], ['°', rot, setRot]] as [string, number, React.Dispatch<React.SetStateAction<number>>][]).map(([label, val, setter]) => (
                         <label key={label} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -623,6 +624,9 @@ export function FreeTransformOverlay({ state, zoom, panX, panY, onCommit, onCanc
                                 style={{ width: '48px', padding: '2px 4px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '3px', color: 'white', fontSize: '11px' }} />
                         </label>
                     ))}
+                    {onSwitchToWarp && (
+                        <button onClick={onSwitchToWarp} title="Switch between Free Transform and Warp modes" data-testid="free-transform-warp" style={{ padding: '2px 8px', background: 'rgba(255,255,255,0.14)', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '11px' }}>Warp</button>
+                    )}
                     <button onClick={onCommit} title="Commit transform" style={{ padding: '2px 8px', background: '#0090ff', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center' }}><Check size={13} /></button>
                     <button onClick={onCancel} title="Cancel transform" style={{ padding: '2px 8px', background: 'rgba(255,80,80,0.8)', border: 'none', borderRadius: '3px', color: 'white', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center' }}><XIcon size={13} /></button>
                 </div>

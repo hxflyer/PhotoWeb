@@ -11,7 +11,7 @@ import { OptionsBar } from './components/Panels/OptionsBar';
 import { RightPanelDock } from './components/Panels/RightPanelDock';
 import { Viewport } from './components/Canvas/Viewport';
 import { FreeTransformOverlay, type FreeTransformState } from './components/Canvas/FreeTransformOverlay';
-import { WarpOverlay } from './components/Canvas/WarpOverlay';
+import { WarpOverlay, type WarpState } from './components/Canvas/WarpOverlay';
 import { useEditorStore } from './store/editorStore';
 import { InputNumberDialog } from './components/Dialogs/InputNumberDialog';
 import { FilterDialog } from './components/Dialogs/FilterDialog';
@@ -144,7 +144,7 @@ function App() {
   const gs = useEditorStore.getState;
 
   const [freeTransform, setFreeTransform] = useState<FreeTransformState | null>(null);
-  const [warpState, setWarpState] = useState<{ layerId: string; snapshot: ImageData } | null>(null);
+  const [warpState, setWarpState] = useState<WarpState | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveDialogName, setSaveDialogName] = useState('Untitled');
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
@@ -405,6 +405,18 @@ function App() {
     });
   }
 
+  function startWarp(layerId?: string) {
+    const s = useEditorStore.getState();
+    const layer = s.layers.find(l => l.id === (layerId ?? s.activeLayerId));
+    if (!layer) return;
+    if (layer.lockPosition || layer.locks.all) return;
+    const bounds = getLayerContentBounds(layer.canvas);
+    if (!bounds) return;
+    const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+    const source = layer.ctx.getImageData(bounds.x, bounds.y, bounds.w, bounds.h);
+    setWarpState({ layerId: layer.id, snapshot, source, sourceX: bounds.x, sourceY: bounds.y });
+  }
+
   // Global keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -419,7 +431,7 @@ function App() {
         return;
       }
 
-      if (freeTransform) return;
+      if (freeTransform || warpState) return;
 
       const meta = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
@@ -453,12 +465,7 @@ function App() {
       }
       if (meta && key === 't' && e.shiftKey) {
         e.preventDefault();
-        const s = useEditorStore.getState();
-        const layer = s.layers.find(l => l.id === s.activeLayerId);
-        if (!layer) return;
-        if (layer.lockPosition || layer.locks.all) return;
-        const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
-        setWarpState({ layerId: layer.id, snapshot });
+        startWarp();
         return;
       }
 
@@ -768,7 +775,7 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [freeTransform]); // stable: store values read via gs(); transform mode blocks tool shortcuts
+  }, [freeTransform, warpState]); // stable: store values read via gs(); transform modes block global shortcuts
 
   // Photoshop temporary navigation:
   //   Space        → temp Hand Tool
@@ -867,14 +874,6 @@ function App() {
     window.addEventListener(START_FREE_TRANSFORM_EVENT, onStart);
     return () => window.removeEventListener(START_FREE_TRANSFORM_EVENT, onStart);
   }, []);
-
-  function startWarp() {
-    const s = useEditorStore.getState();
-    const layer = s.layers.find(l => l.id === s.activeLayerId);
-    if (!layer) return;
-    const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
-    setWarpState({ layerId: layer.id, snapshot });
-  }
 
   async function handleOpenFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -1247,6 +1246,11 @@ function App() {
 
       {freeTransform && (
         <FreeTransformOverlay state={freeTransform} zoom={zoom} panX={pan.x} panY={pan.y}
+          onSwitchToWarp={() => {
+            const layerId = freeTransform.layerId;
+            setFreeTransform(null);
+            startWarp(layerId);
+          }}
           onCommit={() => {
             // Commit transforms via history so the live-preview mutation is undoable.
             const s = gs();
@@ -1316,8 +1320,36 @@ function App() {
       )}
 
       {warpState && (
-        <WarpOverlay layerId={warpState.layerId} snapshot={warpState.snapshot} zoom={zoom} panX={pan.x} panY={pan.y}
-          onCommit={() => setWarpState(null)}
+        <WarpOverlay state={warpState} zoom={zoom} panX={pan.x} panY={pan.y}
+          onCommit={() => {
+            const s = gs();
+            const layer = s.layers.find(l => l.id === warpState.layerId);
+            if (layer) {
+              const before = cloneImageData(warpState.snapshot);
+              const after = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+              s.commitHistory({
+                kind: 'transform',
+                label: 'Warp',
+                layerId: layer.id,
+                timestamp: Date.now(),
+                apply: () => {
+                  const l = gs().layers.find(x => x.id === warpState.layerId);
+                  if (!l) return;
+                  l.ctx.putImageData(after, 0, 0);
+                  l.markDirty(null);
+                  useEditorStore.setState(st => ({ layers: [...st.layers] }));
+                },
+                revert: () => {
+                  const l = gs().layers.find(x => x.id === warpState.layerId);
+                  if (!l) return;
+                  l.ctx.putImageData(before, 0, 0);
+                  l.markDirty(null);
+                  useEditorStore.setState(st => ({ layers: [...st.layers] }));
+                },
+              });
+            }
+            setWarpState(null);
+          }}
           onCancel={() => {
             const s = gs();
             const layer = s.layers.find(l => l.id === warpState.layerId);
