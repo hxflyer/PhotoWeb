@@ -222,6 +222,18 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoweb behavior:** This tick stores and restores custom tip data plus current basic Brush tool settings: size, hardness, opacity, flow, mode, smoothing, spacing, and optional color.
 **Rationale:** The full dynamics engine is already scheduled for `21-brush-dynamics`; duplicating it here would blur the cluster boundary.
 
+## 2026-05-14 — 20c-paint-symmetry — Fixed visual symmetry path
+
+**Photoshop behavior:** After choosing a symmetry mode, Photoshop places a transform box around the blue symmetry path so the user can move or scale the path before accepting it.
+**Photoweb behavior:** The blue path appears pending and must be accepted with Enter or `OK`, but it is fixed to the canvas and has no transform handles.
+**Rationale:** The lesson notes the path is only visual and symmetry affects the entire canvas regardless of path size; preserving commit-gated mirrored painting is the load-bearing behavior.
+
+## 2026-05-14 — 20c-paint-symmetry — Single active symmetry path
+
+**Photoshop behavior:** Multiple symmetry paths can appear in the Paths panel, and users can right-click a path and choose `Make Symmetry Path`.
+**Photoweb behavior:** One active symmetry path is stored in tool state; Paths-panel path switching is not implemented.
+**Rationale:** The browser editor only needs one active path for the painting workflow in this cluster; full path management can be added with a later Paths-panel pass.
+
 ## 2026-05-13 — 04a-file-open-place — Load Files into Stack omits auto-align + Smart Object options
 
 **Photoshop behavior:** File > Scripts > Load Files into Stack opens a dialog with "Attempt to Automatically Align Source Images" and "Create Smart Object after Loading Layers" checkboxes.
