@@ -37,6 +37,7 @@ interface StoredChromePrefs {
     panelGroupCollapsed?: PanelGroupCollapsed;
     screenMode?: ScreenMode;
     neutralColorMode?: boolean;
+    useShiftForToolSwitch?: boolean;
 }
 
 // Photoshop's color-theme cycle: Shift+F2 forward (darker -> lighter).
@@ -119,6 +120,7 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
             chromeHidden: 'none' as ChromeHidden,
             screenMode: chrome.screenMode ?? 'standard',
             neutralColorMode: chrome.neutralColorMode ?? false,
+            useShiftForToolSwitch: chrome.useShiftForToolSwitch ?? true,
         };
     })(),
     zoom: 1,
@@ -351,5 +353,9 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
     setNeutralColorMode: (on) => {
         persistStoredChromePrefs({ neutralColorMode: on });
         set({ neutralColorMode: on });
+    },
+    setUseShiftForToolSwitch: (on) => {
+        persistStoredChromePrefs({ useShiftForToolSwitch: on });
+        set({ useShiftForToolSwitch: on });
     },
 });

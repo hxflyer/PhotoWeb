@@ -225,6 +225,8 @@ describe('01a — Color theme', () => {
     it('clicking a thumbnail in PreferencesDialog applies the theme immediately', () => {
         useEditorStore.getState().setColorTheme('dark');
         const { getByTestId } = render(<PreferencesDialog isOpen onClose={() => { /* noop */ }} />);
+        // Preferences now opens on General; switch to Interface to expose the thumbs.
+        fireEvent.click(getByTestId('preferences-category-interface'));
         fireEvent.click(getByTestId('color-theme-thumb-lightest'));
         expect(useEditorStore.getState().colorTheme).toBe('lightest');
         expect(getByTestId('color-theme-thumb-lightest').dataset.active).toBe('true');

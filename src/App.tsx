@@ -514,9 +514,22 @@ function App() {
           e.preventDefault();
           const current = gs().activeTool;
           const idx = group.indexOf(current as TID);
-          const next = e.shiftKey
-              ? group[(idx + 1) % group.length]
-              : (idx >= 0 ? group[idx] : group[0]);
+          // Preferences > Tools > Use Shift Key for Tool Switch:
+          //   true  (Photoshop default): plain letter activates / re-selects;
+          //                              Shift+letter cycles.
+          //   false: plain letter cycles when the active tool is already in
+          //          the group; otherwise activates the first.
+          const requiresShift = gs().useShiftForToolSwitch;
+          let next: TID;
+          if (requiresShift) {
+            next = e.shiftKey
+                ? group[(idx + 1) % group.length]
+                : (idx >= 0 ? group[idx] : group[0]);
+          } else {
+            next = idx >= 0
+                ? group[(idx + 1) % group.length]
+                : group[0];
+          }
           gs().setTool(next as import('./store/types').ToolId);
           return;
         }

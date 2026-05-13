@@ -131,3 +131,27 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Neutral Color Mode primarily removes the blue color from the Share button in the upper right.
 **Photoweb behavior:** photoweb has no Share button (CLAUDE.md §4 excludes Creative Cloud), so the toggle instead neutralises the same `--accent-primary` / `--accent-highlight` tokens that drive active tool buttons, active panel tabs, and dialog commit buttons. Color-related surfaces (Color Picker, Gradient Editor, Swatches) don't use these tokens and remain unaffected — matching Photoshop's carve-out.
 **Rationale:** Same UI, same label, different blue surfaces affected — adapted to the photoweb chrome inventory.
+
+## 2026-05-13 — 02-preferences — Five categories shipped, not all twelve
+
+**Photoshop behavior:** Preferences sidebar lists General / Interface / Tools / File Handling / Performance / Scratch Disks / Cursors / Transparency & Gamut / Units & Rulers / Plug-ins / Type / 3D.
+**Photoweb behavior:** Five categories: General / Interface / Tools / File Handling / Performance.
+**Rationale:** photoweb has no settings under the missing seven (browser-managed memory/scratch, no 3D, no plug-ins, etc.). Per-feature clusters will add new categories as their settings land.
+
+## 2026-05-13 — 02-preferences — No Memory Usage, Scratch Disks, Export Clipboard
+
+**Photoshop behavior:** Performance > Memory Usage slider; Performance > Scratch Disks list; General > Export Clipboard.
+**Photoweb behavior:** Performance shows only History max size; the rest are absent with a one-line note "Memory usage and scratch disks are managed by the browser."
+**Rationale:** Browser environment manages memory and disk; no user-controllable equivalent. Permanent.
+
+## 2026-05-13 — 02-preferences — UI Font Size is a slider, not a discrete dropdown
+
+**Photoshop behavior:** UI Font Size is a Tiny / Small / Medium / Large dropdown.
+**Photoweb behavior:** Continuous slider from 80% to 140%.
+**Rationale:** Slider was already shipped in 01a; migrating to discrete options would lose precision. Slider behaviour is otherwise functionally equivalent.
+
+## 2026-05-13 — 02-preferences — Show Tool Tips toggle and Highlight Color deferred
+
+**Photoshop behavior:** Tools > Show Tool Tips toggle controls whether hover tooltips appear; Interface > Highlight Color picks Default Gray vs Blue for the selected layer in the Layers panel.
+**Photoweb behavior:** Neither is implemented this tick.
+**Rationale:** Show Tool Tips requires app-wide gating of HTML `title` attrs (browsers render them natively, can't be CSS-suppressed); deep refactor deferred. Highlight Color is a small Layers-panel CSS change deferred to the layers-panel cluster.

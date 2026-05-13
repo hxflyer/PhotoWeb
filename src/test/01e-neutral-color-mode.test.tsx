@@ -51,6 +51,8 @@ describe('01e — Preferences > Interface > Neutral Color Mode checkbox', () => 
     it('reflects current state and toggles the store on click', () => {
         useEditorStore.getState().setNeutralColorMode(false);
         const { getByTestId } = render(<PreferencesDialog isOpen onClose={() => { /* noop */ }} />);
+        // Preferences now opens on General; switch to Interface to expose the checkbox.
+        fireEvent.click(getByTestId('preferences-category-interface'));
         const checkbox = getByTestId('pref-neutral-color-mode') as HTMLInputElement;
         expect(checkbox.checked).toBe(false);
         fireEvent.click(checkbox);

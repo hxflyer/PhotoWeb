@@ -555,6 +555,8 @@ export interface ViewSlice {
     cycleScreenMode: (direction: 1 | -1) => void;
     neutralColorMode: boolean;
     setNeutralColorMode: (on: boolean) => void;
+    useShiftForToolSwitch: boolean;
+    setUseShiftForToolSwitch: (on: boolean) => void;
 }
 
 export type PanelGroupId = 'top' | 'middle' | 'bottom';
