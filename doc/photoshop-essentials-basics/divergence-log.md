@@ -299,3 +299,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Ruler Options Bar includes measurement readouts, measurement scale controls, Straighten Layer, and Clear.
 **Photoweb behavior:** Ruler Tool supports drawing/editing the line plus Straighten Layer and Clear; `Use Measurement Scale` is visible but inactive.
 **Rationale:** Measurement logging/calibration is outside the photo-straightening goal. The lesson's core workflow is preserved: draw/correct a ruler line and straighten the active layer.
+
+## 2026-05-13 — 06-crop — Perspective Crop omits projective unwarp
+
+**Photoshop behavior:** Perspective Crop Tool maps the adjusted quadrilateral into a corrected rectangular result.
+**Photoweb behavior:** Perspective Crop Tool is available behind Crop and commits the crop/grid rectangle, but does not projectively warp pixels.
+**Rationale:** A robust projective resampler is a distinct transform engine. This tick preserves the tool entry point, shortcut, grid, handles, and commit habit while keeping the heavier warp math deferred.
+
+## 2026-05-13 — 06-crop — Classic Mode is surfaced but not a separate movement model
+
+**Photoshop behavior:** Classic Mode changes Crop Tool dragging so the crop border moves instead of the image moving under a fixed border.
+**Photoweb behavior:** Classic Mode is toggleable in the Options Bar and via `P`; crop-border movement stays on photoweb's existing crop rectangle model.
+**Rationale:** The existing browser crop surface already moves the crop border. Implementing the alternate image-under-border choreography would overlap with future viewport/crop interaction polish.
