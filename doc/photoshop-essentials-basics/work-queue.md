@@ -8,7 +8,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 01b-toolbar                (1) — Toolbar UI: column, flyout, default-tool, keyboard cycle  commit: 317d4ea
 - [x] 01c-panels                 (2) — Panel groups, Window menu, panel menu icon  commit: f34f63a
 - [x] 01d-screen-modes           (2) — F / Shift+F cycle, Tab hide panels  commit: 6da14c0
-- [ ] 01e-neutral-color-mode     (1) — Preferences toggle to flatten cosmetic UI gradients
+- [x] 01e-neutral-color-mode     (1) — Preferences toggle to flatten cosmetic UI gradients  commit: aa8a239
 - [ ] 02-preferences             (4) — Preferences dialog & background auto-save
 - [ ] 03-navigation              (5) — Zoom, Hand, fit/100%, scrubby zoom, shortcuts
 - [ ] 04a-file-open-place        (5) — File > Open, drag-drop, Place Embedded, Load Files
