@@ -365,6 +365,46 @@ function App() {
     s.addToast('PNG exported', 'success');
   }
 
+  function startFreeTransform(layerId?: string) {
+    const s = useEditorStore.getState();
+    const layer = s.layers.find(l => l.id === (layerId ?? s.activeLayerId));
+    if (!layer) return;
+    if (layer.lockPosition || layer.locks.all) return;
+    const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+    const typeData = layer.kind === 'type' ? layer.typeData as TypeLayerData | null : null;
+    const shapeData = layer.kind === 'shape' && layer.shapeData
+      ? cloneShapeData(layer.shapeData as ShapeData)
+      : null;
+    const bounds = typeData?.bounds
+      ? { x: typeData.bounds.x, y: typeData.bounds.y, w: typeData.bounds.w, h: typeData.bounds.h }
+      : typeData
+        ? {
+          x: typeData.transform.x,
+          y: typeData.transform.y,
+          w: Math.max(1, typeData.transform.width || typeData.style.fontSize * Math.max(1, typeData.text.length || 1) * 0.6),
+          h: Math.max(1, typeData.transform.height || typeData.style.fontSize * 1.2),
+        }
+      : getLayerContentBounds(layer.canvas);
+    if (!bounds) return;
+    const source = layer.ctx.getImageData(bounds.x, bounds.y, bounds.w, bounds.h);
+    setFreeTransform({
+      layerId: layer.id,
+      snapshot,
+      source,
+      sourceX: bounds.x,
+      sourceY: bounds.y,
+      typeDataSnapshot: typeData ? structuredClone(typeData) : undefined,
+      shapeDataSnapshot: shapeData ?? undefined,
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.w,
+      height: bounds.h,
+      rotation: 0,
+      skewX: 0,
+      skewY: 0,
+    });
+  }
+
   // Global keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -408,12 +448,7 @@ function App() {
 
       if (meta && key === 't' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
-        const s = useEditorStore.getState();
-        const layer = s.layers.find(l => l.id === s.activeLayerId);
-        if (!layer) return;
-        if (layer.lockPosition || layer.locks.all) return;
-        const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
-        setFreeTransform({ layerId: layer.id, snapshot, x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height, rotation: 0, skewX: 0, skewY: 0 });
+        startFreeTransform();
         return;
       }
       if (meta && key === 't' && e.shiftKey) {
@@ -824,45 +859,6 @@ function App() {
     };
   }, []);
 
-  function startFreeTransform(layerId?: string) {
-    const s = useEditorStore.getState();
-    const layer = s.layers.find(l => l.id === (layerId ?? s.activeLayerId));
-    if (!layer) return;
-    const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
-    const typeData = layer.kind === 'type' ? layer.typeData as TypeLayerData | null : null;
-    const shapeData = layer.kind === 'shape' && layer.shapeData
-      ? cloneShapeData(layer.shapeData as ShapeData)
-      : null;
-    const bounds = typeData?.bounds
-      ? { x: typeData.bounds.x, y: typeData.bounds.y, w: typeData.bounds.w, h: typeData.bounds.h }
-      : typeData
-        ? {
-          x: typeData.transform.x,
-          y: typeData.transform.y,
-          w: Math.max(1, typeData.transform.width || typeData.style.fontSize * Math.max(1, typeData.text.length || 1) * 0.6),
-          h: Math.max(1, typeData.transform.height || typeData.style.fontSize * 1.2),
-        }
-      : getLayerContentBounds(layer.canvas);
-    if (!bounds) return;
-    const source = layer.ctx.getImageData(bounds.x, bounds.y, bounds.w, bounds.h);
-    setFreeTransform({
-      layerId: layer.id,
-      snapshot,
-      source,
-      sourceX: bounds.x,
-      sourceY: bounds.y,
-      typeDataSnapshot: typeData ? structuredClone(typeData) : undefined,
-      shapeDataSnapshot: shapeData ?? undefined,
-      x: bounds.x,
-      y: bounds.y,
-      width: bounds.w,
-      height: bounds.h,
-      rotation: 0,
-      skewX: 0,
-      skewY: 0,
-    });
-  }
-
   useEffect(() => {
     const onStart = (event: Event) => {
       const layerId = (event as CustomEvent<{ layerId?: string }>).detail?.layerId;
@@ -1252,7 +1248,7 @@ function App() {
       {freeTransform && (
         <FreeTransformOverlay state={freeTransform} zoom={zoom} panX={pan.x} panY={pan.y}
           onCommit={() => {
-            // Commit shape transforms via history so the geometry change is undoable.
+            // Commit transforms via history so the live-preview mutation is undoable.
             const s = gs();
             const layer = s.layers.find(l => l.id === freeTransform.layerId);
             if (layer && layer.kind === 'shape' && freeTransform.shapeDataSnapshot && layer.shapeData) {
@@ -1269,6 +1265,33 @@ function App() {
                 revert: () => {
                   const l = gs().layers.find(x => x.id === freeTransform.layerId);
                   if (l) { l.shapeData = cloneShapeData(before); rerenderShapeLayer(l); useEditorStore.setState(st => ({ layers: [...st.layers] })); }
+                },
+              });
+            } else if (layer) {
+              const before = cloneImageData(freeTransform.snapshot);
+              const after = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+              const beforeType = freeTransform.typeDataSnapshot ? structuredClone(freeTransform.typeDataSnapshot) : null;
+              const afterType = layer.kind === 'type' && layer.typeData ? structuredClone(layer.typeData as TypeLayerData) : null;
+              s.commitHistory({
+                kind: 'transform',
+                label: layer.kind === 'type' ? 'Free Transform Type' : 'Free Transform',
+                layerId: layer.id,
+                timestamp: Date.now(),
+                apply: () => {
+                  const l = gs().layers.find(x => x.id === freeTransform.layerId);
+                  if (!l) return;
+                  l.ctx.putImageData(after, 0, 0);
+                  if (afterType) l.typeData = structuredClone(afterType);
+                  l.markDirty(null);
+                  useEditorStore.setState(st => ({ layers: [...st.layers] }));
+                },
+                revert: () => {
+                  const l = gs().layers.find(x => x.id === freeTransform.layerId);
+                  if (!l) return;
+                  l.ctx.putImageData(before, 0, 0);
+                  if (beforeType) l.typeData = structuredClone(beforeType);
+                  l.markDirty(null);
+                  useEditorStore.setState(st => ({ layers: [...st.layers] }));
                 },
               });
             }
