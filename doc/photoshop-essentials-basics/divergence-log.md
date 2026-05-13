@@ -347,3 +347,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Layer styles can be saved into Photoshop's Styles panel and exported/imported as `.asl` style sets through the preset workflow.
 **Photoweb behavior:** New Style saves reusable layer-style presets into browser localStorage, and the Styles panel renders compact text tiles that can apply or clear styles.
 **Rationale:** Browser localStorage gives the app a dependable no-file-dialog preset loop for the current editor architecture. `.asl` parsing/export and rendered Photoshop-style thumbnail packs are larger compatibility projects outside this cluster.
+
+## 2026-05-14 — 11b-transform-selection — Advanced transform submodes deferred
+
+**Photoshop behavior:** Transform Selection supports Skew, Distort, Perspective, and Warp from the transform context menu.
+**Photoweb behavior:** This tick implements command invocation, linked/free resize, center resize, rotation snap, readouts, commit, and cancel; Skew, Distort, Perspective, and Warp remain deferred.
+**Rationale:** Correct advanced transform geometry overlaps the broader Free Transform and Warp clusters, so this cluster preserves the core Transform Selection habit without a partial advanced-mode implementation.

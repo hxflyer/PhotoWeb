@@ -26,7 +26,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 09-blend-modes             (3) — Blend mode menu, live preview, Shift+/- cycle  commit: 096de03
 - [x] 10-layer-styles            (3) — Layer Style dialog, save/load, Opacity vs Fill  commit: 0fc640a
 - [x] 11a-selections-overview    (3) — Shift add, Alt subtract, Shift+Alt intersect  commit: a5f961c
-- [ ] 11b-transform-selection    (2) — Transform Selection command
+- [x] 11b-transform-selection    (2) — Transform Selection command  commit: 60a5266
 - [ ] 12-marquee                 (3) — Rectangular / Elliptical Marquee
 - [ ] 13-lasso                   (3) — Lasso / Polygonal / Magnetic
 - [ ] 14a-content-selection-tools(3) — Magic Wand, Quick Selection, Object Selection (non-AI)
