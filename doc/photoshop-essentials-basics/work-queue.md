@@ -10,7 +10,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 01d-screen-modes           (2) — F / Shift+F cycle, Tab hide panels  commit: 6da14c0
 - [x] 01e-neutral-color-mode     (1) — Preferences toggle to flatten cosmetic UI gradients  commit: aa8a239
 - [x] 02-preferences             (4) — Preferences dialog & background auto-save  commit: 574c068
-- [ ] 03-navigation              (5) — Zoom, Hand, fit/100%, scrubby zoom, shortcuts
+- [x] 03-navigation              (5) — Zoom, Hand, fit/100%, scrubby zoom, shortcuts  commit: 99aa54b
 - [ ] 04a-file-open-place        (5) — File > Open, drag-drop, Place Embedded, Load Files
 - [ ] 04b-file-new               (2) — File > New dialog
 - [ ] 04c-file-save-close        (2) — Save As to protect original, Close / Close All
