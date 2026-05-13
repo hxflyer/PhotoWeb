@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { drawBrushTipPreview, type BrushTipData } from '../../utils/brushTips';
 
 const overlay: React.CSSProperties = {
     position: 'fixed',
@@ -53,13 +54,39 @@ const primaryButtonStyle: React.CSSProperties = {
 interface Props {
     isOpen: boolean;
     defaultName?: string;
+    previewTip?: BrushTipData;
     onCancel: () => void;
-    onCommit: (params: { name: string; captureSize: boolean; captureColor: boolean }) => void;
+    onCommit: (params: { name: string; captureSize: boolean; includeToolSettings: boolean; captureColor: boolean }) => void;
 }
 
-function PreviewSwatch() {
+function PreviewSwatch({ previewTip }: { previewTip?: BrushTipData }) {
     const settings = useEditorStore(s => s.brushSettings);
     const color = useEditorStore(s => s.primaryColor);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !previewTip) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBrushTipPreview(ctx, previewTip, 8, 8, canvas.width - 16, canvas.height - 16, '#222222');
+    }, [previewTip]);
+    if (previewTip) {
+        return (
+            <div
+                data-testid="new-brush-preset-preview"
+                style={{
+                    width: 64,
+                    height: 64,
+                    background: 'hsl(var(--bg-input))',
+                    border: '1px solid hsl(var(--border-light))',
+                    borderRadius: 2,
+                }}
+            >
+                <canvas ref={canvasRef} width={64} height={64} style={{ display: 'block' }} />
+            </div>
+        );
+    }
     return (
         <div
             data-testid="new-brush-preset-preview"
@@ -88,29 +115,31 @@ function PreviewSwatch() {
     );
 }
 
-export function NewBrushPresetDialog({ isOpen, defaultName = 'New Brush Preset', onCancel, onCommit }: Props) {
+export function NewBrushPresetDialog({ isOpen, defaultName = 'New Brush Preset', previewTip, onCancel, onCommit }: Props) {
     if (!isOpen) return null;
     // Key remounts the inner content per-open so fields reset to defaults.
     return (
         <NewBrushPresetDialogContent
-            key={defaultName}
+            key={`${defaultName}:${previewTip?.alpha ?? 'round'}`}
             defaultName={defaultName}
+            previewTip={previewTip}
             onCancel={onCancel}
             onCommit={onCommit}
         />
     );
 }
 
-function NewBrushPresetDialogContent({ defaultName, onCancel, onCommit }: Omit<Props, 'isOpen'> & { defaultName: string }) {
+function NewBrushPresetDialogContent({ defaultName, previewTip, onCancel, onCommit }: Omit<Props, 'isOpen'> & { defaultName: string }) {
     const [name, setName] = useState(defaultName);
     const [captureSize, setCaptureSize] = useState(true);
+    const [includeToolSettings, setIncludeToolSettings] = useState(true);
     const [captureColor, setCaptureColor] = useState(false);
     const dialogRef = useDialogA11y(true, onCancel);
 
     function commit() {
         const trimmed = name.trim();
         if (!trimmed) return;
-        onCommit({ name: trimmed, captureSize, captureColor });
+        onCommit({ name: trimmed, captureSize, includeToolSettings, captureColor });
     }
 
     return (
@@ -118,7 +147,7 @@ function NewBrushPresetDialogContent({ defaultName, onCancel, onCommit }: Omit<P
             <div ref={dialogRef} style={card}>
                 <div style={{ fontWeight: 600, marginBottom: 10 }}>New Brush Preset</div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
-                    <PreviewSwatch />
+                    <PreviewSwatch previewTip={previewTip} />
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <span style={{ fontSize: 11, color: 'hsl(var(--text-muted))' }}>Name</span>
@@ -143,6 +172,15 @@ function NewBrushPresetDialogContent({ defaultName, onCancel, onCommit }: Omit<P
                                 onChange={e => setCaptureSize(e.target.checked)}
                             />
                             Capture Brush Size in Preset
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                                data-testid="new-brush-preset-include-tool-settings"
+                                type="checkbox"
+                                checked={includeToolSettings}
+                                onChange={e => setIncludeToolSettings(e.target.checked)}
+                            />
+                            Include Tool Settings
                         </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <input

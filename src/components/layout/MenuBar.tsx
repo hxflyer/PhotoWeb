@@ -257,8 +257,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       ),
       sep,
       act('Define Brush Preset…', () => {
-        const name = window.prompt('Brush preset name', 'New Brush Preset');
-        if (name) useEditorStore.getState().saveBrushPreset(name);
+        window.dispatchEvent(new Event('photoweb:define-brush-preset'));
       }),
       act('Define Pattern…', () => {
         const store = useEditorStore.getState();
@@ -690,7 +689,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       chk('Properties', () => useEditorStore.getState().panelVisibility.properties, () => useEditorStore.getState().togglePanelVisibility('properties')),
       chk('Navigator', () => useEditorStore.getState().panelVisibility.navigator, () => useEditorStore.getState().togglePanelVisibility('navigator')),
       chk('Info', () => useEditorStore.getState().panelVisibility.info, () => useEditorStore.getState().togglePanelVisibility('info'), 'F8'),
-      chk('Brush Presets', () => useEditorStore.getState().panelVisibility['brush-presets'], () => useEditorStore.getState().togglePanelVisibility('brush-presets'), 'F5'),
+      chk('Brushes', () => useEditorStore.getState().panelVisibility['brush-presets'], () => useEditorStore.getState().togglePanelVisibility('brush-presets'), 'F5'),
       chk('Styles', () => useEditorStore.getState().panelVisibility.styles, () => useEditorStore.getState().togglePanelVisibility('styles')),
       sep,
       act('Tools', () => {}),

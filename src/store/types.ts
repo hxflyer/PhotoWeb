@@ -179,6 +179,7 @@ export interface BrushSettings {
     opacity: number;
     hardness: number;
     flow: number;
+    customTip?: import('../utils/brushTips').BrushTipData;
 }
 
 export type ToolId =
@@ -446,6 +447,18 @@ export interface BrushPreset {
     settings: BrushSettings;
     smoothing?: number;     // 0..1
     spacing?: number;       // 0..1+
+    mode?: GlobalCompositeOperation | 'clear';
+    color?: string;
+    captureSize?: boolean;
+    includeToolSettings?: boolean;
+    includeColor?: boolean;
+    groupId?: string;
+}
+
+export interface BrushPresetGroup {
+    id: string;
+    name: string;
+    collapsed?: boolean;
 }
 
 export interface ToolPreset {
@@ -500,6 +513,8 @@ export interface ToolsSlice {
     cloneSource: { x: number; y: number } | null;
     shapeSettings: { filled: boolean };
     brushPresets: BrushPreset[];
+    brushPresetGroups: BrushPresetGroup[];
+    selectedBrushPresetGroupId: string | null;
     toolPresets: ToolPreset[];
     patternPresets: PatternPreset[];
     activePatternId: string | null;
@@ -509,12 +524,25 @@ export interface ToolsSlice {
     setBrushOpacity: (opacity: number) => void;
     setBrushFlow: (flow: number) => void;
     setCloneSource: (point: { x: number; y: number } | null) => void;
-    saveBrushPreset: (name: string, extras?: { smoothing?: number; spacing?: number }) => void;
+    saveBrushPreset: (name: string, extras?: {
+        smoothing?: number;
+        spacing?: number;
+        mode?: GlobalCompositeOperation | 'clear';
+        color?: string;
+        captureSize?: boolean;
+        includeToolSettings?: boolean;
+        includeColor?: boolean;
+        groupId?: string | null;
+        tip?: import('../utils/brushTips').BrushTipData;
+    }) => string;
     applyBrushPreset: (id: string) => void;
     removeBrushPreset: (id: string) => void;
     renameBrushPreset: (id: string, name: string) => void;
     reorderBrushPreset: (fromIdx: number, toIdx: number) => void;
     duplicateBrushPreset: (id: string) => void;
+    createBrushPresetGroup: (name: string) => string;
+    setSelectedBrushPresetGroup: (id: string | null) => void;
+    toggleBrushPresetGroup: (id: string) => void;
     saveToolPreset: (name: string, optionsBlob: Record<string, unknown>) => void;
     applyToolPreset: (id: string, apply: (blob: Record<string, unknown>) => void) => void;
     removeToolPreset: (id: string) => void;

@@ -1,16 +1,24 @@
 import type { StateCreator } from 'zustand';
 import type {
-    EditorStore, ToolsSlice, BrushPreset, ToolPreset, PatternPreset,
+    EditorStore, ToolsSlice, BrushPreset, BrushPresetGroup, ToolPreset, PatternPreset,
     GradientPresetEntry, GradientColorStop, GradientOpacityStop,
 } from './types';
 import { commitActiveEditingType } from '../tools/type';
 import { getTool } from '../tools/registry';
-import { setBrushOptions } from '../tools/brush';
+import { getBrushOptions, setBrushOptions } from '../tools/brush';
 
 const BRUSH_PRESETS_KEY = 'photoweb:brushPresets:v1';
+const BRUSH_PRESET_GROUPS_KEY = 'photoweb:brushPresetGroups:v1';
 const TOOL_PRESETS_KEY = 'photoweb:toolPresets:v1';
 const GRADIENT_PRESETS_KEY = 'photoweb:gradientPresets:v1';
 const PATTERN_PRESETS_KEY = 'photoweb:patternPresets:v1';
+const DEFAULT_BRUSH_GROUP_ID = 'general';
+const DEFAULT_BRUSH_PRESET_GROUPS: BrushPresetGroup[] = [
+    { id: DEFAULT_BRUSH_GROUP_ID, name: 'General Brushes' },
+    { id: 'dry-media', name: 'Dry Media Brushes' },
+    { id: 'wet-media', name: 'Wet Media Brushes' },
+    { id: 'special-effects', name: 'Special Effects Brushes' },
+];
 
 function loadStoredToolPresets(): ToolPreset[] {
     if (typeof localStorage === 'undefined') return [];
@@ -35,10 +43,33 @@ function loadStoredBrushPresets(): BrushPreset[] {
     }
 }
 
+function loadStoredBrushPresetGroups(): BrushPresetGroup[] {
+    if (typeof localStorage === 'undefined') return DEFAULT_BRUSH_PRESET_GROUPS;
+    try {
+        const raw = localStorage.getItem(BRUSH_PRESET_GROUPS_KEY);
+        const parsed = raw ? JSON.parse(raw) as BrushPresetGroup[] : [];
+        const byId = new Map<string, BrushPresetGroup>();
+        for (const group of DEFAULT_BRUSH_PRESET_GROUPS) byId.set(group.id, group);
+        for (const group of parsed) byId.set(group.id, group);
+        return [...byId.values()];
+    } catch {
+        return DEFAULT_BRUSH_PRESET_GROUPS;
+    }
+}
+
 function persistBrushPresets(presets: BrushPreset[]): void {
     if (typeof localStorage === 'undefined') return;
     try {
         localStorage.setItem(BRUSH_PRESETS_KEY, JSON.stringify(presets));
+    } catch {
+        // Quota; non-fatal.
+    }
+}
+
+function persistBrushPresetGroups(groups: BrushPresetGroup[]): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        localStorage.setItem(BRUSH_PRESET_GROUPS_KEY, JSON.stringify(groups));
     } catch {
         // Quota; non-fatal.
     }
@@ -124,6 +155,8 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
     cloneSource: null,
     shapeSettings: { filled: true },
     brushPresets: loadStoredBrushPresets(),
+    brushPresetGroups: loadStoredBrushPresetGroups(),
+    selectedBrushPresetGroupId: DEFAULT_BRUSH_GROUP_ID,
     toolPresets: loadStoredToolPresets(),
     patternPresets: loadStoredPatternPresets(),
     gradientPresets: loadStoredGradientPresets(),
@@ -157,28 +190,60 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
     })),
     setCloneSource: (point) => set({ cloneSource: point }),
 
-    saveBrushPreset: (name, extras) => set(state => {
+    saveBrushPreset: (name, extras) => {
+        const id = crypto.randomUUID();
+        set(state => {
+        const options = getBrushOptions();
+        const captureSize = extras?.captureSize ?? true;
+        const includeToolSettings = extras?.includeToolSettings ?? true;
+        const includeColor = extras?.includeColor ?? false;
+        const tip = extras?.tip ?? state.brushSettings.customTip;
+        const groupId = extras?.groupId ?? state.selectedBrushPresetGroupId ?? DEFAULT_BRUSH_GROUP_ID;
         const preset: BrushPreset = {
-            id: crypto.randomUUID(),
+            id,
             name,
-            settings: { ...state.brushSettings },
-            smoothing: extras?.smoothing,
-            spacing: extras?.spacing,
+            settings: {
+                ...state.brushSettings,
+                ...(tip ? { customTip: tip, size: captureSize ? Math.max(tip.width, tip.height) : state.brushSettings.size } : {}),
+            },
+            smoothing: extras?.smoothing ?? options.smoothing,
+            spacing: extras?.spacing ?? options.spacing,
+            mode: extras?.mode ?? options.mode,
+            color: includeColor ? (extras?.color ?? state.primaryColor) : undefined,
+            captureSize,
+            includeToolSettings,
+            includeColor,
+            groupId: groupId ?? DEFAULT_BRUSH_GROUP_ID,
         };
         const next = [...state.brushPresets, preset];
         persistBrushPresets(next);
         return { brushPresets: next };
-    }),
+        });
+        return id;
+    },
 
     applyBrushPreset: (id) => {
         const state = get();
         const preset = state.brushPresets.find(p => p.id === id);
         if (!preset) return;
-        set({ brushSettings: { ...preset.settings } });
-        if (preset.smoothing !== undefined || preset.spacing !== undefined) {
+        const applySize = preset.captureSize !== false;
+        const applyToolSettings = preset.includeToolSettings !== false;
+        set({
+            activeTool: 'brush',
+            brushSettings: {
+                ...state.brushSettings,
+                hardness: preset.settings.hardness,
+                customTip: preset.settings.customTip,
+                ...(applySize ? { size: preset.settings.size } : {}),
+                ...(applyToolSettings ? { opacity: preset.settings.opacity, flow: preset.settings.flow } : {}),
+            },
+            ...(preset.includeColor && preset.color ? { primaryColor: preset.color } : {}),
+        });
+        if (applyToolSettings && (preset.smoothing !== undefined || preset.spacing !== undefined || preset.mode !== undefined)) {
             setBrushOptions({
                 smoothing: preset.smoothing ?? 0,
                 spacing: preset.spacing ?? 0.15,
+                mode: preset.mode ?? 'source-over',
             });
         }
     },
@@ -216,12 +281,39 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
             settings: { ...source.settings },
             smoothing: source.smoothing,
             spacing: source.spacing,
+            mode: source.mode,
+            color: source.color,
+            captureSize: source.captureSize,
+            includeToolSettings: source.includeToolSettings,
+            includeColor: source.includeColor,
+            groupId: source.groupId,
         };
         const idx = state.brushPresets.findIndex(p => p.id === id);
         const next = state.brushPresets.slice();
         next.splice(idx + 1, 0, copy);
         persistBrushPresets(next);
         return { brushPresets: next };
+    }),
+
+    createBrushPresetGroup: (name) => {
+        const id = crypto.randomUUID();
+        const group: BrushPresetGroup = { id, name };
+        set(state => {
+            const next = [...state.brushPresetGroups, group];
+            persistBrushPresetGroups(next);
+            return { brushPresetGroups: next, selectedBrushPresetGroupId: id };
+        });
+        return id;
+    },
+
+    setSelectedBrushPresetGroup: (id) => set({ selectedBrushPresetGroupId: id }),
+
+    toggleBrushPresetGroup: (id) => set(state => {
+        const next = state.brushPresetGroups.map(group => (
+            group.id === id ? { ...group, collapsed: !group.collapsed } : group
+        ));
+        persistBrushPresetGroups(next);
+        return { brushPresetGroups: next };
     }),
 
     saveToolPreset: (name, optionsBlob) => set(state => {

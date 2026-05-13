@@ -24,6 +24,7 @@ import { ColorPickerDialog } from './components/Dialogs/ColorPickerDialog';
 import { ExportDialog } from './components/Dialogs/ExportDialog';
 import { NewDocumentDialog } from './components/Dialogs/NewDocumentDialog';
 import { NewLayerDialog } from './components/Dialogs/NewLayerDialog';
+import { NewBrushPresetDialog } from './components/Dialogs/NewBrushPresetDialog';
 import { RefineEdgeDialog } from './components/Dialogs/RefineEdgeDialog';
 import { DefringeDialog } from './components/Dialogs/DefringeDialog';
 import { ScaleEffectsDialog } from './components/Dialogs/ScaleEffectsDialog';
@@ -64,6 +65,7 @@ import { copyActiveDocumentForClipboard } from './utils/copyImageForClipboard';
 import { SaveAsDialog } from './components/Dialogs/SaveAsDialog';
 import { CloseConfirmDialog } from './components/Dialogs/CloseConfirmDialog';
 import { getLayerContentBounds } from './utils/canvasUtils';
+import { createBrushTipFromCanvas, type BrushTipData } from './utils/brushTips';
 import { drawCanvasWithBlendMode } from './core/blendModes';
 import type { LayerEffectKind } from './core/Layer';
 import './App.css';
@@ -158,6 +160,7 @@ function App() {
   const [fillPathOpen, setFillPathOpen] = useState(false);
   const [fadeDialogOpen, setFadeDialogOpen] = useState(false);
   const [layerStyleDialog, setLayerStyleDialog] = useState<{ layerId: string; tab: string } | null>(null);
+  const [defineBrushTip, setDefineBrushTip] = useState<BrushTipData | null>(null);
   const [pasteboardMenu, setPasteboardMenu] = useState<PasteboardContextMenuState | null>(null);
   const [pickingPasteboardColor, setPickingPasteboardColor] = useState(false);
   const colorTheme = useEditorStore(s => s.colorTheme);
@@ -227,7 +230,7 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Window-menu F-keys (F5 Brush Presets, F6 Color, F7 Layers, F8 Info) +
+  // Window-menu F-keys (F5 Brushes, F6 Color, F7 Layers, F8 Info) +
   // Tab / Shift+Tab to hide chrome. Suppressed inside inputs and when a
   // dialog is open (don't fight focus traps / Tab cycling).
   useEffect(() => {
@@ -282,6 +285,15 @@ function App() {
     const openStorage = () => setStorageOpen(true);
     const openStroke = () => setStrokePathOpen(true);
     const openFill = () => setFillPathOpen(true);
+    const defineBrush = () => {
+      const s = useEditorStore.getState();
+      const layer = s.layers.find(l => l.id === s.activeLayerId);
+      if (!layer) {
+        s.addToast('No active layer to define as a brush preset', 'info');
+        return;
+      }
+      setDefineBrushTip(createBrushTipFromCanvas(layer.canvas));
+    };
     const openFade = () => {
       if (useEditorStore.getState().lastEffect) setFadeDialogOpen(true);
     };
@@ -299,6 +311,7 @@ function App() {
     window.addEventListener('photoweb:open-storage-usage', openStorage);
     window.addEventListener('photoweb:open-stroke-path', openStroke);
     window.addEventListener('photoweb:open-fill-path', openFill);
+    window.addEventListener('photoweb:define-brush-preset', defineBrush);
     window.addEventListener('photoweb:open-fade', openFade);
     window.addEventListener('photoweb:open-layer-style', openLayerStyle);
     return () => {
@@ -306,6 +319,7 @@ function App() {
       window.removeEventListener('photoweb:open-storage-usage', openStorage);
       window.removeEventListener('photoweb:open-stroke-path', openStroke);
       window.removeEventListener('photoweb:open-fill-path', openFill);
+      window.removeEventListener('photoweb:define-brush-preset', defineBrush);
       window.removeEventListener('photoweb:open-fade', openFade);
       window.removeEventListener('photoweb:open-layer-style', openLayerStyle);
     };
@@ -1208,6 +1222,25 @@ function App() {
         isOpen={dialogs.isNewLayerDialogOpen}
         onConfirm={(options) => gs().addLayer(options)}
         onClose={() => gs().closeNewLayerDialog()}
+      />
+      <NewBrushPresetDialog
+        isOpen={defineBrushTip !== null}
+        defaultName="New Brush Preset"
+        previewTip={defineBrushTip ?? undefined}
+        onCancel={() => setDefineBrushTip(null)}
+        onCommit={({ name }) => {
+          const tip = defineBrushTip;
+          if (!tip) return;
+          const id = gs().saveBrushPreset(name, {
+            tip,
+            captureSize: true,
+            includeToolSettings: false,
+            includeColor: false,
+            groupId: gs().selectedBrushPresetGroupId,
+          });
+          gs().applyBrushPreset(id);
+          setDefineBrushTip(null);
+        }}
       />
       <RefineEdgeDialog isOpen={dialogs.isRefineEdgeDialogOpen} onClose={() => gs().closeRefineEdgeDialog()} />
       <DefringeDialog isOpen={dialogs.isDefringeDialogOpen} onClose={() => gs().closeDefringeDialog()}

@@ -1061,6 +1061,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             color: { r, g, b },
             mode: shouldErase ? 'erase' : 'paint',
             blendMode: brushOptions.mode === 'multiply' ? 'multiply' : 'normal',
+            customTip: brushSettings.customTip,
             base: buffer.base.data,
             work: buffer.work.data,
             coverage: buffer.coverage,
@@ -1182,8 +1183,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             const ctx = activeLayer.ctx;
             const dist = Math.hypot(current.x - lastMousePos.x, current.y - lastMousePos.y);
             const angle = Math.atan2(current.y - lastMousePos.y, current.x - lastMousePos.x);
-            const spacingRatio = brushSettings.hardness > 0.9 ? 0.05 : 0.15;
-            const spacing = Math.max(1, brushSettings.size * spacingRatio);
+            const spacing = Math.max(1, brushSettings.size * getBrushOptions().spacing);
             const start = spacing - leftoverDistance.current;
             let i = start;
             while (i <= dist) {

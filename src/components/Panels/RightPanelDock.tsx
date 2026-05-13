@@ -83,7 +83,7 @@ const TAB_LABELS: Record<string, string> = {
     paths: 'Paths',
     history: 'History',
     properties: 'Properties',
-    'brush-presets': 'Brush Presets',
+    'brush-presets': 'Brushes',
     'pattern-presets': 'Pattern Presets',
     styles: 'Styles',
 };
