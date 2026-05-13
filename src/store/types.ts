@@ -290,7 +290,9 @@ export interface LayersSlice {
     selectedLayerIds: string[];
     layerSelectionAnchorId: string | null;
     activeLayerEditTarget: LayerEditTarget;
+    viewedLayerMaskId: string | null;
     setActiveLayerEditTarget: (target: LayerEditTarget) => void;
+    setViewedLayerMaskId: (id: string | null) => void;
     addLayer: (options?: {
         name?: string;
         opacity?: number;

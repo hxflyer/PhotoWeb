@@ -268,7 +268,10 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        drawCanvasWithBlendMode(ctx, scratch, layer.blendMode, layer.opacity);
+        const finalScratch = layer.layerMaskHidesEffects && layer.mask?.enabled
+            ? this.applyMask(scratch, layer.mask.canvas, { density: layer.mask.density, feather: layer.mask.feather })
+            : scratch;
+        drawCanvasWithBlendMode(ctx, finalScratch, layer.blendMode, layer.opacity);
     }
 
     private renderGroup(
@@ -332,7 +335,10 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        drawCanvasWithBlendMode(ctx, scratch, group.blendMode, group.opacity);
+        const finalScratch = group.layerMaskHidesEffects && group.mask?.enabled
+            ? this.applyMask(scratch, group.mask.canvas, { density: group.mask.density, feather: group.mask.feather })
+            : scratch;
+        drawCanvasWithBlendMode(ctx, finalScratch, group.blendMode, group.opacity);
     }
 
     private applyChannelFilter(frame: HTMLCanvasElement, channel: 'r' | 'g' | 'b'): void {

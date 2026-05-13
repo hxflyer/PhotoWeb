@@ -91,7 +91,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         layers, activeLayerId, brushSettings,
         selection, setSelectionPath, setHasSelection, setIsDraggingSelection, clearSelection,
         addSelectionOperation, setSelectionOperations, setFreeEditMode, setPolyPoints,
-        showRulers, showGrid, gridSize, activeChannel, channelVisibility, activeSnapTargets,
+        showRulers, showGrid, gridSize, activeChannel, channelVisibility, activeSnapTargets, viewedLayerMaskId,
     } = useEditorStore();
     // primaryColor is subscribed imperatively in the brush tip effect to avoid
     // re-rendering the entire Viewport on every color slider change.
@@ -293,8 +293,14 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         const viewportInfo = { width, height, zoom, pan };
         compositor.beginFrame(canvas);
         const { globalLight } = useEditorStore.getState();
-        compositor.render({ layers, activeLayerId, viewport: viewportInfo, target: canvas, activeChannel, channelVisibility, skipTypeLayers: !activeChannel || activeChannel === 'rgb', globalLight });
-        compositor.present();
+        const viewedMaskLayer = viewedLayerMaskId ? layers.find(layer => layer.id === viewedLayerMaskId) : null;
+        if (viewedMaskLayer?.mask) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(viewedMaskLayer.mask.canvas, 0, 0, width, height);
+        } else {
+            compositor.render({ layers, activeLayerId, viewport: viewportInfo, target: canvas, activeChannel, channelVisibility, skipTypeLayers: !activeChannel || activeChannel === 'rgb', globalLight });
+            compositor.present();
+        }
 
         // Grid overlay
         if (showGrid) {
@@ -377,7 +383,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             }
         });
 
-    }, [layers, activeLayerId, width, height, showGrid, gridSize, renderTick, activeChannel, activeSnapTargets]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [layers, activeLayerId, width, height, showGrid, gridSize, renderTick, activeChannel, activeSnapTargets, viewedLayerMaskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Free Edit Initialization
     useEffect(() => {

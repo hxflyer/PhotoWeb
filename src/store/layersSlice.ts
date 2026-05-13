@@ -252,7 +252,9 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
     selectedLayerIds: [],
     layerSelectionAnchorId: null,
     activeLayerEditTarget: 'layer',
+    viewedLayerMaskId: null,
     setActiveLayerEditTarget: (target) => set({ activeLayerEditTarget: target }),
+    setViewedLayerMaskId: (id) => set({ viewedLayerMaskId: id }),
 
     addLayer: (options = {}) => {
         get().executeDocumentCommand({
@@ -458,7 +460,13 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         });
     },
 
-    setActiveLayer: (id) => set({ activeLayerId: id, selectedLayerIds: [id], layerSelectionAnchorId: id, activeLayerEditTarget: 'layer' }),
+    setActiveLayer: (id) => set(state => ({
+        activeLayerId: id,
+        selectedLayerIds: [id],
+        layerSelectionAnchorId: id,
+        activeLayerEditTarget: 'layer',
+        viewedLayerMaskId: state.viewedLayerMaskId === id ? state.viewedLayerMaskId : null,
+    })),
 
     selectLayer: (id, mode = 'replace') => set((state) => {
         if (!state.layers.some(layer => layer.id === id)) return {};

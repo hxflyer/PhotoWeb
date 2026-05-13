@@ -416,9 +416,10 @@ export function LayersPanel() {
         addLayerMask, removeLayerMask, applyLayerMask, setLayerMaskEnabled, setLayerMaskLinked,
         addLayerEffect,
         copyLayerStyle, pasteLayerStyle,
-        activeLayerEditTarget, setActiveLayerEditTarget,
+        activeLayerEditTarget, setActiveLayerEditTarget, viewedLayerMaskId, setViewedLayerMaskId,
         openNewLayerDialog,
         convertBackgroundLayer,
+        setSelectionOperations,
     } = useEditorStore();
     const editTarget = activeLayerEditTarget;
 
@@ -839,16 +840,40 @@ export function LayersPanel() {
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (e.altKey || e.metaKey) {
+                                            if (e.shiftKey) {
                                                 setLayerMaskEnabled(layer.id, !layer.mask?.enabled);
+                                                return;
+                                            }
+                                            if (e.metaKey || e.ctrlKey) {
+                                                const mask = layer.mask;
+                                                if (mask) {
+                                                    const img = mask.ctx.getImageData(0, 0, mask.canvas.width, mask.canvas.height);
+                                                    const data = new Uint8ClampedArray(mask.canvas.width * mask.canvas.height);
+                                                    for (let i = 0; i < data.length; i++) {
+                                                        const p = i * 4;
+                                                        data[i] = Math.round(0.299 * img.data[p] + 0.587 * img.data[p + 1] + 0.114 * img.data[p + 2]);
+                                                    }
+                                                    setSelectionOperations([{
+                                                        mode: 'add',
+                                                        type: 'lasso',
+                                                        path: [{ x: 0, y: 0 }, { x: mask.canvas.width, y: 0 }, { x: mask.canvas.width, y: mask.canvas.height }, { x: 0, y: mask.canvas.height }],
+                                                        mask: { data, width: mask.canvas.width, height: mask.canvas.height },
+                                                    }]);
+                                                }
+                                                return;
+                                            }
+                                            if (e.altKey) {
+                                                setActiveLayer(layer.id);
+                                                setActiveLayerEditTarget('mask');
+                                                setViewedLayerMaskId(viewedLayerMaskId === layer.id ? null : layer.id);
                                                 return;
                                             }
                                             setActiveLayer(layer.id);
                                             setActiveLayerEditTarget('mask');
                                         }}
                                         title={editTarget === 'mask' && activeLayerId === layer.id
-                                            ? 'Mask is the active edit target — Alt-click to disable'
-                                            : 'Click to paint into the mask. Alt-click to enable/disable.'}
+                                            ? 'Mask is the active edit target'
+                                            : 'Click to paint into the mask. Alt-click to view mask, Shift-click to disable, Cmd/Ctrl-click to load selection.'}
                                         style={{
                                             background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0,
                                             outline: editTarget === 'mask' && activeLayerId === layer.id
@@ -993,8 +1018,9 @@ export function LayersPanel() {
                     style={{ ...HEAD_BTN, opacity: activeLayerId && !activeIsBackground ? 1 : 0.4, fontSize: 11, fontWeight: 700, fontStyle: 'italic' }}
                 >fx</button>
                 <button
+                    data-testid="layers-add-mask-button"
                     title="Add Layer Mask"
-                    onClick={() => activeLayerId && addLayerMask(activeLayerId, 'reveal-all')}
+                    onClick={(e) => activeLayerId && addLayerMask(activeLayerId, e.altKey ? 'hide-all' : 'reveal-all')}
                     disabled={!activeLayerId}
                     style={{ ...HEAD_BTN, opacity: activeLayerId ? 1 : 0.4, fontSize: 11, fontWeight: 700 }}
                 >M</button>

@@ -131,10 +131,14 @@ describe('UI: LayersPanel simulated interactions', () => {
         await runScript([{ type: 'click', target: maskThumb.parentElement as HTMLElement }], container);
         expect(useEditorStore.getState().activeLayerEditTarget).toBe('mask');
 
-        // Alt-click toggles enabled.
-        await runScript([{ type: 'click', target: maskThumb.parentElement as HTMLElement, modifiers: { alt: true } }], container);
+        // Shift-click toggles enabled.
+        await runScript([{ type: 'click', target: maskThumb.parentElement as HTMLElement, modifiers: { shift: true } }], container);
         expect(useEditorStore.getState().layers[0].mask?.enabled).toBe(false);
         expect(maskThumb.getAttribute('data-mask-enabled')).toBe('false');
+
+        // Alt-click previews the mask as a grayscale document view.
+        await runScript([{ type: 'click', target: maskThumb.parentElement as HTMLElement, modifiers: { alt: true } }], container);
+        expect(useEditorStore.getState().viewedLayerMaskId).toBe(layer.id);
 
         await runScript([{ type: 'click', target: link }], container);
         expect(useEditorStore.getState().layers[0].mask?.linked).toBe(false);

@@ -705,6 +705,38 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         const state = get();
         const src = state.transferLayerClipboard;
         if (!src || state.width < 1 || state.height < 1) return false;
+        const targetLayer = state.layers.find(l => l.id === state.activeLayerId);
+        if (state.activeLayerEditTarget === 'mask' && targetLayer?.mask) {
+            get().executeDocumentCommand({
+                kind: 'layer-property',
+                label: 'Paste Into Layer Mask',
+                affectedIds: [targetLayer.id],
+                layerId: targetLayer.id,
+                run: () => {
+                    const current = get().layers.find(l => l.id === targetLayer.id);
+                    if (!current?.mask) return;
+                    const { canvas, ctx } = current.mask;
+                    const tmp = document.createElement('canvas');
+                    tmp.width = canvas.width;
+                    tmp.height = canvas.height;
+                    const tctx = tmp.getContext('2d');
+                    if (!tctx) return;
+                    tctx.drawImage(src.canvas, 0, 0, canvas.width, canvas.height);
+                    const img = tctx.getImageData(0, 0, canvas.width, canvas.height);
+                    for (let i = 0; i < img.data.length; i += 4) {
+                        const luma = Math.round(0.299 * img.data[i] + 0.587 * img.data[i + 1] + 0.114 * img.data[i + 2]);
+                        img.data[i] = luma;
+                        img.data[i + 1] = luma;
+                        img.data[i + 2] = luma;
+                        img.data[i + 3] = 255;
+                    }
+                    ctx.putImageData(img, 0, 0);
+                    current.markDirty(null);
+                    set({ layers: [...get().layers] });
+                },
+            });
+            return true;
+        }
         get().executeDocumentCommand({
             kind: 'layer-add',
             label: 'Paste Layer',
