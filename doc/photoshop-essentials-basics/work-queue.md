@@ -34,7 +34,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 15-pen-paths               (2) — Pen Tool, Curvature Pen Tool  commit: a7a4c12
 - [x] 16a-edge-refinement        (2) — Quick Mask + Feather, classic Refine Edge dialog  commit: e41db9b
 - [x] 16b-focus-area             (2) — Focus Area auto-selection  commit: 5da1e0e
-- [ ] 17-layer-masks             (7) — Add, paint, paste-into, view-as-mask, fake mask
+- [x] 17-layer-masks             (7) — Add, paint, paste-into, view-as-mask, fake mask  commit: ff06770
 - [ ] 18-clipping-masks          (2) — Clip to layer below, photo-in-text
 - [ ] 19a-free-transform         (3) — Ctrl/Cmd+T scale / rotate / skew / distort / perspective
 - [ ] 19b-warp                   (1) — Warp grid, enhanced Warp 2020

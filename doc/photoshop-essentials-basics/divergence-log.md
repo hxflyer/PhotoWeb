@@ -395,3 +395,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Focus Area analyzes in-focus image regions with Adobe's proprietary focus-detection engine and its add/subtract brushes re-analyze visually similar image areas after each stroke.
 **Photoweb behavior:** Focus Area uses a deterministic browser-local edge-strength metric with range/noise thresholds, optional softening, and direct add/subtract brush mask edits.
 **Rationale:** Photoweb has no Adobe focus-analysis engine or cloud service. A deterministic local focus metric preserves the selection workflow, view modes, output choices, and Refine Edge handoff without pretending to match Photoshop's private algorithm.
+
+## 2026-05-14 — 17-layer-masks — Layer Style Create Layers deferred
+
+**Photoshop behavior:** Layer > Layer Style > Create Layers can split layer effects into separate editable layers, then users can mask or group those generated effect layers independently.
+**Photoweb behavior:** Layer Mask Hides Effects is implemented in the compositor, but layer-effect decomposition into real layers remains unavailable.
+**Rationale:** Effect decomposition is a separate editability workflow that requires generated-layer ownership and synchronization rules; the compositor flag preserves the lesson's mask/effects visual behavior without introducing half-editable effect layers.
