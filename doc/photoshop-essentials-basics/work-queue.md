@@ -4,31 +4,52 @@ The /loop processes the first unchecked `[ ]` item. Read [RUN-CONTRACT.md](RUN-C
 
 When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the same line.
 
-- [ ] 01-app-basics              (10) — Toolbar, panels, screen modes, neutral color mode
-- [ ] 02-preferences              (4) — Preferences dialog & background auto-save
-- [ ] 03-navigation               (5) — Zoom Tool, Hand Tool, fit/100%, scrubby zoom, shortcuts
-- [ ] 04-file-ops                 (9) — File > Open / Place Embedded / New / Save As / Close
-- [ ] 05-image-size-canvas-rotate (11) — Image Size, Canvas Size, Rotate / Straighten / Ruler
-- [ ] 06-crop                     (7) — Crop Tool, perspective, single-layer, circular
-- [ ] 07-layers-basics           (11) — Layers panel, Background layer, layer types, shortcuts
-- [ ] 08-layers-ops               (8) — Stamp visible, copy effects, auto-select, align, groups, Properties
-- [ ] 09-blend-modes              (3) — Blend mode menu, live preview, keyboard cycling
-- [ ] 10-layer-styles             (3) — fx dialog, save/load styles, Opacity vs Fill
-- [ ] 11-selections-overview      (5) — Add/subtract/intersect, Transform Selection
-- [ ] 12-marquee                  (3) — Rectangular / Elliptical Marquee
-- [ ] 13-lasso                    (3) — Lasso / Polygonal / Magnetic
-- [ ] 14-wand-quick-color-range   (4) — Magic Wand, Quick Select, Object Select (non-AI), Color Range
-- [ ] 15-pen-paths                (2) — Pen Tool selections, Curvature Pen
-- [ ] 16-selection-refinement     (4) — Quick Mask, Feather, Refine Edge, Focus Area
-- [ ] 17-layer-masks              (7) — Add mask, paint B/W, paste-into-mask, advanced, fake mask
-- [ ] 18-clipping-masks           (2) — Clip to layer below, photo-in-text
-- [ ] 19-transform-warp           (4) — Free Transform, Warp grid
-- [ ] 20-brush-basics             (7) — Brush Tool, custom brushes, presets, Paint Symmetry
-- [ ] 21-brush-dynamics           (6) — Shape / Scatter / Texture / Dual / Color / Other Dynamics
-- [ ] 22-gradient                 (4) — Gradient Tool, Gradient Editor, Live Gradients
-- [ ] 23-color-swatches           (3) — Eyedropper, Swatches panel, swatches-from-image
-- [ ] 24-type-basics              (6) — Type Tool, point/area type, Character/Paragraph panels
-- [ ] 25-type-advanced            (5) — Type on path, Warp Text, type-in-shape
-- [ ] 26-shapes-concepts          (8) — Vector vs pixel, geometric shapes, combination ops
-- [ ] 27-shapes-custom            (6) — Custom Shape Tool, Shapes panel, custom shape sets
-- [ ] 28-patterns                 (3) — Define Pattern, pattern tiles
+- [ ] 01a-interface-shell        (4) — Doc window, tab, status bar, pasteboard, color theme
+- [ ] 01b-toolbar                (1) — Toolbar UI: column, flyout, default-tool, keyboard cycle
+- [ ] 01c-panels                 (2) — Panel groups, Window menu, panel menu icon
+- [ ] 01d-screen-modes           (2) — F / Shift+F cycle, Tab hide panels
+- [ ] 01e-neutral-color-mode     (1) — Preferences toggle to flatten cosmetic UI gradients
+- [ ] 02-preferences             (4) — Preferences dialog & background auto-save
+- [ ] 03-navigation              (5) — Zoom, Hand, fit/100%, scrubby zoom, shortcuts
+- [ ] 04a-file-open-place        (5) — File > Open, drag-drop, Place Embedded, Load Files
+- [ ] 04b-file-new               (2) — File > New dialog
+- [ ] 04c-file-save-close        (2) — Save As to protect original, Close / Close All
+- [ ] 05a-image-size             (9) — Image Size dialog: pixels, resolution, resampling
+- [ ] 05b-canvas-size            (1) — Canvas Size dialog, Crop Tool expand
+- [ ] 05c-rotate-straighten      (1) — Image Rotation, Straighten button, Ruler Tool
+- [ ] 06-crop                    (7) — Crop Tool, Perspective Crop, single-layer / circular
+- [ ] 07a-layers-panel           (8) — Layers panel structure, rows, shortcuts
+- [ ] 07b-background-layer       (3) — Locked Background layer, convert-to-normal
+- [ ] 08a-layer-ops              (5) — Stamp visible, copy effects, auto-select, align, groups
+- [ ] 08b-properties-panel       (1) — Per-layer-type Properties panel
+- [ ] 08c-doc-transfer           (2) — Move layers between documents
+- [ ] 09-blend-modes             (3) — Blend mode menu, live preview, Shift+/- cycle
+- [ ] 10-layer-styles            (3) — Layer Style dialog, save/load, Opacity vs Fill
+- [ ] 11a-selections-overview    (3) — Shift add, Alt subtract, Shift+Alt intersect
+- [ ] 11b-transform-selection    (2) — Transform Selection command
+- [ ] 12-marquee                 (3) — Rectangular / Elliptical Marquee
+- [ ] 13-lasso                   (3) — Lasso / Polygonal / Magnetic
+- [ ] 14a-content-selection-tools(3) — Magic Wand, Quick Selection, Object Selection (non-AI)
+- [ ] 14b-color-range            (1) — Color Range dialog
+- [ ] 15-pen-paths               (2) — Pen Tool, Curvature Pen Tool
+- [ ] 16a-edge-refinement        (2) — Quick Mask + Feather, classic Refine Edge dialog
+- [ ] 16b-focus-area             (2) — Focus Area auto-selection
+- [ ] 17-layer-masks             (7) — Add, paint, paste-into, view-as-mask, fake mask
+- [ ] 18-clipping-masks          (2) — Clip to layer below, photo-in-text
+- [ ] 19a-free-transform         (3) — Ctrl/Cmd+T scale / rotate / skew / distort / perspective
+- [ ] 19b-warp                   (1) — Warp grid, enhanced Warp 2020
+- [ ] 20a-brush-tool             (3) — Brush Tool, cursor, eraser-via-Clear
+- [ ] 20b-brush-presets          (3) — Custom brushes, save/load, Brushes panel
+- [ ] 20c-paint-symmetry         (1) — Paint Symmetry (butterfly icon)
+- [ ] 21-brush-dynamics          (6) — Shape / Scatter / Texture / Dual / Color / Other
+- [ ] 22a-gradient-tool-and-editor(3) — Gradient Tool + Gradient Editor + recipes
+- [ ] 22b-live-gradients         (1) — Live Gradients (non-destructive layer)
+- [ ] 23-color-swatches          (3) — Eyedropper, Swatches panel, swatches-from-image
+- [ ] 24-type-basics             (6) — Type Tool, point/area, Character/Paragraph panels
+- [ ] 25a-type-on-path-warp      (3) — Type on path, Warp Text
+- [ ] 25b-type-shape-interop     (2) — Type-in-shape, Convert to Shape
+- [ ] 26a-shape-concepts         (4) — Vector vs pixel, Tool Mode
+- [ ] 26b-geometric-shapes       (4) — Rectangle/Ellipse/Triangle/Polygon/Line + combine
+- [ ] 27a-custom-shape-tool      (4) — Custom Shape Tool, Shapes panel
+- [ ] 27b-custom-shape-presets   (2) — Define Custom Shape, save / load sets
+- [ ] 28-patterns                (3) — Define Pattern, fill, tile recipes

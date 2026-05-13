@@ -1,28 +1,56 @@
 {
-  "version": 1,
-  "note": "Thematic groups of in-scope lessons. Each cluster is the unit processed by one /loop tick. Edit freely; work-queue.md tracks status. Generated/refined by hand during Phase 0.",
+  "version": 2,
+  "note": "Thematic groups of in-scope lessons. Each cluster is the unit processed by one /loop tick. v2 splits the original 28 clusters into 51 to keep each within RUN-CONTRACT section 7 limits (<= 3 unrelated subsystems, <= 40 file edits). work-queue.md tracks status.",
   "clusters": [
     {
-      "id": "01-app-basics",
-      "name": "App basics & interface",
-      "description": "Toolbar, panels, document orientation, screen modes, neutral color mode.",
+      "id": "01a-interface-shell",
+      "name": "Interface shell: document window, tab, status bar, pasteboard, color theme",
+      "description": "Document window chrome: tab (name + zoom + click-to-switch), status bar (info menu, click-and-hold for image dimensions), pasteboard concept and color picker (right-click), interface color theme (4 grays, Shift+F1/F2 cycle), Menu Bar layout. Audit-style pass to verify photoweb chrome matches Photoshop.",
       "slugs": [
         "learning-the-photoshop-interface",
         "getting-know-photoshop-interface",
         "interface",
-        "interface-cs6",
-        "photoshop-tools-toolbar-overview",
+        "interface-cs6"
+      ]
+    },
+    {
+      "id": "01b-toolbar",
+      "name": "Toolbar: column, hidden-tool flyout, default-tool memory, keyboard cycle",
+      "description": "Toolbar interaction surface: single/double column toggle, click-and-hold + right-click flyout for hidden tools, default-tool memory (last-selected sticks), keyboard letter to select, Shift+letter to cycle, tool group ordering convention. Toolbar tools themselves are addressed in their own clusters; this cluster is the toolbar UI.",
+      "slugs": [
+        "photoshop-tools-toolbar-overview"
+      ]
+    },
+    {
+      "id": "01c-panels",
+      "name": "Panel system: groups, tabs, Window menu, panel menu icon, dock/float",
+      "description": "Panel groups + tabs, Window menu list with checkmark for open panels, panel menu icon (top-right), dock / float / resize, restore default layout.",
+      "slugs": [
         "managing-panels-photoshop-cc",
-        "managing-panels-in-photoshop-cs6",
+        "managing-panels-in-photoshop-cs6"
+      ]
+    },
+    {
+      "id": "01d-screen-modes",
+      "name": "Screen modes: Standard / Full Screen with Menu Bar / Full Screen",
+      "description": "Three screen modes via View > Screen Mode or the bottom-of-toolbar icon. F cycles forward, Shift+F cycles back. Tab toggles panel visibility.",
+      "slugs": [
         "hide-photoshop-with-screen-modes-and-interface-tricks",
-        "photoshop-screen-modes-interface-tricks",
+        "photoshop-screen-modes-interface-tricks"
+      ]
+    },
+    {
+      "id": "01e-neutral-color-mode",
+      "name": "Neutral Color Mode (interface distraction reduction)",
+      "description": "Preferences > Interface > Neutral Color Mode toggle (CC 2022.5+) that removes cosmetic UI gradients to keep focus on the image.",
+      "slugs": [
         "remove-distractions-with-neutral-color-mode-in-photoshop-2022"
       ]
     },
     {
       "id": "02-preferences",
-      "name": "Preferences & auto-save",
-      "description": "Preferences dialog (interface, performance, cursors, units), background auto-save.",
+      "name": "Preferences dialog + background auto-save",
+      "description": "Preferences dialog (interface, performance, cursors, units) and background auto-save (CS6+). Two related subsystems both fronted by the same dialog.",
       "slugs": [
         "essential-photoshop-preferences-beginners",
         "preferences",
@@ -32,8 +60,8 @@
     },
     {
       "id": "03-navigation",
-      "name": "Navigation: zoom & pan",
-      "description": "Zoom Tool, Hand Tool, scrubby zoom, fit-on-screen, 100% view, navigation shortcuts.",
+      "name": "Navigation: Zoom Tool, Hand Tool, fit / 100%, scrubby zoom, shortcuts",
+      "description": "Z (Zoom Tool), H (Hand Tool), Ctrl/Cmd+0 fit, Ctrl/Cmd+1 100%, scrubby zoom, Space-hold to temp-Hand-Tool, Ctrl+Space / Alt+Space temp-Zoom. Single subsystem with deep shortcut surface.",
       "slugs": [
         "photoshop-image-navigation",
         "photoshop-zoom",
@@ -43,25 +71,39 @@
       ]
     },
     {
-      "id": "04-file-ops",
-      "name": "File: open, place, new, save-as, close",
-      "description": "File > Open, drag-drop, Place Embedded, New Document dialog, Save As to protect originals, Close / Close All.",
+      "id": "04a-file-open-place",
+      "name": "File: Open, drag-drop, Place Embedded, Load Files into Stack",
+      "description": "All ways to bring image data into photoweb: File > Open (Ctrl/Cmd+O), drag-and-drop onto canvas vs onto Home Screen vs blank workspace, File > Place Embedded (adds as new layer with Free Transform pre-armed), File > Scripts > Load Files into Stack (multi-image to layered doc).",
       "slugs": [
         "opening-images-photoshop",
         "open-images-photoshop-cc",
         "the-easy-way-to-open-or-add-images-in-photoshop",
         "open-image-vs-place-image",
-        "open-multiple-images-as-layers-in-photoshop",
+        "open-multiple-images-as-layers-in-photoshop"
+      ]
+    },
+    {
+      "id": "04b-file-new",
+      "name": "File > New: New Document dialog",
+      "description": "Ctrl/Cmd+N New Document dialog (preset categories, custom dimensions, units, resolution, color mode, background contents), match-existing-document dimensions trick (Window > <docname>).",
+      "slugs": [
         "create-new-documents-photoshop-cc",
-        "create-new-photoshop-document-same-size-as-open-document",
+        "create-new-photoshop-document-same-size-as-open-document"
+      ]
+    },
+    {
+      "id": "04c-file-save-close",
+      "name": "File: Save As to protect originals, Close / Close All",
+      "description": "Save As workflow to avoid overwriting original (rename + JPEG quality dialog awareness), File > Close (Ctrl/Cmd+W), File > Close All (Ctrl/Cmd+Alt+W), unsaved-changes warning, tab asterisk indicator.",
+      "slugs": [
         "how-to-avoid-losing-your-original-images-in-photoshop",
         "close-images-photoshop"
       ]
     },
     {
-      "id": "05-image-size-canvas-rotate",
-      "name": "Image size, canvas size, rotate & straighten",
-      "description": "Image Size dialog (pixels/resolution, resampling, pixel art, email/web, upscale), Canvas Size, Rotate / Straighten / Ruler Tool.",
+      "id": "05a-image-size",
+      "name": "Image Size dialog: pixels, resolution, resampling",
+      "description": "Image > Image Size (Ctrl/Cmd+Alt+I): pixel dimensions vs document size (print) vs resolution, link aspect ratio, interpolation modes (Nearest Neighbor for pixel art, Bicubic Sharper/Smoother, Preserve Details 2.0 for upscaling), email/web resize via Image > Duplicate then Image Size, match-existing-doc dimensions, file-size calculation. Single dialog, many cases.",
       "slugs": [
         "how-to-resize-images-in-photoshop-complete-guide",
         "photoshops-image-size-command-features-and-tips",
@@ -71,15 +113,29 @@
         "how-to-resize-images-for-email-and-photo-sharing-with-photoshop",
         "how-to-resize-pixel-art-in-photoshop",
         "upscale-images-photoshop-cc-2018",
-        "resize-image-match-another-photoshop",
-        "increasing-canvas-size-crop-tool-photoshop",
+        "resize-image-match-another-photoshop"
+      ]
+    },
+    {
+      "id": "05b-canvas-size",
+      "name": "Canvas Size (expand via Crop Tool or Image > Canvas Size)",
+      "description": "Image > Canvas Size dialog (anchor-grid, relative checkbox, units, canvas extension color) and Crop Tool dragging beyond canvas edges as an alternate path. Unlocking the Background layer first.",
+      "slugs": [
+        "increasing-canvas-size-crop-tool-photoshop"
+      ]
+    },
+    {
+      "id": "05c-rotate-straighten",
+      "name": "Rotate canvas, Straighten Tool, Ruler-based straightening",
+      "description": "Image > Image Rotation (90 CW/CCW, 180, Flip Horizontal/Vertical, Arbitrary), Crop Tool's free-rotate by clicking outside the crop border, Crop Tool's Straighten button + drag-along-horizon, Ruler Tool > Straighten Layer.",
+      "slugs": [
         "how-to-rotate-and-straighten-images-in-photoshop-cc"
       ]
     },
     {
       "id": "06-crop",
-      "name": "Crop tool",
-      "description": "Crop Tool basics, Classic Mode, straighten, single-layer crop, circular crop, Perspective Crop, tips & tricks.",
+      "name": "Crop Tool: basic crop, Classic Mode, perspective, single-layer, circular",
+      "description": "Crop Tool (C): drag corners/edges, Shift constrain aspect, Alt resize-from-center, X swap orientation, Enter commit, Esc cancel, H hide overlay; Classic Mode preference (Options Bar gear); Delete Cropped Pixels toggle for non-destructive crop. Perspective Crop Tool (rotation-grid alignment). Single-layer crop via Rectangular Marquee + Image > Crop. Circular crop via Elliptical Marquee + delete outside.",
       "slugs": [
         "cropping-images-in-photoshop-complete-lesson-guide",
         "how-to-crop-images-photoshop-cc",
@@ -91,42 +147,63 @@
       ]
     },
     {
-      "id": "07-layers-basics",
-      "name": "Layers basics & Layers panel",
-      "description": "Layers panel, layer types, Background layer behavior, panel options, shortcuts, layers learning index.",
+      "id": "07a-layers-panel",
+      "name": "Layers panel: rows, thumbnails, visibility, locking, opacity, blend mode dropdown, shortcuts",
+      "description": "Layers panel structure (Window > Layers / F7), per-layer row (name, thumbnail, visibility eye, lock controls, opacity, blend mode), panel options (thumbnail size, no thumbnail option), add/delete/duplicate, layer thumbnail double-click to rename, Shift+Ctrl/Cmd+N New Layer with name dialog, Ctrl/Cmd+J duplicate, [ ] reorder, ; toggle eye.",
       "slugs": [
         "understanding-photoshop-layers",
         "layers-intro",
         "layers-panel",
         "photoshop-cs5-layers-panel-essentials",
         "essential-layers-panel-preferences",
-        "background-layer",
-        "photoshop-background-layer",
-        "background-layer-photoshop-cc",
         "layer-shortcuts",
         "photoshop-layers-essential-shortcuts",
         "photoshop-layers-learning-guide"
       ]
     },
     {
-      "id": "08-layers-ops",
-      "name": "Layers operations",
-      "description": "Stamp visible, copy layer effects, auto-select, align/distribute, layer groups, Properties panel, moving images between documents.",
+      "id": "07b-background-layer",
+      "name": "Background layer (locked, no transparency, convert-to-normal)",
+      "description": "The locked Background layer that Photoshop creates on open: italics name, lock icon, no Move Tool drag, no transparency, no reorder, no blend mode changes. Convert dialog (click lock or Layer > New > Layer from Background) auto-renames to Layer 0.",
+      "slugs": [
+        "background-layer",
+        "photoshop-background-layer",
+        "background-layer-photoshop-cc"
+      ]
+    },
+    {
+      "id": "08a-layer-ops",
+      "name": "Layer operations: Stamp Visible, copy effects, Auto-Select, align/distribute, groups",
+      "description": "Shift+Ctrl/Cmd+Alt+E Stamp Visible to a new layer; Alt-drag effects / 'Effects' name to copy effects between layers; Move Tool Auto-Select Layer toggle in Options Bar; Move Tool Align/Distribute icons (Shift-click layers first); layer groups (folder icon, Ctrl/Cmd+G group, Ctrl/Cmd+Shift+G ungroup).",
       "slugs": [
         "merge-layers-to-a-new-layer-without-flattening-your-image",
         "copy-layer-effects-photoshop",
         "auto-select-layers-photoshop",
         "align-layers",
-        "layer-groups",
-        "using-the-enhanced-properties-panel-in-photoshop",
+        "layer-groups"
+      ]
+    },
+    {
+      "id": "08b-properties-panel",
+      "name": "Properties panel (per-layer-type contextual options)",
+      "description": "The enhanced Properties panel surfaces per-layer-type controls: Background layer shows image-size and crop; pixel layers show transform; type layers show font controls; adjustment layers show their parameters. Distinct panel separate from Layers panel.",
+      "slugs": [
+        "using-the-enhanced-properties-panel-in-photoshop"
+      ]
+    },
+    {
+      "id": "08c-doc-transfer",
+      "name": "Moving images and layers between documents",
+      "description": "Five ways to move a layer between open documents: Move Tool drag-and-drop (Shift to center), Select > All + Edit > Copy / Paste, Edit > Paste Special, drag layer thumbnail between Layers panels, Layer > Duplicate Layer with Destination dropdown.",
+      "slugs": [
         "5-ways-move-images-photoshop-documents",
         "moving-photos-between-documents"
       ]
     },
     {
       "id": "09-blend-modes",
-      "name": "Blend modes",
-      "description": "Blend mode dropdown, live preview, keyboard cycling, blending images via blend modes.",
+      "name": "Blend modes: dropdown, live preview hover, Shift+/- keyboard cycle",
+      "description": "Layers panel Blend Mode dropdown with 27 modes (Normal, Dissolve, Darken, Multiply, ... Luminosity); Photoshop CC 2019+ hover for live preview; Shift+Plus / Shift+Minus to cycle from Move Tool or selection tools. Common recipes: Multiply for darken, Screen for lighten, Overlay/Soft Light for contrast.",
       "slugs": [
         "preview-layer-blend-modes-photoshop-cc-2019",
         "blend-mode-tips-tricks",
@@ -135,8 +212,8 @@
     },
     {
       "id": "10-layer-styles",
-      "name": "Layer styles, opacity & fill",
-      "description": "Layer Style dialog, fx menu, Opacity vs Fill semantics, saving styles as presets.",
+      "name": "Layer Style dialog, save/load styles, Opacity vs Fill semantics",
+      "description": "fx icon at bottom of Layers panel + Layer > Layer Style menu opens the modal Layer Style dialog (Drop Shadow, Inner Shadow, Outer/Inner Glow, Bevel & Emboss, Satin, Color/Gradient/Pattern Overlay, Stroke, Blending Options). New Style button + Styles panel to save/load. Opacity reduces layer + effects together; Fill reduces layer pixels only, effects stay at full alpha.",
       "slugs": [
         "using-layer-effects-and-layer-styles-in-photoshop-cc-2020-complete-guide",
         "saving-layer-styles",
@@ -144,21 +221,28 @@
       ]
     },
     {
-      "id": "11-selections-overview",
-      "name": "Selection overview & Transform Selection",
-      "description": "Why selections matter, add/subtract/intersect modifiers, Transform Selection on the marching ants.",
+      "id": "11a-selections-overview",
+      "name": "Selection overview, modifier behaviors (Shift add, Alt subtract, Shift+Alt intersect)",
+      "description": "Why selections matter; Shift to add to selection (cursor +), Alt/Option to subtract (cursor -), Shift+Alt to intersect (cursor x); selection vocabulary (marching ants); Select menu commands (All, Deselect, Reselect, Inverse).",
       "slugs": [
         "make-selections-photoshop",
         "why-make-selections",
-        "basic-selections",
+        "basic-selections"
+      ]
+    },
+    {
+      "id": "11b-transform-selection",
+      "name": "Transform Selection (modify the marching ants, not the pixels)",
+      "description": "Select > Transform Selection (or right-click in selection). Drag handles to scale the outline without affecting pixels; Shift constrain; Alt center; Options Bar W/H/X/Y readouts; Enter commit, Esc cancel.",
+      "slugs": [
         "transform-selection",
         "resize-selections-with-transform-selection"
       ]
     },
     {
       "id": "12-marquee",
-      "name": "Marquee tools",
-      "description": "Rectangular & Elliptical Marquee, M / Shift+M, modifiers, basics.",
+      "name": "Rectangular & Elliptical Marquee, M / Shift+M",
+      "description": "M selects Rectangular Marquee; Shift+M toggles to Elliptical; Space-drag mid-gesture to reposition; Shift constrain to square/circle; Alt center; Options Bar Style (Normal / Fixed Ratio / Fixed Size), Feather, Anti-alias.",
       "slugs": [
         "rectangular-marquee-tool",
         "elliptical-marquee-tool",
@@ -167,8 +251,8 @@
     },
     {
       "id": "13-lasso",
-      "name": "Lasso tools",
-      "description": "Freehand Lasso, Polygonal Lasso, Magnetic Lasso.",
+      "name": "Lasso family: Freehand, Polygonal, Magnetic (L / Shift+L)",
+      "description": "Lasso freehand drag; Polygonal click-to-place anchor, double-click or click-start to close; Magnetic edge-snap with Width / Contrast / Frequency in Options Bar, Caps Lock for crosshair cursor, [ ] to adjust width, Backspace to undo last anchor.",
       "slugs": [
         "lasso-tool",
         "polygonal-lasso-tool",
@@ -176,40 +260,54 @@
       ]
     },
     {
-      "id": "14-wand-quick-color-range",
-      "name": "Wand, Quick, Object Selection (non-AI), Color Range",
-      "description": "Content / color based selection: Magic Wand tolerance, Quick Selection paint, Object Selection rectangle/lasso (non-AI), Color Range sampled colors.",
+      "id": "14a-content-selection-tools",
+      "name": "Magic Wand, Quick Selection, Object Selection (non-AI)",
+      "description": "Three content/color-based selection tools sharing W shortcut (cycle with Shift+W): Magic Wand (Tolerance, Contiguous, Sample All Layers), Quick Selection (paint with brush; [ ] resize, Auto-Enhance), Object Selection in non-AI Rectangle / Lasso mode (drag a loose outline around the subject; cloud Object Finder mode is out of scope).",
       "slugs": [
         "magic-wand-tool",
         "quick-selection-tool",
-        "object-selection-tool",
+        "object-selection-tool"
+      ]
+    },
+    {
+      "id": "14b-color-range",
+      "name": "Color Range dialog (sampled-colors selection)",
+      "description": "Select > Color Range opens a modal: Eyedropper picks sampled colors (+/-/inverse eyedroppers), Fuzziness slider, Range slider for skin/hue, Localized Color Clusters checkbox, Preview thumbnails for Grayscale / Quick Mask / On Black / On White. Distinct from Magic Wand because it builds a continuous mask, not a binary one.",
+      "slugs": [
         "color-range"
       ]
     },
     {
       "id": "15-pen-paths",
-      "name": "Pen Tool & Curvature Pen (paths for selections)",
-      "description": "Pen Tool path drawing, converting paths to selections, Curvature Pen smooth-curve mode.",
+      "name": "Pen Tool selections; Curvature Pen Tool",
+      "description": "Pen Tool (P) Path mode: click anchor, click-and-drag for handles, Alt to break handle, Ctrl/Cmd temp-Direct-Selection, complete path then Paths panel 'Load path as selection' or Ctrl/Cmd+Enter. Curvature Pen Tool (P, Shift+P) automatic smooth curves from clicked points.",
       "slugs": [
         "pen-tool-selections",
         "use-curvature-pen-tool-photoshop-cc-2018"
       ]
     },
     {
-      "id": "16-selection-refinement",
-      "name": "Selection refinement: Quick Mask, Feather, Refine Edge, Focus Area",
-      "description": "Quick Mask preview, feather with live preview, classic Refine Edge dialog, Focus Area auto-selection.",
+      "id": "16a-edge-refinement",
+      "name": "Quick Mask mode and Feather with live preview",
+      "description": "Q toggles Quick Mask mode (selection becomes a red overlay; paint black/white with Brush Tool to add/subtract from selection); inside Quick Mask, Gaussian Blur or Filter > Blur > Gaussian Blur on the mask gives a live-previewed feather. Q again to exit; the soft mask becomes a feathered selection.",
       "slugs": [
         "feather-quick-mask",
-        "access-refine-edge-photoshop-cc-2018",
+        "access-refine-edge-photoshop-cc-2018"
+      ]
+    },
+    {
+      "id": "16b-focus-area",
+      "name": "Focus Area auto-selection",
+      "description": "Select > Focus Area: Photoshop analyzes the image and proposes a selection of the in-focus region. View Modes (On Black/On White/On Layers, press F to cycle), In-Focus Range slider, Add/Subtract brushes for manual refinement. Output to selection / new layer / mask. Algorithmic, not ML/cloud-based.",
+      "slugs": [
         "focus-area",
         "improving-focus-area-selections-refine-edge"
       ]
     },
     {
       "id": "17-layer-masks",
-      "name": "Layer masks",
-      "description": "Adding a mask, paint black/white, paste into mask, advanced tips, fake masks via adjustment layers, masks with layer effects, blending photos with masks + gradients.",
+      "name": "Layer masks: add, paint, paste-into, view-as-mask, fake mask, masks + effects",
+      "description": "Add Layer Mask icon at bottom of Layers panel (Alt-click for hide-all); paint black to hide, white to reveal, gray for partial; Alt-click mask thumbnail to view-as-grayscale, Shift-click to disable, Ctrl/Cmd-click to load as selection; paste image into mask via Alt-click then Edit > Paste; effects can render below mask or above (Create Layers vs Layer Style > Layer Mask Hides Effects); blending photos via gradient on mask; faking masks via adjustment layer's built-in mask.",
       "slugs": [
         "understanding-photoshop-layer-masks",
         "layer-masks",
@@ -222,42 +320,63 @@
     },
     {
       "id": "18-clipping-masks",
-      "name": "Clipping masks",
-      "description": "Clip to layer below, clipping masks with type for photo-in-text effects.",
+      "name": "Clipping masks (clip to layer below; photo-in-text)",
+      "description": "Alt-click between two layer rows or Layer > Create Clipping Mask (Ctrl/Cmd+Alt+G): top layer becomes clipped, its visibility limited to the bottom layer's non-transparent pixels. Combine with type layer to render photo inside text.",
       "slugs": [
         "clipping-masks-essentials",
         "clipping-masks-and-type"
       ]
     },
     {
-      "id": "19-transform-warp",
-      "name": "Free Transform & Warp",
-      "description": "Ctrl/Cmd+T, scale/rotate/skew/distort/perspective, Warp grid (incl. enhanced 2020 warp).",
+      "id": "19a-free-transform",
+      "name": "Free Transform: scale / rotate / skew / distort / perspective",
+      "description": "Ctrl/Cmd+T enters Free Transform with bounding box and 8 handles; drag corner to scale (Shift constrain proportions in legacy; CC 2019+ constrains by default), Alt resize-from-center; rotate by hovering just outside a corner (cursor becomes curved arrow); Shift rotate in 15-degree increments; Ctrl/Cmd-drag a corner for distort, Ctrl/Cmd+Shift-drag for skew, Ctrl/Cmd+Alt+Shift-drag for perspective; right-click for mode menu; Enter commit, Esc cancel.",
       "slugs": [
         "free-transform",
         "photoshops-free-transform-essentials",
-        "transform-and-warp-images-with-free-transform-in-photoshop-cc-2019",
+        "transform-and-warp-images-with-free-transform-in-photoshop-cc-2019"
+      ]
+    },
+    {
+      "id": "19b-warp",
+      "name": "Warp grid (enhanced Warp 2020)",
+      "description": "Edit > Transform > Warp or Warp icon in Free Transform Options Bar. Default 4-corner grid; Options Bar preset (None, Arc, Bulge, Twist, etc.) or Custom; CC 2020 enhanced Warp: split lines (vertical/horizontal/cross splits to add grid divisions), per-cell handles, smooth curves. Enter commit, Esc cancel.",
+      "slugs": [
         "warp-images-with-the-enhanced-warp-tool-in-photoshop-cc-2020"
       ]
     },
     {
-      "id": "20-brush-basics",
-      "name": "Brush tool: basics, presets, eraser swap, Paint Symmetry",
-      "description": "B key, cursor preferences, brush as eraser (Clear blend), making custom brushes (Define Brush Preset), brush presets save/load (panel), Paint Symmetry.",
+      "id": "20a-brush-tool",
+      "name": "Brush Tool basics: cursor, hardness, flow, opacity, eraser-via-Clear-blend",
+      "description": "B selects Brush; [ ] resize, Shift+[ ] hardness; cursor preference (Normal / Precise via Caps Lock); Options Bar Size/Hardness/Flow/Opacity; turning Brush into eraser by setting Blend Mode to Clear (CC 2020+) or just press E for Eraser. Color picking with Alt/Option-click.",
       "slugs": [
         "brush-dynamics-intro",
         "photoshop-brush-tool-hidden-tips-tricks",
-        "turn-a-photoshop-brush-into-an-eraser",
+        "turn-a-photoshop-brush-into-an-eraser"
+      ]
+    },
+    {
+      "id": "20b-brush-presets",
+      "name": "Brush presets: define from canvas, save settings, brush library",
+      "description": "Edit > Define Brush Preset to make a brush from a black-on-white 200x200 layer (grayscale becomes brush opacity); save Tool Settings (Mode, Opacity, Flow, Smoothing, color) alongside brush in the Brushes panel; Get More Brushes panel-menu item.",
+      "slugs": [
         "make-brushes",
         "save-custom-brush-presets-photoshop-cc2018",
-        "get-more-brushes-photoshop-cc-2018",
+        "get-more-brushes-photoshop-cc-2018"
+      ]
+    },
+    {
+      "id": "20c-paint-symmetry",
+      "name": "Paint Symmetry (butterfly icon)",
+      "description": "Paint Symmetry on Brush, Pencil, and Eraser: Options Bar butterfly icon opens menu (None, Vertical, Horizontal, Dual Axis, Diagonal, Wavy, Circle, Spiral, Parallel Lines, Radial, Mandala). Transformable symmetry path on canvas; Enter to apply, then strokes mirror live.",
+      "slugs": [
         "how-to-use-paint-symmetry-in-photoshop-cc-2019"
       ]
     },
     {
       "id": "21-brush-dynamics",
-      "name": "Brush dynamics tabs",
-      "description": "Shape Dynamics, Scattering, Texture, Dual Brush, Color Dynamics, Other Dynamics.",
+      "name": "Brushes panel dynamics: Shape, Scattering, Texture, Dual, Color, Other",
+      "description": "Brushes panel tabs (click the name, not the checkbox, to view options): Shape Dynamics (size/angle/roundness with Control source: Off, Fade, Pen Pressure, Pen Tilt, Stylus Wheel); Scattering (Scatter, Count, Count Jitter, Both Axes); Texture (pattern + mode + scale + depth); Dual Brush; Color Dynamics (Foreground/Background jitter, Hue/Sat/Bright/Purity jitter); Other Dynamics (Opacity / Flow jitter with same Control sources).",
       "slugs": [
         "shape-dynamics",
         "scattering",
@@ -268,20 +387,27 @@
       ]
     },
     {
-      "id": "22-gradient",
-      "name": "Gradient tool, Gradient Editor, Live Gradients",
-      "description": "G key, preset picker, drawing modes, Gradient Editor stops/midpoints/opacity, Live Gradients (CC 2023), rainbow recipe.",
+      "id": "22a-gradient-tool-and-editor",
+      "name": "Gradient Tool, Gradient Editor, gradient recipes",
+      "description": "G selects Gradient Tool; Options Bar Type (Linear/Radial/Angle/Reflected/Diamond), gradient preset picker, Reverse / Dither / Transparency. Drag on canvas defines line; Shift constrains angle in 45-degree increments. Gradient Editor (click swatch in Options Bar) for editing stops (color, opacity, midpoint), preset save. Rainbow recipe via Black-to-White preset + hue-shift sequence.",
       "slugs": [
         "how-to-draw-gradients-with-the-gradient-tool-in-photoshop",
         "how-to-use-the-gradient-editor-in-photoshop",
-        "how-to-use-live-gradients-in-photoshop-2023",
         "how-to-create-a-rainbow-gradient-in-photoshop"
       ]
     },
     {
+      "id": "22b-live-gradients",
+      "name": "Live Gradients (non-destructive gradient layer)",
+      "description": "CC 2023+ Live Gradients: Options Bar Gradient Mode = Gradient creates a non-destructive Gradient Fill layer instead of pixel paint. On-canvas Gradient widget with draggable angle, start/end stops, midpoint, scale; double-click stops for color; right-click for options. Different from classic Gradient Tool (which paints pixels).",
+      "slugs": [
+        "how-to-use-live-gradients-in-photoshop-2023"
+      ]
+    },
+    {
       "id": "23-color-swatches",
-      "name": "Color, Eyedropper & Swatches panel",
-      "description": "Picking type/foreground color from image, swatches drag-drop, custom swatches, swatches from images (Mosaic).",
+      "name": "Eyedropper, Swatches panel, swatches-from-image",
+      "description": "Eyedropper Tool (I) samples Foreground color (Alt for Background); Sample Size in Options Bar (Point Sample / 3x3 / 5x5 / etc.). Swatches panel: drag color from canvas into panel; click swatch to set Foreground (Ctrl/Cmd-click for Background); group collapse all (Ctrl/Cmd-click triangle); create swatches from an image via Filter > Pixelate > Mosaic + Eyedropper sample loop.",
       "slugs": [
         "create-color-swatches-from-images-in-photoshop-cc-2020",
         "drag-and-drop-colors-swatches-in-photoshop-cc-2020",
@@ -290,8 +416,8 @@
     },
     {
       "id": "24-type-basics",
-      "name": "Type basics",
-      "description": "Type Tool point vs area type, font/size/color, Character & Paragraph panels.",
+      "name": "Type Tool, point/area type, Character & Paragraph panels, color picking",
+      "description": "T selects Type Tool; click for point type, click-drag for area type box; Options Bar (font family/style/size, anti-alias, alignment, color); Character panel (tracking, kerning, leading, baseline shift, vertical/horizontal scale, faux bold/italic, case, super/sub); Paragraph panel (alignment, indent, space before/after, hyphenation); pick type color by sampling from image with Color Picker open (cursor becomes Eyedropper over canvas).",
       "slugs": [
         "photoshop-type-essentials",
         "area-type",
@@ -302,49 +428,70 @@
       ]
     },
     {
-      "id": "25-type-advanced",
-      "name": "Type advanced: on-path, warp, type-in-shape",
-      "description": "Type on a Path, Warp Text presets, text shaped like a custom path, filling shape with text.",
+      "id": "25a-type-on-path-warp",
+      "name": "Type on a Path and Warp Text",
+      "description": "Type on path: draw a path with Shape Tool in Path mode or Pen Tool, switch to Type Tool, hover until cursor changes to type-on-path icon, click to start typing along the path; Direct Selection Tool to move start/end; flip side via drag. Warp Text dialog (Options Bar T-with-arc icon): Style dropdown (Arc, Arch, Flag, Wave, Fish, Rise, Fisheye, Inflate, Squeeze, Twist), Horizontal/Vertical, Bend/Horizontal Distortion/Vertical Distortion sliders.",
       "slugs": [
         "type-on-a-path",
         "type-path-photoshop",
-        "warp-text",
+        "warp-text"
+      ]
+    },
+    {
+      "id": "25b-type-shape-interop",
+      "name": "Type-in-shape (paths) and Type-to-shape conversion",
+      "description": "Type inside a closed path: draw shape with Custom Shape Tool in Path mode, switch to Type Tool, click inside path, type wraps to fill it. Convert text to a vector shape via Layer > Type > Convert to Shape; afterwards edit anchors with Direct Selection Tool (cut holes, reshape letters).",
+      "slugs": [
         "fill-shapes-with-text",
         "text-shapes"
       ]
     },
     {
-      "id": "26-shapes-concepts",
-      "name": "Shape concepts & geometric tools",
-      "description": "Vector vs pixel shapes, Tool Mode (Shape/Path/Pixels), Rectangle/Ellipse/Polygon/Line/Triangle, 5-point star recipe, shape combination ops.",
+      "id": "26a-shape-concepts",
+      "name": "Shape concepts: vector vs pixel, Tool Mode (Shape / Path / Pixels)",
+      "description": "Shape tools' three modes in Options Bar (Shape / Path / Pixels): Shape creates a vector Shape layer (resolution-independent, editable Fill/Stroke), Path creates a Work Path (paths panel, no layer), Pixels rasterizes onto the active layer. Free Transform Path command for vector resize.",
       "slugs": [
         "photoshop-shape-essentials",
         "vectors-paths-pixels",
         "vector-shapes-vs-pixel-shapes-in-photoshop",
+        "drawing-vector-vs-pixel-shapes-in-photoshop-cs6"
+      ]
+    },
+    {
+      "id": "26b-geometric-shapes",
+      "name": "Rectangle, Ellipse, Triangle, Polygon, Line; combination ops",
+      "description": "U selects shape tool, Shift+U cycles. Rectangle (Shift = square, Alt = center, Live Corners radius); Ellipse (Shift = circle); Triangle (Shift = equilateral, corner radius); Polygon (Sides, Star Ratio, Smooth Indents, Smooth Corners); Line (Stroke weight + color, arrowhead options); Star recipe via Polygon + Star Ratio. Shape combination ops in Options Bar: New Layer, Add (+), Subtract (-), Intersect (x), Exclude (overlapping).",
+      "slugs": [
         "how-to-draw-vector-shapes-in-photoshop-cs6",
-        "drawing-vector-vs-pixel-shapes-in-photoshop-cs6",
         "how-to-draw-shapes-with-the-shape-tools",
         "draw-5-point-star",
         "add-subtract"
       ]
     },
     {
-      "id": "27-shapes-custom",
-      "name": "Custom Shape Tool & shape presets",
-      "description": "Custom Shape Tool, Shapes panel groups, custom shape sets save/load via Preset Manager, defining custom shapes from paths.",
+      "id": "27a-custom-shape-tool",
+      "name": "Custom Shape Tool & Shapes panel",
+      "description": "Custom Shape Tool (U, Shift+U cycle); Options Bar shape picker (gear menu to load default sets: Animals, Arrows, Banners, etc.); Shapes panel (Window > Shapes) with collapsible groups; drag shape from panel into document for a Shape layer; Shift constrain aspect.",
       "slugs": [
         "how-to-draw-custom-shapes-in-photoshop",
         "custom-shape-tool",
         "how-to-use-the-custom-shape-tool-in-photoshop-cs6",
-        "drawing-custom-shapes-with-the-shapes-panel-in-photoshop-cc-2020",
+        "drawing-custom-shapes-with-the-shapes-panel-in-photoshop-cc-2020"
+      ]
+    },
+    {
+      "id": "27b-custom-shape-presets",
+      "name": "Custom shape presets: define and save sets",
+      "description": "Trace path with Pen Tool, Edit > Define Custom Shape to add to current preset set. Preset Manager (Edit > Presets > Preset Manager) Set Preset Type = Custom Shapes, click items, Save Set as .csh; Load to import a set; reset to defaults; rename / delete individual presets.",
+      "slugs": [
         "custom-shapes",
         "custom-shape-sets"
       ]
     },
     {
       "id": "28-patterns",
-      "name": "Patterns",
-      "description": "Define Pattern, Fill > Pattern, pattern tiles from shapes and gradients.",
+      "name": "Patterns: define, fill, pattern tiles from shapes and gradients",
+      "description": "Define Pattern (Edit > Define Pattern) from a 100x100 tile design; Edit > Fill > Pattern, Layer > Layer Style > Pattern Overlay, or Paint Bucket Pattern mode; tile design with guides at 50% center, repeating shapes/gradients in symmetry. Pattern Preset Manager.",
       "slugs": [
         "repeating-patterns-intro",
         "repeating-patterns-from-custom-shapes",
