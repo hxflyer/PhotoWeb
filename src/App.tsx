@@ -40,6 +40,7 @@ import { StorageUsageDialog } from './components/Dialogs/StorageUsageDialog';
 import { StrokePathDialog } from './components/Dialogs/StrokePathDialog';
 import { FillPathDialog } from './components/Dialogs/FillPathDialog';
 import { FadeDialog } from './components/Dialogs/FadeDialog';
+import { LayerStyleDialog } from './components/Dialogs/LayerStyleDialog';
 import { RequirementsOverlay } from './components/Overlay/RequirementsOverlay';
 import { getLastFilter, getFilter, applyFilterToLayer, setLastFilter } from './filters/index';
 import { applyAdjustmentToLayer } from './adjustments';
@@ -59,6 +60,7 @@ import { SaveAsDialog } from './components/Dialogs/SaveAsDialog';
 import { CloseConfirmDialog } from './components/Dialogs/CloseConfirmDialog';
 import { getLayerContentBounds } from './utils/canvasUtils';
 import { drawCanvasWithBlendMode } from './core/blendModes';
+import type { LayerEffectKind } from './core/Layer';
 import './App.css';
 
 const START_FREE_TRANSFORM_EVENT = 'photoweb:start-free-transform';
@@ -107,6 +109,7 @@ function App() {
   const [strokePathOpen, setStrokePathOpen] = useState(false);
   const [fillPathOpen, setFillPathOpen] = useState(false);
   const [fadeDialogOpen, setFadeDialogOpen] = useState(false);
+  const [layerStyleDialog, setLayerStyleDialog] = useState<{ layerId: string; tab: string } | null>(null);
   const [pasteboardMenu, setPasteboardMenu] = useState<PasteboardContextMenuState | null>(null);
   const [pickingPasteboardColor, setPickingPasteboardColor] = useState(false);
   const colorTheme = useEditorStore(s => s.colorTheme);
@@ -234,17 +237,29 @@ function App() {
     const openFade = () => {
       if (useEditorStore.getState().lastEffect) setFadeDialogOpen(true);
     };
+    const openLayerStyle = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: string; addEffect?: LayerEffectKind }>).detail ?? {};
+      const s = useEditorStore.getState();
+      const layer = s.layers.find(l => l.id === s.activeLayerId);
+      if (!layer || layer.isBackground) return;
+      if (detail.addEffect && !layer.effects.some(effect => effect.kind === detail.addEffect)) {
+        s.addLayerEffect(layer.id, detail.addEffect);
+      }
+      setLayerStyleDialog({ layerId: layer.id, tab: detail.tab ?? detail.addEffect ?? 'blending' });
+    };
     window.addEventListener('photoweb:open-preferences', openPrefs);
     window.addEventListener('photoweb:open-storage-usage', openStorage);
     window.addEventListener('photoweb:open-stroke-path', openStroke);
     window.addEventListener('photoweb:open-fill-path', openFill);
     window.addEventListener('photoweb:open-fade', openFade);
+    window.addEventListener('photoweb:open-layer-style', openLayerStyle);
     return () => {
       window.removeEventListener('photoweb:open-preferences', openPrefs);
       window.removeEventListener('photoweb:open-storage-usage', openStorage);
       window.removeEventListener('photoweb:open-stroke-path', openStroke);
       window.removeEventListener('photoweb:open-fill-path', openFill);
       window.removeEventListener('photoweb:open-fade', openFade);
+      window.removeEventListener('photoweb:open-layer-style', openLayerStyle);
     };
   }, []);
   const autoSaveStarted = useRef(false);
@@ -1132,6 +1147,12 @@ function App() {
           useEditorStore.setState(state => ({ layers: [...state.layers] }));
         }}
         onClose={() => setFadeDialogOpen(false)}
+      />
+      <LayerStyleDialog
+        isOpen={layerStyleDialog !== null}
+        layerId={layerStyleDialog?.layerId ?? null}
+        initialTab={layerStyleDialog?.tab}
+        onClose={() => setLayerStyleDialog(null)}
       />
 
       {freeTransform && (

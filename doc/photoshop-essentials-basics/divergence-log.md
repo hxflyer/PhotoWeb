@@ -341,3 +341,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Window > Arrange can show multiple live document windows in 2-up layouts or detach them as floating OS windows, and users can drag pixels directly between those live windows.
 **Photoweb behavior:** Multiple documents are real and switchable by tabs; Duplicate Layer and Copy/Paste transfer layers between them. Arrange commands are exposed as state, but this tick does not render simultaneous live viewports or floating windows.
 **Rationale:** The current browser shell has one canvas viewport and one right-side panel stack. Real tiled/floating document windows would be a larger shell rewrite, so this tick preserves the document-transfer workflows that can be made robust inside the existing architecture.
+
+## 2026-05-14 — 10-layer-styles — Browser-local style presets instead of `.asl` sets
+
+**Photoshop behavior:** Layer styles can be saved into Photoshop's Styles panel and exported/imported as `.asl` style sets through the preset workflow.
+**Photoweb behavior:** New Style saves reusable layer-style presets into browser localStorage, and the Styles panel renders compact text tiles that can apply or clear styles.
+**Rationale:** Browser localStorage gives the app a dependable no-file-dialog preset loop for the current editor architecture. `.asl` parsing/export and rendered Photoshop-style thumbnail packs are larger compatibility projects outside this cluster.

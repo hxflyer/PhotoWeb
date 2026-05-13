@@ -74,6 +74,7 @@ function defaultPanelVisibility(): PanelVisibility {
         tools: true,
         'brush-presets': true,
         'pattern-presets': true,
+        styles: true,
     };
 }
 

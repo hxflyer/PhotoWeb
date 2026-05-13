@@ -21,6 +21,22 @@ const sep: MI = { k: 'sep' };
 const act = (l: string, f: () => void, s?: string, d?: boolean): MI => ({ k: 'act', l, f, s, d });
 const chk = (l: string, v: () => boolean, f: () => void, s?: string): MI => ({ k: 'chk', l, v, f, s });
 const sub = (l: string, ...items: MI[]): MI => ({ k: 'sub', l, items });
+const STYLE_EFFECT_MENU = [
+  { kind: 'drop-shadow', label: 'Drop Shadow…' },
+  { kind: 'inner-shadow', label: 'Inner Shadow…' },
+  { kind: 'outer-glow', label: 'Outer Glow…' },
+  { kind: 'inner-glow', label: 'Inner Glow…' },
+  { kind: 'bevel-emboss', label: 'Bevel & Emboss…' },
+  { kind: 'satin', label: 'Satin…' },
+  { kind: 'color-overlay', label: 'Color Overlay…' },
+  { kind: 'gradient-overlay', label: 'Gradient Overlay…' },
+  { kind: 'pattern-overlay', label: 'Pattern Overlay…' },
+  { kind: 'stroke', label: 'Stroke…' },
+] as const;
+
+function openLayerStyle(tab: string, addEffect?: string) {
+  window.dispatchEvent(new CustomEvent('photoweb:open-layer-style', { detail: { tab, addEffect } }));
+}
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface MenuBarProps {
@@ -425,6 +441,10 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       ),
       sep,
       sub('Layer Style',
+        act('Blending Options…', () => openLayerStyle('blending')),
+        sep,
+        ...STYLE_EFFECT_MENU.map(item => act(item.label, () => openLayerStyle(item.kind, item.kind))),
+        sep,
         act('Copy Layer Style', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.copyLayerStyle(s.activeLayerId); }),
         act('Paste Layer Style', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.pasteLayerStyle(s.activeLayerId); }),
         act('Clear Layer Style', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.clearLayerStyle(s.activeLayerId); }),
@@ -662,6 +682,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       chk('Navigator', () => useEditorStore.getState().panelVisibility.navigator, () => useEditorStore.getState().togglePanelVisibility('navigator')),
       chk('Info', () => useEditorStore.getState().panelVisibility.info, () => useEditorStore.getState().togglePanelVisibility('info'), 'F8'),
       chk('Brush Presets', () => useEditorStore.getState().panelVisibility['brush-presets'], () => useEditorStore.getState().togglePanelVisibility('brush-presets'), 'F5'),
+      chk('Styles', () => useEditorStore.getState().panelVisibility.styles, () => useEditorStore.getState().togglePanelVisibility('styles')),
       sep,
       act('Tools', () => {}),
     ],

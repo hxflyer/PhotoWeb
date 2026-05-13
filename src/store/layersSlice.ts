@@ -1407,7 +1407,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => {
             const { layers } = get();
             const layer = layers.find(l => l.id === id);
-            if (!layer) return;
+            if (!layer || layer.isBackground) return;
             // Pull the renderer's defaults via async-safe lookup; fallback to {}.
             const effect = { kind, enabled: true, params: {} };
             layer.effects = [...(layer.effects ?? []), effect];
@@ -1423,7 +1423,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => {
             const { layers } = get();
             const layer = layers.find(l => l.id === id);
-            if (!layer || !layer.effects) return;
+            if (!layer || layer.isBackground || !layer.effects) return;
             layer.effects = layer.effects.filter((_, i) => i !== index);
             layer.markDirty(null);
             set({ layers: [...layers] });
@@ -1437,7 +1437,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => {
             const { layers } = get();
             const layer = layers.find(l => l.id === id);
-            if (!layer || !layer.effects || !layer.effects[index]) return;
+            if (!layer || layer.isBackground || !layer.effects || !layer.effects[index]) return;
             layer.effects = layer.effects.map((e, i) => i === index ? { ...e, enabled } : e);
             layer.markDirty(null);
             set({ layers: [...layers] });
@@ -1451,7 +1451,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => {
             const { layers } = get();
             const layer = layers.find(l => l.id === id);
-            if (!layer || !layer.effects || !layer.effects[index]) return;
+            if (!layer || layer.isBackground || !layer.effects || !layer.effects[index]) return;
             layer.effects = layer.effects.map((e, i) =>
                 i === index ? { ...e, params: { ...e.params, ...params } } : e,
             );
@@ -1482,7 +1482,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
             run: () => {
                 const { layers } = get();
                 const layer = layers.find(l => l.id === id);
-                if (!layer) return;
+                if (!layer || layer.isBackground) return;
                 layer.effects = copied.map(e => ({
                     kind: e.kind,
                     enabled: e.enabled,
@@ -1501,7 +1501,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => {
             const { layers } = get();
             const layer = layers.find(l => l.id === id);
-            if (!layer) return;
+            if (!layer || layer.isBackground) return;
             layer.effects = [];
             layer.markDirty(null);
             set({ layers: [...layers] });
@@ -1515,7 +1515,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => {
             const { layers } = get();
             const layer = layers.find(l => l.id === id);
-            if (!layer || !layer.effects) return;
+            if (!layer || layer.isBackground || !layer.effects) return;
             const factor = Math.max(0.01, scalePercent / 100);
             const SCALABLE = new Set(['size', 'distance', 'spread', 'depth', 'soften']);
             layer.effects = layer.effects.map(e => {

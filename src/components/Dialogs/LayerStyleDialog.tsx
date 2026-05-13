@@ -370,6 +370,72 @@ function EffectTab({ layer, kind, label }: { layer: Layer; kind: LayerEffectKind
     );
 }
 
+function NewStyleDialog({
+    layer,
+    onClose,
+}: {
+    layer: Layer;
+    onClose: () => void;
+}) {
+    const saveLayerStylePresetFromLayer = useEditorStore(s => s.saveLayerStylePresetFromLayer);
+    const [name, setName] = useState(`${layer.name} Style`);
+    const [includeEffects, setIncludeEffects] = useState(true);
+    const [includeBlending, setIncludeBlending] = useState(false);
+    const commit = () => {
+        saveLayerStylePresetFromLayer(layer.id, name, includeEffects, includeBlending);
+        onClose();
+    };
+    return (
+        <div
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+            onClick={onClose}
+        >
+            <div
+                data-testid="new-style-dialog"
+                role="dialog"
+                aria-modal="true"
+                style={{ width: 320, background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', boxShadow: 'var(--shadow-menu)', padding: 14 }}
+                onClick={e => e.stopPropagation()}
+            >
+                <div style={{ fontWeight: 600, marginBottom: 10 }}>New Style</div>
+                <label style={{ ...rowStyle, alignItems: 'center' }}>
+                    <span style={{ width: 72 }}>Name:</span>
+                    <input
+                        autoFocus
+                        data-testid="new-style-name"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') commit(); }}
+                        style={{ ...inputStyle, flex: 1 }}
+                    />
+                </label>
+                <label style={rowStyle}>
+                    <input
+                        type="checkbox"
+                        data-testid="new-style-include-effects"
+                        checked={includeEffects}
+                        onChange={e => setIncludeEffects(e.target.checked)}
+                    />
+                    Include Layer Effects
+                </label>
+                <label style={rowStyle}>
+                    <input
+                        type="checkbox"
+                        data-testid="new-style-include-blending"
+                        checked={includeBlending}
+                        onChange={e => setIncludeBlending(e.target.checked)}
+                    />
+                    Include Layer Blending Options
+                </label>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                    <button type="button" style={buttonStyle} onClick={onClose}>Cancel</button>
+                    <button type="button" data-testid="new-style-ok" style={primaryButtonStyle} onClick={commit}>OK</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function LayerStyleDialog({ isOpen, layerId, initialTab, onClose }: Props) {
     if (!isOpen) return null;
     return (
@@ -386,13 +452,14 @@ export function LayerStyleDialog({ isOpen, layerId, initialTab, onClose }: Props
 function LayerStyleDialogContent({ layerId, initialTab, onClose }: Omit<Props, 'isOpen'>) {
     const layer = useEditorStore(s => s.layers.find(l => l.id === layerId) ?? null);
     const [activeTab, setActiveTab] = useState<string>(initialTab ?? 'blending');
+    const [newStyleOpen, setNewStyleOpen] = useState(false);
     const dialogRef = useDialogA11y(true, onClose);
 
     if (!layer) return null;
 
     return (
         <div style={overlay} role="dialog" aria-modal="true" data-testid="layer-style-dialog">
-            <div ref={dialogRef} style={card}>
+            <div ref={dialogRef} style={{ ...card, position: 'relative' }}>
                 <div style={{ padding: '8px 14px', borderBottom: '1px solid hsl(var(--border-light))', fontWeight: 600 }}>
                     Layer Style — {layer.name}
                 </div>
@@ -435,8 +502,10 @@ function LayerStyleDialogContent({ layerId, initialTab, onClose }: Omit<Props, '
                     </div>
                 </div>
                 <div style={footerStyle}>
+                    <button type="button" style={{ ...buttonStyle, marginRight: 'auto' }} data-testid="layer-style-new-style" onClick={() => setNewStyleOpen(true)}>New Style...</button>
                     <button type="button" style={buttonStyle} data-testid="layer-style-close" onClick={onClose}>Close</button>
                 </div>
+                {newStyleOpen && <NewStyleDialog layer={layer} onClose={() => setNewStyleOpen(false)} />}
             </div>
         </div>
     );

@@ -17,6 +17,18 @@ const COLOR_TAGS: { id: LayerColorTag; color: string }[] = [
     { id: 'violet', color: '#a855f7' },
     { id: 'gray', color: '#6b7280' },
 ];
+const STYLE_EFFECT_MENU = [
+    { kind: 'drop-shadow' as const, label: 'Drop Shadow…' },
+    { kind: 'inner-shadow' as const, label: 'Inner Shadow…' },
+    { kind: 'outer-glow' as const, label: 'Outer Glow…' },
+    { kind: 'inner-glow' as const, label: 'Inner Glow…' },
+    { kind: 'bevel-emboss' as const, label: 'Bevel & Emboss…' },
+    { kind: 'satin' as const, label: 'Satin…' },
+    { kind: 'color-overlay' as const, label: 'Color Overlay…' },
+    { kind: 'gradient-overlay' as const, label: 'Gradient Overlay…' },
+    { kind: 'pattern-overlay' as const, label: 'Pattern Overlay…' },
+    { kind: 'stroke' as const, label: 'Stroke…' },
+];
 
 type LayerThumbnailPreference = 'none' | 'small' | 'medium' | 'large';
 
@@ -871,7 +883,7 @@ export function LayersPanel() {
                                     onClick={(e) => e.stopPropagation()}
                                     onDoubleClick={(e) => {
                                         e.stopPropagation();
-                                        setLayerStyleDialog({ layerId: layer.id, tab: 'effects' });
+                                        setLayerStyleDialog({ layerId: layer.id, tab: layer.effects.find(effect => effect.enabled)?.kind ?? 'blending' });
                                     }}
                                     onDragStart={(e) => {
                                         e.stopPropagation();
@@ -969,6 +981,18 @@ export function LayersPanel() {
                 flexShrink: 0,
             }}>
                 <button
+                    data-testid="layers-panel-fx-button"
+                    title="Add a Layer Style"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (!activeLayerId || activeIsBackground) return;
+                        const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                        setContextMenu({ x: rect.left, y: rect.top, layerId: activeLayerId, submenu: 'fx' });
+                    }}
+                    disabled={!activeLayerId || activeIsBackground}
+                    style={{ ...HEAD_BTN, opacity: activeLayerId && !activeIsBackground ? 1 : 0.4, fontSize: 11, fontWeight: 700, fontStyle: 'italic' }}
+                >fx</button>
+                <button
                     title="Add Layer Mask"
                     onClick={() => activeLayerId && addLayerMask(activeLayerId, 'reveal-all')}
                     disabled={!activeLayerId}
@@ -1031,11 +1055,14 @@ export function LayersPanel() {
                     >Blending Options…</button>
                     <button
                         data-testid="layer-context-fx"
+                        disabled={!!layers.find(layer => layer.id === contextMenu.layerId)?.isBackground}
                         onClick={() => setContextMenu({ ...contextMenu, submenu: 'fx' })}
                         style={{
                             display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
                             padding: '4px 12px', background: 'none', border: 'none',
-                            color: 'hsl(var(--text-main))', cursor: 'pointer', fontSize: 12,
+                            color: layers.find(layer => layer.id === contextMenu.layerId)?.isBackground ? 'hsl(var(--text-muted))' : 'hsl(var(--text-main))',
+                            cursor: layers.find(layer => layer.id === contextMenu.layerId)?.isBackground ? 'default' : 'pointer',
+                            fontSize: 12,
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--accent-primary))'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -1123,32 +1150,26 @@ export function LayersPanel() {
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >◂ Back</button>
                     <div style={{ height: 1, background: 'hsl(var(--border-light))', margin: '4px 0' }} />
-                    {[
-                        { kind: 'drop-shadow' as const, label: 'Drop Shadow…' },
-                        { kind: 'inner-shadow' as const, label: 'Inner Shadow…' },
-                        { kind: 'outer-glow' as const, label: 'Outer Glow…' },
-                        { kind: 'inner-glow' as const, label: 'Inner Glow…' },
-                        { kind: 'bevel-emboss' as const, label: 'Bevel & Emboss…' },
-                        { kind: 'satin' as const, label: 'Satin…' },
-                        { kind: 'color-overlay' as const, label: 'Color Overlay…' },
-                        { kind: 'gradient-overlay' as const, label: 'Gradient Overlay…' },
-                        { kind: 'pattern-overlay' as const, label: 'Pattern Overlay…' },
-                        { kind: 'stroke' as const, label: 'Stroke…' },
-                    ].map(item => (
+                    {STYLE_EFFECT_MENU.map(item => (
                         <button
                             key={item.kind}
                             data-testid={`layer-context-add-${item.kind}`}
+                            disabled={!!layers.find(layer => layer.id === contextMenu.layerId)?.isBackground}
                             onClick={() => {
+                                if (layers.find(layer => layer.id === contextMenu.layerId)?.isBackground) return;
                                 addLayerEffect(contextMenu.layerId, item.kind);
                                 setActiveLayer(contextMenu.layerId);
                                 useEditorStore.getState().setPanelVisibility?.('properties', true);
+                                setLayerStyleDialog({ layerId: contextMenu.layerId, tab: item.kind });
                                 window.dispatchEvent(new CustomEvent('photoweb:focus-effects', { detail: { layerId: contextMenu.layerId, kind: item.kind } }));
                                 setContextMenu(null);
                             }}
                             style={{
                                 display: 'block', width: '100%', textAlign: 'left',
                                 padding: '4px 12px', background: 'none', border: 'none',
-                                color: 'hsl(var(--text-main))', cursor: 'pointer', fontSize: 12,
+                                color: layers.find(layer => layer.id === contextMenu.layerId)?.isBackground ? 'hsl(var(--text-muted))' : 'hsl(var(--text-main))',
+                                cursor: layers.find(layer => layer.id === contextMenu.layerId)?.isBackground ? 'default' : 'pointer',
+                                fontSize: 12,
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--accent-primary))'}
                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}

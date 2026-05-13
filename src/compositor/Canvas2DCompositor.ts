@@ -1,8 +1,29 @@
 import type { CompositeRequest, Compositor, DirtyRect } from './Compositor';
 import { getAdjustment } from '../adjustments';
 import { getEffect } from '../effects';
-import type { Layer, BlendIf, BlendIfChannelRange } from '../core/Layer';
+import type { Layer, BlendIf, BlendIfChannelRange, LayerEffect } from '../core/Layer';
 import { drawCanvasWithBlendMode } from '../core/blendModes';
+
+const EFFECT_RENDER_ORDER = [
+    'drop-shadow',
+    'outer-glow',
+    'bevel-emboss',
+    'stroke',
+    'inner-shadow',
+    'inner-glow',
+    'satin',
+    'color-overlay',
+    'gradient-overlay',
+    'pattern-overlay',
+];
+
+function sortEffectsForRender(effects: LayerEffect[]): LayerEffect[] {
+    return [...effects].sort((a, b) => {
+        const ai = EFFECT_RENDER_ORDER.indexOf(a.kind);
+        const bi = EFFECT_RENDER_ORDER.indexOf(b.kind);
+        return (ai === -1 ? EFFECT_RENDER_ORDER.length : ai) - (bi === -1 ? EFFECT_RENDER_ORDER.length : bi);
+    });
+}
 
 interface LayerWithAdjustment {
     adjustment?: { id: string; params: Record<string, unknown> };
@@ -197,7 +218,7 @@ export class Canvas2DCompositor implements Compositor {
         // Blend-If-aware silhouette.
         const sourceCanvas = applyBlendIf(rawSource, layer.blendIf, ctx.canvas);
 
-        const enabledEffects = layer.effects?.filter(e => e.enabled) ?? [];
+        const enabledEffects = sortEffectsForRender(layer.effects?.filter(e => e.enabled) ?? []);
         if (enabledEffects.length === 0) {
             drawCanvasWithBlendMode(ctx, sourceCanvas, layer.blendMode, layer.opacity * layer.fill);
             return;
@@ -268,7 +289,7 @@ export class Canvas2DCompositor implements Compositor {
             ? this.applyMask(groupCanvas, group.mask.canvas, { density: group.mask.density, feather: group.mask.feather })
             : groupCanvas;
 
-        const enabledEffects = group.effects?.filter(e => e.enabled) ?? [];
+        const enabledEffects = sortEffectsForRender(group.effects?.filter(e => e.enabled) ?? []);
         if (enabledEffects.length === 0) {
             drawCanvasWithBlendMode(ctx, sourceCanvas, group.blendMode, group.opacity * group.fill);
             return;
@@ -297,7 +318,7 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        sctx.globalAlpha = 1;
+        sctx.globalAlpha = group.fill;
         sctx.globalCompositeOperation = 'source-over';
         sctx.drawImage(sourceCanvas, 0, 0);
 
@@ -311,7 +332,7 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        drawCanvasWithBlendMode(ctx, scratch, group.blendMode, group.opacity * group.fill);
+        drawCanvasWithBlendMode(ctx, scratch, group.blendMode, group.opacity);
     }
 
     private applyChannelFilter(frame: HTMLCanvasElement, channel: 'r' | 'g' | 'b'): void {

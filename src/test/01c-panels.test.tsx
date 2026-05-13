@@ -27,7 +27,7 @@ afterEach(() => {
             color: true, swatches: true, adjustments: true,
             properties: true, character: true, paragraph: true,
             navigator: true, info: true, tools: true,
-            'brush-presets': true, 'pattern-presets': true,
+            'brush-presets': true, 'pattern-presets': true, styles: true,
         },
     });
 });
