@@ -18,7 +18,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 05b-canvas-size            (1) — Canvas Size dialog, Crop Tool expand  commit: 0c195e9
 - [x] 05c-rotate-straighten      (1) — Image Rotation, Straighten button, Ruler Tool  commit: 0abaf1f
 - [x] 06-crop                    (7) — Crop Tool, Perspective Crop, single-layer / circular  commit: f37df51
-- [ ] 07a-layers-panel           (8) — Layers panel structure, rows, shortcuts
+- [x] 07a-layers-panel           (8) — Layers panel structure, rows, shortcuts  commit: 9349ab8
 - [ ] 07b-background-layer       (3) — Locked Background layer, convert-to-normal
 - [ ] 08a-layer-ops              (5) — Stamp visible, copy effects, auto-select, align, groups
 - [ ] 08b-properties-panel       (1) — Per-layer-type Properties panel
