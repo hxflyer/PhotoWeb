@@ -29,3 +29,9 @@ dist-ssr
 
 # Per-user Claude Code settings, agent worktrees, task transcripts
 .claude/
+
+# Python bytecode from local scripts
+**/__pycache__/
+
+# Personal screenshot scratch dir
+doc/snapshots/
