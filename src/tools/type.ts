@@ -3,6 +3,7 @@ import { registerTool } from './registry';
 import type { TextStyle } from '../components/Canvas/TextEditOverlay';
 import type { Layer } from '../core/Layer';
 import { resolveFontFamily, shouldEmitFallbackToast } from '../utils/fontList';
+import { applyTextWarp } from '../utils/textWarp';
 
 export type TypeOrientation = 'horizontal' | 'vertical';
 export type TypeTextMode = 'point' | 'box';
@@ -13,6 +14,36 @@ export interface TypeStyleRun {
     start: number;
     end: number;
     style: Partial<TextStyle>;
+}
+
+/**
+ * Photoshop's Warp Text presets. `none` disables warping entirely.
+ * `bend` ranges -100..100, `distortH` / `distortV` range -100..100.
+ */
+export type TypeWarpStyle =
+    | 'none'
+    | 'arc'
+    | 'arc-lower'
+    | 'arc-upper'
+    | 'arch'
+    | 'bulge'
+    | 'shell-lower'
+    | 'shell-upper'
+    | 'flag'
+    | 'wave'
+    | 'fish'
+    | 'rise'
+    | 'fisheye'
+    | 'inflate'
+    | 'squeeze'
+    | 'twist';
+
+export interface TypeWarp {
+    style: TypeWarpStyle;
+    bend: number;       // -100..100, % of width
+    distortH: number;   // -100..100, % horizontal distortion
+    distortV: number;   // -100..100, % vertical distortion
+    horizontal: boolean; // orientation of the bend axis
 }
 
 export interface TypeLayerData {
@@ -27,6 +58,8 @@ export interface TypeLayerData {
     bounds?: TypeBounds;
     /** When set, edit-mode is editing an existing type layer (re-edit flow). */
     targetLayerId?: string;
+    /** Photoshop's Warp Text settings. When `style === 'none'` (or absent), no warp is applied. */
+    warp?: TypeWarp;
 }
 
 interface TypeToolState {
@@ -560,7 +593,33 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
         w: Math.max(maxLineWidth, 1) * base.scaleX,
         h: Math.max(lineCount * lineStep + base.spaceBefore + base.spaceAfter, base.fontSize) * base.scaleY,
     };
+
+    // Warp Text: snapshot the rasterized glyphs, clear, and re-apply through
+    // the warp displacement function. Skipped when warp is unset or style='none'.
+    if (data.warp && data.warp.style !== 'none' && data.bounds) {
+        const b = data.bounds;
+        // Snapshot the area of the bounds (plus a small margin so warp can
+        // pull pixels in from neighboring rows).
+        const margin = 4;
+        const x0 = Math.max(0, Math.floor(b.x - margin));
+        const y0 = Math.max(0, Math.floor(b.y - margin));
+        const w = Math.min(layerCanvas.width - x0, Math.ceil(b.w + margin * 2));
+        const h = Math.min(layerCanvas.height - y0, Math.ceil(b.h + margin * 2));
+        if (w > 0 && h > 0) {
+            const snap = document.createElement('canvas');
+            snap.width = w;
+            snap.height = h;
+            const snapCtx = snap.getContext('2d');
+            if (snapCtx) {
+                snapCtx.drawImage(layerCanvas, x0, y0, w, h, 0, 0, w, h);
+                // Clear the bounds region and re-paint via the warp.
+                ctx.clearRect(x0, y0, w, h);
+                applyTextWarp(ctx, snap, data.warp, { x: x0, y: y0, w, h });
+            }
+        }
+    }
 }
+
 
 /** Re-rasterize a type layer in-place from its stored typeData (used after panel edits). */
 export function rerenderTypeLayer(layer: Layer): void {
