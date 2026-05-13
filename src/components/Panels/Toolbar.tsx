@@ -3,7 +3,7 @@ import {
     PaintBucket, Pentagon, Stamp, Crop, Square, Circle,
     Wand2, Pencil, Move,
     PenTool, PenLine, MousePointer, Pipette, Type, Hand, ZoomIn,
-    Hexagon, Minus, Star, Lasso, ChevronRight, ChevronsLeft, ChevronsRight, Repeat2,
+    Hexagon, Minus, Star, Lasso, Magnet, ChevronRight, ChevronsLeft, ChevronsRight, Repeat2,
     Maximize, Maximize2, Minimize2, Ruler,
 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
@@ -41,6 +41,7 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
         primary: { id: 'lasso', icon: Lasso, label: 'Lasso Tool', shortcut: 'L' },
         subs: [
             { id: 'lasso-poly', icon: Pentagon, label: 'Polygonal Lasso Tool', shortcut: 'L' },
+            { id: 'magnetic-lasso', icon: Magnet, label: 'Magnetic Lasso Tool', shortcut: 'L' },
         ],
     },
     {

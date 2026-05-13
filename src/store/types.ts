@@ -197,6 +197,7 @@ export type ToolId =
     | 'marquee-ellipse'
     | 'lasso'
     | 'lasso-poly'
+    | 'magnetic-lasso'
     | 'magic-wand'
     | 'quick-selection'
     | 'pencil'

@@ -18,6 +18,10 @@ function pointer(x: number, y: number): ToolPointerEvent {
     };
 }
 
+function pointerWith(x: number, y: number, modifiers: Partial<Pick<ToolPointerEvent, 'shift' | 'alt' | 'meta' | 'ctrl'>>): ToolPointerEvent {
+    return { ...pointer(x, y), ...modifiers };
+}
+
 function keyEvt(key: string): ToolKeyEvent {
     return {
         key,
@@ -58,6 +62,18 @@ describe('Magnetic Lasso tool', () => {
         expect(opts.width).toBe(25);
         expect(opts.contrast).toBe(30);
         expect(opts.frequency).toBe(60);
+    });
+
+    it('bracket and comma/period keys adjust width and contrast', () => {
+        const tool = getTool('magnetic-lasso')!;
+        const ctx = toolCtx();
+        setMagneticLassoOptions({ width: 10, contrast: 10 });
+        tool.onKeyDown!(keyEvt(']'), ctx);
+        tool.onKeyDown!(keyEvt('.'), ctx);
+        expect(getMagneticLassoOptions()).toMatchObject({ width: 11, contrast: 11 });
+        tool.onKeyDown!(keyEvt('['), ctx);
+        tool.onKeyDown!(keyEvt(','), ctx);
+        expect(getMagneticLassoOptions()).toMatchObject({ width: 10, contrast: 10 });
     });
 
     it('first click plants the seed anchor, second click anchors near the edge', () => {
@@ -111,5 +127,19 @@ describe('Magnetic Lasso tool', () => {
         const ops = useEditorStore.getState().selection.operations;
         expect(ops.length).toBe(1);
         expect(ops[0].type).toBe('lasso');
+    });
+
+    it('captures subtract operation on the first click even if Alt is released before commit', () => {
+        useEditorStore.getState().setSelectionOperations([
+            { mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: 79, y: 39 }] },
+        ]);
+        const tool = getTool('magnetic-lasso')!;
+        const ctx = toolCtx();
+        tool.onPointerDown!(pointerWith(10, 25, { alt: true }), ctx);
+        tool.onPointerDown!(pointer(40, 25), ctx);
+        tool.onPointerDown!(pointer(40, 35), ctx);
+        tool.onPointerDown!(pointer(11, 26), ctx);
+        const ops = useEditorStore.getState().selection.operations;
+        expect(ops.at(-1)?.mode).toBe('sub');
     });
 });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import {
-    Circle, Lasso, Pentagon, Square, Layers, ZoomIn, ZoomOut,
+    Circle, Lasso, Magnet, Pentagon, Square, Layers, ZoomIn, ZoomOut,
     AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
     Repeat2, X,
     AlignHorizontalDistributeCenter,
@@ -44,6 +44,7 @@ import {
 import { getBrushOptions, setBrushOptions } from '../../tools/brush';
 import { getPencilOptions, setPencilOptions } from '../../tools/pencil';
 import { getMarqueeOptions, setMarqueeOptions } from '../../tools/marquee';
+import { getMagneticLassoOptions, setMagneticLassoOptions } from '../../tools/magneticLasso';
 import { getMoveOptions, setMoveOptions } from '../../tools/move';
 import { getShapeOptions, setShapeOptions } from '../../tools/shapes';
 import { getCustomShapeLibrary, CUSTOM_SHAPE_VIEWBOX } from '../../tools/customShapes';
@@ -398,14 +399,21 @@ function MarqueeOptions({ mode }: { mode: 'rect' | 'circle' }) {
     );
 }
 
-function LassoOptions({ poly }: { poly: boolean }) {
-    const { setSelectionMode } = useEditorStore();
+function LassoOptions({ mode }: { mode: 'free' | 'poly' | 'magnetic' }) {
+    const { setSelectionMode, setTool } = useEditorStore();
+    const [, force] = useState(0);
+    const mag = getMagneticLassoOptions();
+    const updateMag = (next: Parameters<typeof setMagneticLassoOptions>[0]) => {
+        setMagneticLassoOptions(next);
+        force(t => t + 1);
+    };
     return (
         <>
             <SelectionOperationButtons />
             {S.sep()}
-            <button className={`opts-btn${!poly ? ' active' : ''}`} onClick={() => setSelectionMode('lasso')} title="Freehand Lasso"><Lasso size={13} /></button>
-            <button className={`opts-btn${poly ? ' active' : ''}`} onClick={() => setSelectionMode('lasso-poly')} title="Polygonal Lasso"><Pentagon size={13} /></button>
+            <button className={`opts-btn${mode === 'free' ? ' active' : ''}`} onClick={() => { setTool('lasso'); setSelectionMode('lasso'); }} title="Lasso Tool"><Lasso size={13} /></button>
+            <button className={`opts-btn${mode === 'poly' ? ' active' : ''}`} onClick={() => { setTool('lasso-poly'); setSelectionMode('lasso-poly'); }} title="Polygonal Lasso Tool"><Pentagon size={13} /></button>
+            <button className={`opts-btn${mode === 'magnetic' ? ' active' : ''}`} onClick={() => setTool('magnetic-lasso')} title="Magnetic Lasso Tool"><Magnet size={13} /></button>
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Feather:')}
@@ -417,6 +425,31 @@ function LassoOptions({ poly }: { poly: boolean }) {
                 <input type="checkbox" defaultChecked style={{ accentColor: 'hsl(var(--accent-primary))' }} />
                 Anti-alias
             </label>
+            {mode === 'magnetic' && (
+                <>
+                    {S.sep()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Width:')}
+                        <input data-testid="magnetic-lasso-width" type="number" min={1} max={256} value={mag.width}
+                            onChange={e => updateMag({ width: Number(e.target.value) || 1 })}
+                            className="opts-input" style={{ width: 48 }} />
+                        <span className="opts-label">px</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Contrast:')}
+                        <input data-testid="magnetic-lasso-contrast" type="number" min={0} max={100} value={mag.contrast}
+                            onChange={e => updateMag({ contrast: Number(e.target.value) || 0 })}
+                            className="opts-input" style={{ width: 44 }} />
+                        <span className="opts-label">%</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Frequency:')}
+                        <input data-testid="magnetic-lasso-frequency" type="number" min={0} max={100} value={mag.frequency}
+                            onChange={e => updateMag({ frequency: Number(e.target.value) || 0 })}
+                            className="opts-input" style={{ width: 44 }} />
+                    </div>
+                </>
+            )}
         </>
     );
 }
@@ -1694,7 +1727,7 @@ export function OptionsBar() {
         'gradient': 'Gradient', 'fill': 'Paint Bucket',
         'dodge': 'Dodge', 'burn': 'Burn', 'sponge': 'Sponge',
         'marquee-rect': 'Rectangular Marquee', 'marquee-ellipse': 'Elliptical Marquee',
-        'select': 'Marquee', 'lasso': 'Lasso', 'lasso-poly': 'Polygonal Lasso',
+        'select': 'Marquee', 'lasso': 'Lasso', 'lasso-poly': 'Polygonal Lasso', 'magnetic-lasso': 'Magnetic Lasso',
         'magic-wand': 'Magic Wand', 'quick-selection': 'Quick Selection',
         'crop': 'Crop', 'perspective-crop': 'Perspective Crop', 'eyedropper': 'Eyedropper', 'ruler': 'Ruler',
         'pen': 'Pen', 'freeform-pen': 'Freeform Pen',
@@ -1712,8 +1745,9 @@ export function OptionsBar() {
             case 'marquee-rect': return <MarqueeOptions mode="rect" />;
             case 'marquee-ellipse': return <MarqueeOptions mode="circle" />;
             case 'select': return <MarqueeOptions mode="rect" />;
-            case 'lasso': return <LassoOptions poly={false} />;
-            case 'lasso-poly': return <LassoOptions poly={true} />;
+            case 'lasso': return <LassoOptions mode="free" />;
+            case 'lasso-poly': return <LassoOptions mode="poly" />;
+            case 'magnetic-lasso': return <LassoOptions mode="magnetic" />;
             case 'magic-wand': return <MagicWandOptions />;
             case 'quick-selection': return <QuickSelOptions />;
             case 'crop': return <CropOptions />;

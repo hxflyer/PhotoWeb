@@ -75,7 +75,7 @@ function drawSelectionMask(
 }
 const CURSOR_SUB = `url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 12L22 12" stroke="white" stroke-width="4"/><path d="M2 12L22 12" stroke="black" stroke-width="2"/></svg>') 12 12, crosshair`;
 const CURSOR_INTERSECT = `url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6 6L18 18M18 6L6 18" stroke="white" stroke-width="4"/><path d="M6 6L18 18M18 6L6 18" stroke="black" stroke-width="2"/></svg>') 12 12, crosshair`;
-const SELECTION_CURSOR_TOOLS = new Set(['select', 'marquee-rect', 'marquee-ellipse', 'lasso', 'lasso-poly', 'magic-wand', 'quick-selection']);
+const SELECTION_CURSOR_TOOLS = new Set(['select', 'marquee-rect', 'marquee-ellipse', 'lasso', 'lasso-poly', 'magnetic-lasso', 'magic-wand', 'quick-selection']);
 
 interface ViewportProps {
     toolsBlocked?: boolean;

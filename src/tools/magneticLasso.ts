@@ -20,7 +20,7 @@
  */
 import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
-import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
+import { commitSelectionOperation, resolveSelectionOp, type SelectionOp } from './selectionModifiers';
 
 export interface MagneticLassoOptions {
     width: number;
@@ -32,6 +32,9 @@ let options: MagneticLassoOptions = { width: 10, contrast: 10, frequency: 57 };
 
 export function setMagneticLassoOptions(next: Partial<MagneticLassoOptions>): void {
     options = { ...options, ...next };
+    options.width = Math.max(1, Math.min(256, Math.round(Number.isFinite(options.width) ? options.width : 10)));
+    options.contrast = Math.max(0, Math.min(100, Math.round(Number.isFinite(options.contrast) ? options.contrast : 10)));
+    options.frequency = Math.max(0, Math.min(100, Math.round(Number.isFinite(options.frequency) ? options.frequency : 57)));
 }
 
 export function getMagneticLassoOptions(): MagneticLassoOptions {
@@ -46,9 +49,19 @@ interface MagState {
     /** Cached layer luminance for the active layer; rebuilt on pointer-down. */
     luminance: { data: Float32Array; w: number; h: number } | null;
     framesSinceAnchor: number;
+    op: SelectionOp;
 }
 
-const mag: MagState = { anchors: [], live: [], cursor: null, luminance: null, framesSinceAnchor: 0 };
+const mag: MagState = { anchors: [], live: [], cursor: null, luminance: null, framesSinceAnchor: 0, op: 'new' };
+
+function resetMagneticLasso(): void {
+    mag.anchors = [];
+    mag.live = [];
+    mag.cursor = null;
+    mag.luminance = null;
+    mag.framesSinceAnchor = 0;
+    mag.op = 'new';
+}
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
@@ -124,12 +137,8 @@ export const magneticLassoTool: Tool = {
             const first = mag.anchors[0];
             if (Math.hypot(point.x - first.x, point.y - first.y) < 10) {
                 const path = [...mag.anchors];
-                const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
-                commitSelectionOperation(store, { path, type: 'lasso' }, op);
-                mag.anchors = [];
-                mag.live = [];
-                mag.cursor = null;
-                mag.luminance = null;
+                commitSelectionOperation(store, { path, type: 'lasso' }, mag.op);
+                resetMagneticLasso();
                 return;
             }
         }
@@ -138,6 +147,7 @@ export const magneticLassoTool: Tool = {
         if (mag.anchors.length === 0) {
             const layer = store.layers.find(l => l.id === store.activeLayerId);
             if (!layer) return;
+            mag.op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
             mag.luminance = buildLuminance(layer);
         }
         mag.anchors.push(point);
@@ -168,20 +178,21 @@ export const magneticLassoTool: Tool = {
         // user clicks the first anchor (loop close) or presses Enter.
     },
     onKeyDown: (e, ctx) => {
-        if (e.key === 'Enter' && mag.anchors.length >= 3) {
+        if (e.key === '[' || e.key === ']') {
+            setMagneticLassoOptions({ width: options.width + (e.key === ']' ? 1 : -1) });
+            e.rawEvent.preventDefault();
+            ctx.requestRender();
+        } else if (e.key === ',' || e.key === '.') {
+            setMagneticLassoOptions({ contrast: options.contrast + (e.key === '.' ? 1 : -1) });
+            e.rawEvent.preventDefault();
+            ctx.requestRender();
+        } else if (e.key === 'Enter' && mag.anchors.length >= 3) {
             const store = ctx.getStore();
-            const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
-            commitSelectionOperation(store, { path: [...mag.anchors], type: 'lasso' }, op);
-            mag.anchors = [];
-            mag.live = [];
-            mag.cursor = null;
-            mag.luminance = null;
+            commitSelectionOperation(store, { path: [...mag.anchors], type: 'lasso' }, mag.op);
+            resetMagneticLasso();
         } else if (e.key === 'Escape') {
-            mag.anchors = [];
-            mag.live = [];
-            mag.cursor = null;
-            mag.luminance = null;
-        } else if (e.key === 'Backspace' && mag.anchors.length > 0) {
+            resetMagneticLasso();
+        } else if ((e.key === 'Backspace' || e.key === 'Delete') && mag.anchors.length > 0) {
             mag.anchors.pop();
             mag.live = [];
             mag.framesSinceAnchor = 0;

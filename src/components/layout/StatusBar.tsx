@@ -19,6 +19,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   'marquee-ellipse': 'Elliptical Marquee',
   lasso: 'Lasso',
   'lasso-poly': 'Polygonal Lasso',
+  'magnetic-lasso': 'Magnetic Lasso',
   'magic-wand': 'Magic Wand',
   'quick-selection': 'Quick Selection',
   pencil: 'Pencil',
