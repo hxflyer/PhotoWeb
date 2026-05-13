@@ -3,6 +3,7 @@ import { Check, ChevronRight } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { getLastFilter, applyFilterToLayer } from '../../filters/index';
 import { requestViewportFit } from '../../utils/viewportFit';
+import { copyActiveDocumentForClipboard } from '../../utils/copyImageForClipboard';
 import { applyAdjustmentToLayer } from '../../adjustments';
 import { createWorkPathFromLayer } from '../../tools/textToPath';
 import { convertActiveLayerToShape } from '../../tools/typeCommands';
@@ -189,7 +190,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       })(),
       sep,
       act('Cut', () => document.execCommand('cut'), '⌘X'),
-      act('Copy', () => document.execCommand('copy'), '⌘C'),
+      act('Copy', () => copyActiveDocumentForClipboard(useEditorStore.getState()), '⌘C'),
       act('Copy Merged', () => {}, '⌘⇧C', true),
       act('Paste', () => document.execCommand('paste'), '⌘V'),
       act('Paste in Place', () => {}, '⌘⇧V', true),

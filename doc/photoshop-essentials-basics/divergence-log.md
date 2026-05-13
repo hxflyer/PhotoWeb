@@ -209,3 +209,27 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Open dialog has "Open As" and routes raw files to Camera Raw.
 **Photoweb behavior:** Single OS file picker; no raw support.
 **Rationale:** `camera_raw` excluded per CLAUDE.md §4.
+
+## 2026-05-13 — 04b-file-new — Background Contents drops "Background Color"
+
+**Photoshop behavior:** New Document dialog's Background Contents lists White / Black / Background Color / Transparent / Custom.
+**Photoweb behavior:** White / Black / Transparent / Custom.
+**Rationale:** photoweb doesn't yet surface a global Background swatch reachable from this dialog; shipping a half-wired control would mislead. Revisit when the Color/Swatches cluster lands.
+
+## 2026-05-13 — 04b-file-new — Category tabs reduced to Recent / Saved / Photo / Web
+
+**Photoshop behavior:** New Document tabs are Recent / Saved / Photo / Print / Art & Illustration / Web / Mobile / Film & Video.
+**Photoweb behavior:** Recent / Saved / Photo / Web only.
+**Rationale:** Print excluded by CLAUDE.md §4 (`print_output`); Mobile, Film & Video, Art & Illustration each lack a use-case in browser-based photo editing right now. Deferred without prejudice.
+
+## 2026-05-13 — 04b-file-new — Pixels-only unit, no inches/cm/mm
+
+**Photoshop behavior:** New Document W/H and Resolution dropdowns each select a unit (Pixels / Inches / Centimeters / Millimeters / Picas).
+**Photoweb behavior:** Width and Height fixed to Pixels; Resolution stays Pixels/Inch but only editable as ppi.
+**Rationale:** Document model is pixel-native; there's no unit-conversion harness wired into other dialogs. Adding one for a single field is scope creep beyond cluster 04b.
+
+## 2026-05-13 — 04b-file-new — Untitled-N persists across reloads
+
+**Photoshop behavior:** `Untitled-N` counter resets when Photoshop quits.
+**Photoweb behavior:** Counter persists in localStorage and continues across browser reloads.
+**Rationale:** Browser has no process-lifetime equivalent of "quit Photoshop". Persisting matches the in-session habit users have of seeing `Untitled-2`, `Untitled-3` etc. without the counter resetting whenever they refresh the tab.

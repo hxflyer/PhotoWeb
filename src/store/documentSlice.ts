@@ -85,6 +85,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
     isDirty: false,
     lastSavedHistoryTick: 0,
     globalLight: { angle: 120, altitude: 30 },
+    clipboardImageInfo: null,
 
     setGlobalLight: (light) => {
         const a = Number.isFinite(light.angle) ? light.angle : 120;
@@ -259,7 +260,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         },
     }),
 
-    newDocument: (w, h, bg) => {
+    newDocument: (w, h, bg, name) => {
         if (!guardDocumentSize(w, h, get().reportError)) return false;
         let newLayer: LayerClass;
         try {
@@ -273,6 +274,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             get().reportError('save', `Could not allocate canvas: ${(err as Error)?.message ?? 'unknown error'}.`, 'error');
             return false;
         }
+        const trimmedName = typeof name === 'string' ? name.trim() : '';
         set({
             width: w,
             height: h,
@@ -280,7 +282,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             activeLayerId: newLayer.id,
             selectedLayerIds: [newLayer.id],
             layerSelectionAnchorId: newLayer.id,
-            documentName: 'Untitled',
+            documentName: trimmedName.length > 0 ? trimmedName : 'Untitled',
             isDirty: false,
             lastSavedHistoryTick: get().historyTick,
             selection: {
@@ -294,6 +296,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         });
         return true;
     },
+
+    recordClipboardImageInfo: (info) => set({ clipboardImageInfo: info }),
 
     openImageAsDocument: (img, name) => {
         const w = Math.max(1, Math.round(img.naturalWidth || img.width));

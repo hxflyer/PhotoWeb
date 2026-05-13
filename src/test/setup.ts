@@ -80,6 +80,55 @@ if (widthDescriptor && heightDescriptor) {
     });
 }
 
+// Node 25 ships a stub `localStorage` global whose `setItem` is not a function.
+// That stub shadows jsdom's working Storage, so any code that calls
+// `localStorage.setItem` silently fails and reads always return null. Detect a
+// broken stub at suite startup and replace it with a real in-memory Storage
+// shared between `window` and `globalThis`. Tests that need a clean slate can
+// still call `localStorage.clear()`.
+(function ensureLocalStorage() {
+    function isBroken(s: unknown): boolean {
+        try {
+            const obj = s as { setItem?: unknown };
+            return !obj || typeof obj.setItem !== 'function';
+        } catch { return true; }
+    }
+    const winLS = typeof window !== 'undefined' ? (window as Window & { localStorage?: Storage }).localStorage : undefined;
+    if (!isBroken(winLS)) return;
+    const store = new Map<string, string>();
+    const fake: Storage = {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, String(v)); },
+        removeItem: (k: string) => { store.delete(k); },
+        clear: () => { store.clear(); },
+        key: (i: number) => Array.from(store.keys())[i] ?? null,
+        get length() { return store.size; },
+    };
+    if (typeof window !== 'undefined') {
+        Object.defineProperty(window, 'localStorage', { value: fake, configurable: true, writable: true });
+    }
+    Object.defineProperty(globalThis, 'localStorage', { value: fake, configurable: true, writable: true });
+})();
+
+// jsdom doesn't expose Path2D; tests that mount Viewport (which paints
+// selection edges via `new Path2D()`) crash without a stub. Several existing
+// tests stub locally; provide a minimal global so newer tests don't repeat
+// the polyfill.
+if (typeof globalThis.Path2D === 'undefined') {
+    class StubPath2D {
+        moveTo() { /* noop */ }
+        lineTo() { /* noop */ }
+        closePath() { /* noop */ }
+        arc() { /* noop */ }
+        rect() { /* noop */ }
+        ellipse() { /* noop */ }
+        bezierCurveTo() { /* noop */ }
+        quadraticCurveTo() { /* noop */ }
+        addPath() { /* noop */ }
+    }
+    Object.defineProperty(globalThis, 'Path2D', { value: StubPath2D, writable: true, configurable: true });
+}
+
 // jsdom doesn't ship crypto.randomUUID prior to recent versions; ensure it.
 if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
     Object.defineProperty(crypto, 'randomUUID', {

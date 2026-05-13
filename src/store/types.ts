@@ -212,6 +212,12 @@ export interface GlobalLight {
     altitude: number;  // 0..90 degrees
 }
 
+export interface ClipboardImageInfo {
+    width: number;
+    height: number;
+    resolution: number;
+}
+
 export interface DocumentSlice {
     width: number;
     height: number;
@@ -220,6 +226,7 @@ export interface DocumentSlice {
     isDirty: boolean;
     lastSavedHistoryTick: number;
     globalLight: GlobalLight;
+    clipboardImageInfo: ClipboardImageInfo | null;
     setGlobalLight: (light: GlobalLight) => void;
     setCanvasSize: (width: number, height: number) => void;
     rotateCanvas: (degrees: number) => void;
@@ -227,7 +234,7 @@ export interface DocumentSlice {
     resizeImage: (newW: number, newH: number, method: import('../core/imageTransforms').ResampleMethod) => void;
     resizeCanvas: (newW: number, newH: number, anchorX: number, anchorY: number, extensionColor: string) => void;
     trimCanvas: (basis: import('../core/imageTransforms').TrimBasis, sides: { top: boolean; right: boolean; bottom: boolean; left: boolean }) => void;
-    newDocument: (w: number, h: number, bg: string) => boolean;
+    newDocument: (w: number, h: number, bg: string, name?: string) => boolean;
     openImageAsDocument: (img: HTMLImageElement, name: string) => boolean;
     setDocumentName: (name: string) => void;
     setHasAutosave: (has: boolean) => void;
@@ -236,6 +243,7 @@ export interface DocumentSlice {
     markDocumentClean: () => void;
     saveFile: (name: string) => Promise<void>;
     loadFile: (name: string) => Promise<void>;
+    recordClipboardImageInfo: (info: ClipboardImageInfo | null) => void;
 }
 
 export type LayerEditTarget = 'layer' | 'mask';

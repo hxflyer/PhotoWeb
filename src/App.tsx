@@ -52,6 +52,7 @@ import { nudgeSelectionBorderBy } from './tools/selectionMove';
 import { loadImage } from './utils/imageLoader';
 import { ingestFiles, summaryToast } from './utils/fileIngest';
 import { requestViewportFit } from './utils/viewportFit';
+import { copyActiveDocumentForClipboard } from './utils/copyImageForClipboard';
 import { getLayerContentBounds } from './utils/canvasUtils';
 import './App.css';
 
@@ -408,6 +409,7 @@ function App() {
       }
       if (meta && key === 'i' && e.altKey && !e.shiftKey) { e.preventDefault(); gs().openImageSizeDialog(); return; }
       if (meta && key === 'c' && e.altKey && !e.shiftKey) { e.preventDefault(); gs().openCanvasSizeDialog(); return; }
+      if (meta && key === 'c' && !e.shiftKey && !e.altKey) { e.preventDefault(); copyActiveDocumentForClipboard(gs()); return; }
       if (meta && key === 'i' && !e.shiftKey && !e.altKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
 
       if (meta && key === '/') { e.preventDefault(); setShortcutsOpen(true); return; }
