@@ -28,7 +28,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 11a-selections-overview    (3) — Shift add, Alt subtract, Shift+Alt intersect  commit: a5f961c
 - [x] 11b-transform-selection    (2) — Transform Selection command  commit: 60a5266
 - [x] 12-marquee                 (3) — Rectangular / Elliptical Marquee  commit: 3289086
-- [ ] 13-lasso                   (3) — Lasso / Polygonal / Magnetic
+- [x] 13-lasso                   (3) — Lasso / Polygonal / Magnetic  commit: 7e9e42b
 - [ ] 14a-content-selection-tools(3) — Magic Wand, Quick Selection, Object Selection (non-AI)
 - [ ] 14b-color-range            (1) — Color Range dialog
 - [ ] 15-pen-paths               (2) — Pen Tool, Curvature Pen Tool

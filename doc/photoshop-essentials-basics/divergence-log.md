@@ -359,3 +359,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** The marquee flyout includes Single Row Marquee Tool and Single Column Marquee Tool for selecting one-pixel-wide rows or columns.
 **Photoweb behavior:** This tick continues to focus on Rectangular and Elliptical Marquee behavior and does not add row/column marquee tools.
 **Rationale:** The hand-clustered work item is scoped to rectangular/elliptical geometry, while row/column tools need their own toolbar entries, cursor semantics, and one-pixel selection-mask behavior.
+
+## 2026-05-14 — 13-lasso — Alt/Option temporary lasso-engine switching deferred
+
+**Photoshop behavior:** While drawing with Magnetic or Polygonal Lasso, Alt/Option can temporarily switch between magnetic, polygonal, and standard lasso behavior inside the same in-progress outline.
+**Photoweb behavior:** This tick exposes and tightens each lasso tool separately, but does not mix the three lasso gesture engines mid-selection.
+**Rationale:** The current tool registry keeps each lasso engine's gesture state isolated; combining them safely needs a shared lasso path controller beyond this UI-exposure and control-wiring tick.
