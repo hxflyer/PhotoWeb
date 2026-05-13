@@ -161,7 +161,7 @@ export function RefineEdgeDialog({ isOpen, onClose }: Props) {
                     boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                 }}
             >
-                <div id="refine-edge-title" style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px' }}>Select and Mask</div>
+                <div id="refine-edge-title" style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px' }}>Refine Edge</div>
 
                 {/* View Mode */}
                 <div style={{ marginBottom: '10px' }}>

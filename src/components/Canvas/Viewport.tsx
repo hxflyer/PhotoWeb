@@ -126,6 +126,29 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
     // accumulated mask into a selection via convertQuickMaskBufferToSelection.
     const quickMaskBufferRef = useRef<HTMLCanvasElement | null>(null);
 
+    useEffect(() => {
+        const syncQuickMaskBuffer = (buffer: ImageData | null) => {
+            if (!buffer) {
+                quickMaskBufferRef.current = null;
+            } else {
+                const canvas = document.createElement('canvas');
+                canvas.width = buffer.width;
+                canvas.height = buffer.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) ctx.putImageData(buffer, 0, 0);
+                quickMaskBufferRef.current = canvas;
+            }
+            quickMaskCacheRef.current = null;
+            quickMaskSourceRef.current = null;
+        };
+        syncQuickMaskBuffer(useEditorStore.getState().quickMaskBuffer);
+        return useEditorStore.subscribe((state, prev) => {
+            if (state.quickMaskBuffer !== prev.quickMaskBuffer) {
+                syncQuickMaskBuffer(state.quickMaskBuffer);
+            }
+        });
+    }, []);
+
     // Ruler cursor marks — updated via direct DOM mutation so mousemove doesn't re-render the whole viewport.
     const hRulerMarkRef = useRef<HTMLDivElement>(null);
     const vRulerMarkRef = useRef<HTMLDivElement>(null);
@@ -613,29 +636,23 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         const dash = dashOffsetRef.current;
         const fp = floatingPixelsRef.current;
 
-        // 1. Quick mask — draw a 50% red overlay masking the inverse of the
-        // selection. If the user has painted into the quick-mask buffer, blend
-        // that on top so brushed regions show as red too.
+        // 1. Quick mask — draw a 50% red protected-area overlay. The active
+        // mask source stores selected coverage, so subtract it from the red
+        // fill to leave selected pixels fully visible.
         if (oqm) {
-            const buf = quickMaskBufferRef.current;
-            if ((selectionMask || buf) && (
-                quickMaskSourceRef.current !== (selectionMask ?? buf) ||
+            const selectedCoverage = quickMaskBufferRef.current ?? selectionMask;
+            if (selectedCoverage && (
+                quickMaskSourceRef.current !== selectedCoverage ||
                 !quickMaskCacheRef.current
             )) {
-                quickMaskSourceRef.current = selectionMask ?? buf;
+                quickMaskSourceRef.current = selectedCoverage;
                 const qc = document.createElement('canvas');
                 qc.width = width; qc.height = height;
                 const qCtx = qc.getContext('2d')!;
                 qCtx.fillStyle = 'rgba(255,0,0,0.5)';
                 qCtx.fillRect(0, 0, qc.width, qc.height);
-                if (osel.hasSelection && selectionMask) {
-                    qCtx.globalCompositeOperation = 'destination-out';
-                    qCtx.drawImage(selectionMask, 0, 0);
-                }
-                if (buf) {
-                    qCtx.globalCompositeOperation = 'source-over';
-                    qCtx.drawImage(buf, 0, 0);
-                }
+                qCtx.globalCompositeOperation = 'destination-out';
+                qCtx.drawImage(selectedCoverage, 0, 0);
                 qCtx.globalCompositeOperation = 'source-over';
                 quickMaskCacheRef.current = qc;
             }
@@ -920,9 +937,9 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         }
     };
 
-    // Paint into the Quick Mask transient buffer. Brush adds red mask coverage;
-    // Eraser subtracts it. The buffer is converted to a selection when the user
-    // toggles Quick Mask off via setQuickMaskMode in the view slice.
+    // Paint into the Quick Mask transient buffer. The buffer stores selected
+    // coverage, so white/light paint adds to the selection and black/dark paint
+    // (or Eraser) subtracts from it. The red overlay is rendered as its inverse.
     const paintQuickMaskDab = (x: number, y: number) => {
         let buf = quickMaskBufferRef.current;
         if (!buf || buf.width !== width || buf.height !== height) {
@@ -930,20 +947,30 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             buf.width = width;
             buf.height = height;
             quickMaskBufferRef.current = buf;
+            if (selectionMask) {
+                const seedCtx = buf.getContext('2d');
+                seedCtx?.drawImage(selectionMask, 0, 0);
+            }
         }
         const bctx = buf.getContext('2d');
         if (!bctx) return;
         const radius = Math.max(0.5, brushSettings.size / 2);
         const opacity = Math.max(0, Math.min(1, brushSettings.opacity));
         if (opacity <= 0) return;
+        const color = useEditorStore.getState().primaryColor;
+        const r = parseInt(color.slice(1, 3), 16) || 0;
+        const g = parseInt(color.slice(3, 5), 16) || 0;
+        const b = parseInt(color.slice(5, 7), 16) || 0;
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        const subtractsSelection = activeTool === 'eraser' || luminance < 128;
         bctx.save();
         bctx.globalAlpha = opacity;
-        if (activeTool === 'eraser') {
+        if (subtractsSelection) {
             bctx.globalCompositeOperation = 'destination-out';
         } else {
             bctx.globalCompositeOperation = 'source-over';
         }
-        bctx.fillStyle = '#ff0000';
+        bctx.fillStyle = '#ffffff';
         bctx.beginPath();
         bctx.arc(x, y, radius, 0, Math.PI * 2);
         bctx.fill();

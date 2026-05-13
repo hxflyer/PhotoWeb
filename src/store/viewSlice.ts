@@ -266,13 +266,17 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
         const w = buffer.width;
         const h = buffer.height;
         const mask = new Uint8ClampedArray(w * h);
-        // The quick-mask buffer stores red pixels with alpha proportional to paint
-        // strength. Treat alpha as the selection coverage (255 = fully selected).
+        // The quick-mask buffer stores selected coverage in its alpha channel
+        // (255 = fully selected). The red protected-area overlay is only a
+        // viewport presentation of the inverse.
         for (let i = 0; i < w * h; i++) {
             mask[i] = buffer.data[i * 4 + 3];
         }
         const hasAny = mask.some(v => v > 0);
-        if (!hasAny) return;
+        if (!hasAny) {
+            get().clearSelection();
+            return;
+        }
         const op = {
             mode: 'add' as const,
             type: 'lasso' as const,

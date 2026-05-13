@@ -43,6 +43,7 @@ import { FadeDialog } from './components/Dialogs/FadeDialog';
 import { LayerStyleDialog } from './components/Dialogs/LayerStyleDialog';
 import { RequirementsOverlay } from './components/Overlay/RequirementsOverlay';
 import { getLastFilter, getFilter, applyFilterToLayer, setLastFilter } from './filters/index';
+import { buildSelectionMask } from './filters/selectionMask';
 import { applyAdjustmentToLayer } from './adjustments';
 import { initAutoSaveCheck } from './core/autoSave';
 import { captureLayerRegion, createPixelHistoryAction } from './core/history';
@@ -65,6 +66,49 @@ import type { LayerEffectKind } from './core/Layer';
 import './App.css';
 
 const START_FREE_TRANSFORM_EVENT = 'photoweb:start-free-transform';
+
+function cloneImageData(source: ImageData): ImageData {
+  return new ImageData(new Uint8ClampedArray(source.data), source.width, source.height);
+}
+
+function normalizeQuickMaskImage(source: ImageData): ImageData {
+  const out = new ImageData(source.width, source.height);
+  for (let i = 0; i < source.data.length; i += 4) {
+    out.data[i] = 255;
+    out.data[i + 1] = 255;
+    out.data[i + 2] = 255;
+    out.data[i + 3] = source.data[i + 3];
+  }
+  return out;
+}
+
+function buildQuickMaskFilterSource(state: ReturnType<typeof useEditorStore.getState>): ImageData {
+  const existing = state.quickMaskBuffer;
+  if (existing && existing.width === state.width && existing.height === state.height) {
+    return normalizeQuickMaskImage(existing);
+  }
+
+  const selectionMask = buildSelectionMask(state.selection, state.width, state.height);
+  if (selectionMask) return normalizeQuickMaskImage(selectionMask);
+  return new ImageData(state.width, state.height);
+}
+
+function applyFilterToQuickMaskSource(
+  filterId: string,
+  params: Record<string, unknown>,
+  source: ImageData,
+): ImageData | null {
+  const filter = getFilter(filterId);
+  if (!filter) return null;
+  const result = filter.apply(params, {
+    image: source,
+    width: source.width,
+    height: source.height,
+    selectionMask: null,
+    dirtyRect: null,
+  });
+  return normalizeQuickMaskImage(result);
+}
 
 const PAINT_FAMILY_TOOLS = new Set([
   'brush', 'pencil', 'eraser', 'magic-eraser', 'background-eraser',
@@ -268,6 +312,8 @@ function App() {
   const importFileRef = useRef<HTMLInputElement>(null);
   const loadFilesIntoStackRef = useRef<HTMLInputElement>(null);
   const numberKeyWindow = useRef<{ digits: number; time: number } | null>(null);
+  const quickMaskFilterSourceRef = useRef<ImageData | null>(null);
+  const quickMaskFilterConfirmedRef = useRef(false);
 
   useEffect(() => {
     // Re-apply persisted UI scale on every boot so users don't need to open
@@ -913,6 +959,9 @@ function App() {
   const activeSourceImage: ImageData | null = (() => {
     if (!filterDlg.isOpen) return null;
     const s = gs();
+    if (s.quickMaskMode && filterDlg.filterId === 'blur-gaussian') {
+      return buildQuickMaskFilterSource(s);
+    }
     const layer = s.layers.find(l => l.id === s.activeLayerId);
     if (!layer) return null;
     try { return layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height); }
@@ -1040,8 +1089,31 @@ function App() {
 
       <FilterDialog isOpen={filterDlg.isOpen} filterId={filterDlg.filterId} sourceImage={activeSourceImage}
         initialParams={filterDlg.params}
+        onPreviewChange={(params, previewEnabled) => {
+          const s = gs();
+          if (!s.quickMaskMode || filterDlg.filterId !== 'blur-gaussian') return;
+          let source = quickMaskFilterSourceRef.current;
+          if (!source) {
+            source = buildQuickMaskFilterSource(s);
+            quickMaskFilterSourceRef.current = source;
+            quickMaskFilterConfirmedRef.current = false;
+          }
+          const next = previewEnabled
+            ? applyFilterToQuickMaskSource(filterDlg.filterId, params, source)
+            : cloneImageData(source);
+          if (next) s.setQuickMaskBuffer(next);
+        }}
         onConfirm={(params) => {
           const s = gs();
+          if (s.quickMaskMode && filterDlg.filterId === 'blur-gaussian') {
+            const source = quickMaskFilterSourceRef.current ?? buildQuickMaskFilterSource(s);
+            const next = applyFilterToQuickMaskSource(filterDlg.filterId, params, source);
+            if (next) s.setQuickMaskBuffer(next);
+            const filter = getFilter(filterDlg.filterId);
+            if (filter) setLastFilter(filterDlg.filterId, params);
+            quickMaskFilterConfirmedRef.current = true;
+            return;
+          }
           const layer = s.layers.find(l => l.id === s.activeLayerId);
           const filter = getFilter(filterDlg.filterId);
           if (layer && filter) {
@@ -1054,7 +1126,20 @@ function App() {
             s.setLastEffect({ kind: 'filter', label: filter.label, layerId: layer.id, dirtyRect: rect, before, after });
           }
         }}
-        onClose={() => gs().closeFilterDialog()} />
+        onClose={() => {
+          const s = gs();
+          if (
+            quickMaskFilterSourceRef.current
+            && !quickMaskFilterConfirmedRef.current
+            && s.quickMaskMode
+            && filterDlg.filterId === 'blur-gaussian'
+          ) {
+            s.setQuickMaskBuffer(cloneImageData(quickMaskFilterSourceRef.current));
+          }
+          quickMaskFilterSourceRef.current = null;
+          quickMaskFilterConfirmedRef.current = false;
+          gs().closeFilterDialog();
+        }} />
 
       <AdjustmentDialog isOpen={adjustmentDlg.isOpen} adjustmentId={adjustmentDlg.adjustmentId}
         sourceImage={adjustmentPreview?.image ?? null} sourceScale={adjustmentPreview?.scale ?? 1}

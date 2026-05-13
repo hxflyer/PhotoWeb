@@ -9,18 +9,24 @@ interface FilterDialogProps {
     filterId: string;
     sourceImage: ImageData | null;
     initialParams?: Record<string, unknown>;
+    onPreviewChange?: (params: Record<string, unknown>, previewEnabled: boolean) => void;
     onConfirm: (params: Record<string, unknown>) => void;
     onClose: () => void;
 }
 
-export function FilterDialog({ isOpen, filterId, sourceImage, initialParams, onConfirm, onClose }: FilterDialogProps) {
+export function FilterDialog({ isOpen, filterId, sourceImage, initialParams, onPreviewChange, onConfirm, onClose }: FilterDialogProps) {
     const filter = getFilter(filterId);
     const [params, setParams] = useState<Record<string, unknown>>(
         initialParams ?? filter?.defaultParams ?? {}
     );
     const previewRef = useRef<HTMLCanvasElement>(null);
+    const onPreviewChangeRef = useRef(onPreviewChange);
     const dialogRef = useDialogA11y(isOpen, onClose);
     const [previewEnabled, setPreviewEnabled] = useState(true);
+
+    useEffect(() => {
+        onPreviewChangeRef.current = onPreviewChange;
+    }, [onPreviewChange]);
 
     const renderPreview = useCallback(() => {
         if (!filter || !sourceImage || !previewRef.current) return;
@@ -32,6 +38,7 @@ export function FilterDialog({ isOpen, filterId, sourceImage, initialParams, onC
             canvas.width = sourceImage.width;
             canvas.height = sourceImage.height;
             ctx.putImageData(sourceImage, 0, 0);
+            onPreviewChangeRef.current?.(params, false);
             return;
         }
 
@@ -47,6 +54,7 @@ export function FilterDialog({ isOpen, filterId, sourceImage, initialParams, onC
             canvas.width = result.width;
             canvas.height = result.height;
             ctx.putImageData(result, 0, 0);
+            onPreviewChangeRef.current?.(params, true);
         } catch {
             // preview failure is non-fatal
         }
