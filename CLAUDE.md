@@ -14,7 +14,10 @@ Build photoweb: a browser-based, layer-aware raster editor that feels like Photo
 
 | What | Where |
 |---|---|
-| **Active plan** | None right now. The previous plan/backlog/parallel-plan trio is done and was removed; archived companions (user cases, UX gap report) live under [doc/photoshop-desktop-study/archive/](doc/photoshop-desktop-study/archive/). The user will introduce the next plan when ready. |
+| **Active plan: work queue** | [doc/photoshop-essentials-basics/work-queue.md](doc/photoshop-essentials-basics/work-queue.md) — the /loop processes the first `[ ]` item per tick |
+| **Active plan: run contract** | [doc/photoshop-essentials-basics/RUN-CONTRACT.md](doc/photoshop-essentials-basics/RUN-CONTRACT.md) — pre-flight, gap-report + plan + commit rules, conservative stop bar |
+| **Active plan: clusters** | [doc/photoshop-essentials-basics/clusters.json](doc/photoshop-essentials-basics/clusters.json) — 28 thematic clusters of 153 in-scope lessons |
+| **Divergence log** (Photoshop departures, append-only) | [doc/photoshop-essentials-basics/divergence-log.md](doc/photoshop-essentials-basics/divergence-log.md) |
 | **Implementation changelog** (historical record) | [doc/photoshop-desktop-study/CHANGELOG.md](doc/photoshop-desktop-study/CHANGELOG.md) |
 | **Lessons scope map** (every Photoshop Essentials lesson tagged `in_scope` + `out_reason`) | [doc/photoshop-essentials-basics/lessons.json](doc/photoshop-essentials-basics/lessons.json) — rules in [scripts/classify-lesson-scope.py](scripts/classify-lesson-scope.py) |
 | Photoshop source notes | [doc/photoshop-desktop-study/pages/](doc/photoshop-desktop-study/pages/) |
@@ -29,7 +32,7 @@ Build photoweb: a browser-based, layer-aware raster editor that feels like Photo
 | Filters / Adjustments / Effects | [src/filters/](src/filters/), [src/adjustments/](src/adjustments/), [src/effects/](src/effects/) |
 | Permissions config | [.claude/settings.local.json](.claude/settings.local.json) |
 
-Without an active plan, do not start feature work on your own — wait for the user to scope the next batch. Scope guardrails in §4 still apply at all times.
+When the user has /loop running, each tick processes the first `[ ]` cluster in [work-queue.md](doc/photoshop-essentials-basics/work-queue.md) per [RUN-CONTRACT.md](doc/photoshop-essentials-basics/RUN-CONTRACT.md). For ad-hoc work outside the loop, scope guardrails in §4 still apply at all times.
 
 ---
 
