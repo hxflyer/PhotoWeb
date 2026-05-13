@@ -473,3 +473,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Shape Dynamics can rotate and squash arbitrary brush tips through Angle and Roundness controls.
 **Photoweb behavior:** The controls are present in Brush Settings state/UI, while the current renderer visibly applies size, scatter, color, texture, opacity, and flow dynamics.
 **Rationale:** True tip rotation/elliptical deformation requires a broader brush-renderer pass; keeping the controls visible preserves Photoshop discoverability while avoiding a partial rotation implementation.
+
+## 2026-05-14 — 22a-gradient-tool-and-editor — Gradients panel groups deferred
+
+**Photoshop behavior:** Custom gradients can live in named Gradients panel groups and be dragged from the panel onto images, text, or shapes.
+**Photoweb behavior:** Saved gradients remain available in the Gradient Editor's browser-local preset row, while the Gradient Tool and Options Bar use built-in and edited active gradients.
+**Rationale:** A full Gradients panel with grouped drag/drop targets is a larger presets-panel workflow; this tick preserves drawing, editing, preview, and preset-save behavior without creating a partial panel.
+
+## 2026-05-14 — 22a-gradient-tool-and-editor — Noise gradients deferred
+
+**Photoshop behavior:** The Gradient Editor can switch Gradient Type between Solid and Noise.
+**Photoweb behavior:** The editor and renderer implement Solid gradients with color/opacity stops, midpoint diamonds, and smoothness.
+**Rationale:** Noise gradients require a separate randomization/rendering model; the lessons' core Gradient Tool, editor, and rainbow workflows are solid-stop based.

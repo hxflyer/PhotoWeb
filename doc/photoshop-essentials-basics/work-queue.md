@@ -42,7 +42,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 20b-brush-presets          (3) — Custom brushes, save/load, Brushes panel  commit: 85dfc8c
 - [x] 20c-paint-symmetry         (1) — Paint Symmetry (butterfly icon)  commit: 2901be1
 - [x] 21-brush-dynamics          (6) — Shape / Scatter / Texture / Dual / Color / Other  commit: 1165e03
-- [ ] 22a-gradient-tool-and-editor(3) — Gradient Tool + Gradient Editor + recipes
+- [x] 22a-gradient-tool-and-editor(3) — Gradient Tool + Gradient Editor + recipes  commit: 99c248e
 - [ ] 22b-live-gradients         (1) — Live Gradients (non-destructive layer)
 - [ ] 23-color-swatches          (3) — Eyedropper, Swatches panel, swatches-from-image
 - [ ] 24-type-basics             (6) — Type Tool, point/area, Character/Paragraph panels
