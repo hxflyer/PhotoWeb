@@ -96,7 +96,7 @@ export const SHORTCUTS: ShortcutEntry[] = [
     { group: 'Tools', label: 'Quick Selection / Magic Wand / Object Selection', keys: 'W / Shift+W', action: 'tool.selectGroup' },
     { group: 'Tools', label: 'Crop',                            keys: 'C',           action: 'tool.crop' },
     { group: 'Tools', label: 'Horizontal / Vertical Type',      keys: 'T / Shift+T', action: 'tool.typeGroup' },
-    { group: 'Tools', label: 'Pen / Freeform Pen',              keys: 'P / Shift+P', action: 'tool.penGroup' },
+    { group: 'Tools', label: 'Pen / Curvature Pen / Freeform Pen', keys: 'P / Shift+P', action: 'tool.penGroup' },
     { group: 'Tools', label: 'Direct / Path Selection',         keys: 'A / Shift+A', action: 'tool.pathSelectionGroup' },
     { group: 'Tools', label: 'Shape Tools (cycle)',             keys: 'U / Shift+U', action: 'tool.shapeGroup' },
     { group: 'Tools', label: 'Dodge / Burn / Sponge',           keys: 'O / Shift+O', action: 'tool.dodgeGroup' },

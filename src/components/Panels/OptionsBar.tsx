@@ -1804,7 +1804,7 @@ export function OptionsBar() {
         'select': 'Marquee', 'lasso': 'Lasso', 'lasso-poly': 'Polygonal Lasso', 'magnetic-lasso': 'Magnetic Lasso',
         'magic-wand': 'Magic Wand', 'quick-selection': 'Quick Selection', 'object-selection': 'Object Selection',
         'crop': 'Crop', 'perspective-crop': 'Perspective Crop', 'eyedropper': 'Eyedropper', 'ruler': 'Ruler',
-        'pen': 'Pen', 'freeform-pen': 'Freeform Pen',
+        'pen': 'Pen', 'curvature-pen': 'Curvature Pen', 'freeform-pen': 'Freeform Pen',
         'path-selection': 'Path Selection', 'direct-selection': 'Direct Selection',
         'type-horizontal': 'Type', 'type-vertical': 'Vertical Type',
         'shape-rectangle': 'Rectangle', 'shape-rounded-rectangle': 'Rounded Rectangle',
@@ -1845,6 +1845,7 @@ export function OptionsBar() {
             case 'burn': return <DodgeBurnOptions tool="burn" />;
             case 'sponge': return <DodgeBurnOptions tool="sponge" />;
             case 'pen':
+            case 'curvature-pen':
             case 'freeform-pen': return <PenOptions />;
             case 'type-horizontal':
             case 'type-vertical': return <TypeOptions />;

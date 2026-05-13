@@ -103,6 +103,7 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
     {
         primary: { id: 'pen', icon: PenTool, label: 'Pen Tool', shortcut: 'P' },
         subs: [
+            { id: 'curvature-pen', icon: PenLine, label: 'Curvature Pen Tool', shortcut: 'P' },
             { id: 'freeform-pen', icon: PenLine, label: 'Freeform Pen Tool', shortcut: 'P' },
         ],
     },

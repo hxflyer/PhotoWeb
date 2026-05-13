@@ -37,7 +37,7 @@
 import type { OverlayRenderContext, Tool, ToolContext, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
-import type { ShapeCustomData } from '../store/types';
+import type { EditorStore, SelectionMaskData, ShapeCustomData } from '../store/types';
 import { Layer } from '../core/Layer';
 import { useEditorStore } from '../store/editorStore';
 import { rerenderShapeLayer } from './shapeRender';
@@ -154,7 +154,8 @@ type DragState =
     | { kind: 'alt-anchor'; pathId: string; anchorIndex: number; downX: number; downY: number; moved: boolean }
     | { kind: 'drag-handle'; pathId: string; anchorIndex: number; which: 'in' | 'out' }
     | { kind: 'cmd-drag-anchor'; pathId: string; anchorIndex: number; lastX: number; lastY: number }
-    | { kind: 'cmd-drag-path'; pathId: string; lastX: number; lastY: number };
+    | { kind: 'cmd-drag-path'; pathId: string; lastX: number; lastY: number }
+    | { kind: 'curvature-anchor'; pathId: string; anchorIndex: number };
 
 let drag: DragState | null = null;
 let cursorPos: { x: number; y: number } | null = null;
@@ -756,7 +757,7 @@ export function createShapeLayerFromPath(path: PathShape, fillColor: string, lab
     return createdId;
 }
 
-function tracePathIntoContext(path: PathShape, lctx: CanvasRenderingContext2D): void {
+function tracePathIntoContext(path: PathShape, lctx: CanvasRenderingContext2D, forceClose = false): void {
     if (path.anchors.length === 0) return;
     const first = path.anchors[0];
     lctx.beginPath();
@@ -775,7 +776,42 @@ function tracePathIntoContext(path: PathShape, lctx: CanvasRenderingContext2D): 
         const cp2 = curr.inHandle ?? { x: curr.x, y: curr.y };
         lctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, curr.x, curr.y);
         lctx.closePath();
+    } else if (forceClose && path.anchors.length >= 2) {
+        lctx.closePath();
     }
+}
+
+export function pathToSelectionMask(path: PathShape, width: number, height: number): SelectionMaskData | null {
+    if (path.anchors.length < 2) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#fff';
+    tracePathIntoContext(path, ctx, true);
+    ctx.fill();
+    const img = ctx.getImageData(0, 0, width, height);
+    const data = new Uint8ClampedArray(width * height);
+    for (let i = 0; i < data.length; i++) data[i] = img.data[i * 4 + 3];
+    return { data, width, height };
+}
+
+export function loadPathAsSelection(path: PathShape, store: EditorStore): boolean {
+    const mask = pathToSelectionMask(path, store.width, store.height);
+    if (!mask) return false;
+    const hasPixels = mask.data.some(v => v > 0);
+    store.setSelectionMode('lasso');
+    store.setSelectionOperations(hasPixels
+        ? [{ mode: 'add', type: 'lasso', path: [], mask }]
+        : []);
+    store.setHasSelection(hasPixels);
+    return hasPixels;
+}
+
+export function loadActivePathAsSelection(store: EditorStore): boolean {
+    const path = getActivePath();
+    return path ? loadPathAsSelection(path, store) : false;
 }
 
 function commitPathToActiveLayer(path: PathShape, mode: PenMode, ctx: ToolContext): void {
@@ -820,6 +856,13 @@ export const penTool: Tool = {
             selection = { pathId: null, anchorIndices: new Set() };
         } else if (e.key === 'Enter') {
             const path = getActivePath();
+            if (path && (e.meta || e.ctrl)) {
+                e.rawEvent.preventDefault();
+                loadPathAsSelection(path, ctx.getStore());
+                pathStore.activeId = null;
+                selection = { pathId: null, anchorIndices: new Set() };
+                return;
+            }
             if (path && !path.closed && path.anchors.length >= 2) path.closed = true;
             if (path) commitPathToActiveLayer(path, penOptions.mode, ctx);
             if (path && penOptions.mode !== 'path') {
@@ -859,5 +902,168 @@ export const freeformPenTool: Tool = {
     renderOverlay: (overlay) => renderPathOverlay(overlay),
 };
 
+let curvatureSelected: { pathId: string; anchorIndex: number } | null = null;
+
+function recomputeCurvatureHandles(path: PathShape): void {
+    const points = path.anchors;
+    const n = points.length;
+    if (n < 3) {
+        points.forEach(anchor => {
+            anchor.inHandle = undefined;
+            anchor.outHandle = undefined;
+        });
+        return;
+    }
+    points.forEach((anchor, i) => {
+        if (anchor.type === 'corner') {
+            anchor.inHandle = undefined;
+            anchor.outHandle = undefined;
+            return;
+        }
+        const prev = i > 0 ? points[i - 1] : path.closed ? points[n - 1] : null;
+        const next = i < n - 1 ? points[i + 1] : path.closed ? points[0] : null;
+        if (prev && next) {
+            const dx = (next.x - prev.x) / 6;
+            const dy = (next.y - prev.y) / 6;
+            anchor.inHandle = { x: anchor.x - dx, y: anchor.y - dy };
+            anchor.outHandle = { x: anchor.x + dx, y: anchor.y + dy };
+        } else if (next) {
+            anchor.inHandle = undefined;
+            anchor.outHandle = { x: anchor.x + (next.x - anchor.x) / 3, y: anchor.y + (next.y - anchor.y) / 3 };
+        } else if (prev) {
+            anchor.inHandle = { x: anchor.x + (prev.x - anchor.x) / 3, y: anchor.y + (prev.y - anchor.y) / 3 };
+            anchor.outHandle = undefined;
+        }
+    });
+}
+
+function finishPathForCurrentPenMode(path: PathShape, ctx: ToolContext): void {
+    if (!path.closed && path.anchors.length >= 2) path.closed = true;
+    recomputeCurvatureHandles(path);
+    commitPathToActiveLayer(path, penOptions.mode, ctx);
+    if (penOptions.mode !== 'path') removePath(path.id);
+    pathStore.activeId = null;
+    selection = { pathId: null, anchorIndices: new Set() };
+    curvatureSelected = null;
+}
+
+function onCurvatureDown(e: ToolPointerEvent, ctx?: ToolContext): void {
+    if (e.button !== 0) return;
+    cursorPos = { x: e.canvasX, y: e.canvasY };
+    const isDoubleClick = ((e.rawEvent as MouseEvent | undefined)?.detail ?? 0) >= 2;
+    let path = getActivePath();
+
+    if (path && !path.closed) {
+        const anchorHit = hitAnchor(e.canvasX, e.canvasY, path);
+        if (anchorHit) {
+            if (anchorHit.isFirst && path.anchors.length >= 2 && !isDoubleClick) {
+                path.closed = true;
+                recomputeCurvatureHandles(path);
+                if (ctx && penOptions.mode !== 'path') finishPathForCurrentPenMode(path, ctx);
+                return;
+            }
+            const anchor = path.anchors[anchorHit.anchorIndex];
+            if (isDoubleClick) {
+                anchor.type = anchor.type === 'corner' ? 'smooth' : 'corner';
+                recomputeCurvatureHandles(path);
+            }
+            curvatureSelected = { pathId: path.id, anchorIndex: anchorHit.anchorIndex };
+            selection = { pathId: path.id, anchorIndices: new Set([anchorHit.anchorIndex]) };
+            drag = { kind: 'curvature-anchor', pathId: path.id, anchorIndex: anchorHit.anchorIndex };
+            return;
+        }
+
+        const segHit = hitSegment(e.canvasX, e.canvasY, path);
+        if (segHit) {
+            path.anchors.splice(segHit.segmentIndex + 1, 0, {
+                x: segHit.point.x,
+                y: segHit.point.y,
+                type: isDoubleClick ? 'corner' : 'smooth',
+            });
+            recomputeCurvatureHandles(path);
+            curvatureSelected = { pathId: path.id, anchorIndex: segHit.segmentIndex + 1 };
+            selection = { pathId: path.id, anchorIndices: new Set([segHit.segmentIndex + 1]) };
+            drag = { kind: 'curvature-anchor', pathId: path.id, anchorIndex: segHit.segmentIndex + 1 };
+            return;
+        }
+    }
+
+    if (!path || path.closed) {
+        path = { id: crypto.randomUUID(), closed: false, anchors: [] };
+        addPath(path);
+    }
+    path.anchors.push({ x: e.canvasX, y: e.canvasY, type: isDoubleClick ? 'corner' : 'smooth' });
+    recomputeCurvatureHandles(path);
+    const anchorIndex = path.anchors.length - 1;
+    curvatureSelected = { pathId: path.id, anchorIndex };
+    selection = { pathId: path.id, anchorIndices: new Set([anchorIndex]) };
+    drag = { kind: 'curvature-anchor', pathId: path.id, anchorIndex };
+}
+
+function onCurvatureMove(e: ToolPointerEvent): void {
+    cursorPos = { x: e.canvasX, y: e.canvasY };
+    if (!drag || drag.kind !== 'curvature-anchor') return;
+    const path = pathStore.paths.find(p => p.id === drag!.pathId);
+    if (!path) return;
+    const anchor = path.anchors[drag.anchorIndex];
+    if (!anchor) return;
+    anchor.x = e.canvasX;
+    anchor.y = e.canvasY;
+    recomputeCurvatureHandles(path);
+}
+
+function onCurvatureUp(): void {
+    if (drag?.kind === 'curvature-anchor') drag = null;
+}
+
+export const curvaturePenTool: Tool = {
+    id: 'curvature-pen',
+    label: 'Curvature Pen',
+    cursor: 'crosshair',
+    onPointerDown: (e, ctx) => onCurvatureDown(e, ctx),
+    onPointerMove: onCurvatureMove,
+    onPointerUp: onCurvatureUp,
+    onKeyDown: (e, ctx) => {
+        const path = getActivePath();
+        if (e.key === 'Escape') {
+            pathStore.activeId = null;
+            selection = { pathId: null, anchorIndices: new Set() };
+            curvatureSelected = null;
+            return;
+        }
+        if (e.key === 'Enter') {
+            if (path && (e.meta || e.ctrl)) {
+                e.rawEvent.preventDefault();
+                loadPathAsSelection(path, ctx.getStore());
+                pathStore.activeId = null;
+                selection = { pathId: null, anchorIndices: new Set() };
+                curvatureSelected = null;
+                return;
+            }
+            if (path) finishPathForCurrentPenMode(path, ctx);
+            return;
+        }
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+            e.rawEvent.preventDefault();
+            if (!path) return;
+            if (curvatureSelected?.pathId === path.id) {
+                path.anchors.splice(curvatureSelected.anchorIndex, 1);
+                if (path.anchors.length === 0) {
+                    removePath(path.id);
+                    curvatureSelected = null;
+                    return;
+                }
+                curvatureSelected.anchorIndex = Math.min(curvatureSelected.anchorIndex, path.anchors.length - 1);
+                selection = { pathId: path.id, anchorIndices: new Set([curvatureSelected.anchorIndex]) };
+                recomputeCurvatureHandles(path);
+            } else {
+                removePath(path.id);
+            }
+        }
+    },
+    renderOverlay: (overlay) => renderPathOverlay(overlay),
+};
+
 registerTool(penTool);
 registerTool(freeformPenTool);
+registerTool(curvaturePenTool);

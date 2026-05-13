@@ -207,6 +207,7 @@ export type ToolId =
     | 'sponge'
     | 'pen'
     | 'freeform-pen'
+    | 'curvature-pen'
     | 'path-selection'
     | 'direct-selection'
     | 'eyedropper'

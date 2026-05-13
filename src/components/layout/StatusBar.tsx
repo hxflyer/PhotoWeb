@@ -28,6 +28,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   burn: 'Burn',
   sponge: 'Sponge',
   pen: 'Pen',
+  'curvature-pen': 'Curvature Pen',
   'freeform-pen': 'Freeform Pen',
   'path-selection': 'Path Selection',
   'direct-selection': 'Direct Selection',

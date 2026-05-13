@@ -592,7 +592,7 @@ function App() {
           w: ['quick-selection', 'magic-wand', 'object-selection'],
           c: ['crop', 'perspective-crop'],
           t: ['type-horizontal', 'type-vertical'],
-          p: ['pen', 'freeform-pen'],
+          p: ['pen', 'curvature-pen', 'freeform-pen'],
           a: ['direct-selection', 'path-selection'],
           u: ['shape-rectangle', 'shape-rounded-rectangle', 'shape-ellipse', 'shape-polygon', 'shape-line', 'shape-custom'],
           h: ['hand'],
