@@ -143,10 +143,10 @@ function BrushControls({ showFlow = true }: { showFlow?: boolean }) {
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Size:')}
-                <input type="range" min={1} max={500} value={s.size}
+                <input data-testid="brush-size-range" type="range" min={1} max={500} value={s.size}
                     onChange={e => setBrushSize(+e.target.value)}
                     style={{ width: 80, accentColor: 'hsl(var(--accent-primary))' }} />
-                <input type="number" min={1} max={500} value={s.size}
+                <input data-testid="brush-size-input" type="number" min={1} max={500} value={s.size}
                     onChange={e => setBrushSize(+e.target.value)}
                     className="opts-input" style={{ width: 42 }} />
                 <span className="opts-label">px</span>
@@ -154,7 +154,7 @@ function BrushControls({ showFlow = true }: { showFlow?: boolean }) {
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Hardness:')}
-                <input type="range" min={0} max={100} value={Math.round(s.hardness * 100)}
+                <input data-testid="brush-hardness-range" type="range" min={0} max={100} value={Math.round(s.hardness * 100)}
                     onChange={e => setBrushHardness(+e.target.value / 100)}
                     style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
                 <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(s.hardness * 100)}%</span>
@@ -162,7 +162,7 @@ function BrushControls({ showFlow = true }: { showFlow?: boolean }) {
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Opacity:')}
-                <input type="range" min={0} max={100} value={Math.round(s.opacity * 100)}
+                <input data-testid="brush-opacity-range" type="range" min={0} max={100} value={Math.round(s.opacity * 100)}
                     onChange={e => setBrushOpacity(+e.target.value / 100)}
                     style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
                 <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(s.opacity * 100)}%</span>
@@ -172,7 +172,7 @@ function BrushControls({ showFlow = true }: { showFlow?: boolean }) {
                     {S.sep()}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         {S.label('Flow:')}
-                        <input type="range" min={1} max={100} value={Math.round(s.flow * 100)}
+                        <input data-testid="brush-flow-range" type="range" min={1} max={100} value={Math.round(s.flow * 100)}
                             onChange={e => setBrushFlow(+e.target.value / 100)}
                             style={{ width: 50, accentColor: 'hsl(var(--accent-primary))' }} />
                         <span className="opts-label">{Math.round(s.flow * 100)}%</span>
@@ -207,6 +207,25 @@ function ModeDropdown(props?: { value?: BlendModeId; onChange?: (v: BlendModeId)
             onChange={e => props?.onChange?.(e.target.value as BlendModeId)}
         >
             {BLEND_MODE_LABELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+        </select>
+    );
+}
+
+type BrushMode = 'source-over' | 'multiply' | 'clear';
+
+function BrushModeDropdown({ value, onChange, clearDisabled }: { value: BrushMode; onChange: (v: BrushMode) => void; clearDisabled?: boolean }) {
+    return (
+        <select
+            data-testid="brush-mode"
+            className="opts-input"
+            style={{ width: 90 }}
+            title="Mode"
+            value={value}
+            onChange={e => onChange(e.target.value as BrushMode)}
+        >
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="clear" disabled={clearDisabled}>Clear</option>
         </select>
     );
 }
@@ -789,10 +808,20 @@ function RulerOptions() {
 function BrushOptions() {
     const [, force] = useState(0);
     const opts = getBrushOptions();
+    const { layers, activeLayerId } = useEditorStore();
+    const activeLayer = layers.find(l => l.id === activeLayerId);
     const update = (next: Parameters<typeof setBrushOptions>[0]) => { setBrushOptions(next); force(t => t + 1); };
+    const clearDisabled = !!activeLayer?.isBackground;
     return (
         <>
-            <ModeDropdown />
+            <BrushModeDropdown
+                value={(opts.mode === 'clear' || opts.mode === 'multiply') ? opts.mode : 'source-over'}
+                clearDisabled={clearDisabled}
+                onChange={mode => {
+                    if (mode === 'clear' && clearDisabled) return;
+                    update({ mode });
+                }}
+            />
             <BrushControls showFlow />
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

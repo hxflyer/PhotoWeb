@@ -14,6 +14,8 @@ import { TypeLayerVisuals, TypeOverlayMount } from './TypeOverlayMount';
 import { VIEWPORT_FIT_EVENT } from '../../utils/viewportFit';
 import { ingestFiles, summaryToast } from '../../utils/fileIngest';
 import { applyBrushDab } from '../../utils/brushEngine';
+import { createPixelHistoryAction } from '../../core/history';
+import { getBrushOptions } from '../../tools/brush';
 import { getCropRect } from '../../tools/crop';
 import { getSelectionToolOperation } from '../../tools/selectionModifiers';
 
@@ -23,6 +25,15 @@ const CURSOR_CLONE_SAMPLE = `url('data:image/svg+xml;utf8,<svg width="28" height
 const SELECTION_EDGE_THRESHOLD = 0.5;
 const SELECTION_DRAG_THRESHOLD = 3;
 const START_FREE_TRANSFORM_EVENT = 'photoweb:start-free-transform';
+
+function brushCursor(size: number, zoom: number, hardness: number): string {
+    const diameter = Math.max(8, Math.min(96, Math.round(size * zoom)));
+    const center = diameter / 2;
+    const radius = Math.max(2, center - 2);
+    const inner = Math.max(1, radius * Math.max(0, Math.min(1, hardness)));
+    const svg = `<svg width="${diameter}" height="${diameter}" viewBox="0 0 ${diameter} ${diameter}" xmlns="http://www.w3.org/2000/svg"><circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="white" stroke-width="3"/><circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="black" stroke-width="1.5"/><circle cx="${center}" cy="${center}" r="${inner}" fill="none" stroke="black" stroke-opacity="0.28" stroke-width="1"/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
+}
 
 // Module-level helpers used by both compositor and overlay canvas
 function drawShape(ctx: CanvasRenderingContext2D, pathData: { x: number; y: number }[], mode: SelectionMode): void {
@@ -103,6 +114,8 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
     const pendingSelectionMoveRef = useRef<{ x: number; y: number } | null>(null);
     const pendingSelectionStartRef = useRef<{ x: number; y: number } | null>(null);
     const [modifiers, setModifiers] = useState({ shift: false, alt: false, meta: false });
+    const [preciseBrushCursor, setPreciseBrushCursor] = useState(false);
+    const [temporaryBrushErase, setTemporaryBrushErase] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     // Tool registry plumbing (Phase 0.3). Stubs exist for every active tool ID;
@@ -220,12 +233,18 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             if (e.key === 'Shift') setModifiers(m => ({ ...m, shift: true }));
             if (e.key === 'Alt') setModifiers(m => ({ ...m, alt: true }));
             if (e.key === 'Meta' || e.key === 'Control') setModifiers(m => ({ ...m, meta: true }));
+            if (e.key === 'CapsLock') {
+                const caps = e.getModifierState?.('CapsLock');
+                setPreciseBrushCursor(prev => caps && caps !== prev ? true : !prev);
+            }
+            if (e.key === '~' || e.code === 'Backquote') setTemporaryBrushErase(true);
         };
         const handleKeyUp = (e: KeyboardEvent) => {
             dispatchToolKey('up', e);
             if (e.key === 'Shift') setModifiers(m => ({ ...m, shift: false }));
             if (e.key === 'Alt') setModifiers(m => ({ ...m, alt: false }));
             if (e.key === 'Meta' || e.key === 'Control') setModifiers(m => ({ ...m, meta: false }));
+            if (e.key === '~' || e.code === 'Backquote') setTemporaryBrushErase(false);
         };
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
@@ -242,6 +261,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         base: ImageData;
         work: ImageData;
         coverage: Float32Array;
+        label: string;
     }
     const strokeBufferRef = useRef<StrokeBuffer | null>(null);
 
@@ -1005,7 +1025,12 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         if (opacityCap <= 0 || flow <= 0) return;
         const activeLayer = layers.find(l => l.id === activeLayerId);
         if (!activeLayer) return;
-        if (activeLayer.lockTransparency) return;
+        const brushOptions = getBrushOptions();
+        const clearMode = activeTool === 'brush' && brushOptions.mode === 'clear';
+        const temporaryEraseOnBackground = activeTool === 'brush' && temporaryBrushErase && activeLayer.isBackground;
+        const shouldErase = activeTool === 'eraser' || clearMode || (activeTool === 'brush' && temporaryBrushErase && !activeLayer.isBackground);
+        if ((activeLayer.locks.transparency || activeLayer.locks.all) && !temporaryEraseOnBackground) return;
+        if (clearMode && activeLayer.isBackground) return;
 
         if (!strokeBufferRef.current || strokeBufferRef.current.layerId !== activeLayerId) {
             const base = activeLayer.ctx.getImageData(0, 0, width, height);
@@ -1014,11 +1039,12 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                 base,
                 work: new ImageData(new Uint8ClampedArray(base.data), width, height),
                 coverage: new Float32Array(width * height),
+                label: shouldErase ? (activeTool === 'eraser' ? 'Eraser' : 'Brush Clear') : 'Brush Stroke',
             };
         }
 
         const buffer = strokeBufferRef.current;
-        const color = useEditorStore.getState().primaryColor;
+        const color = temporaryEraseOnBackground ? useEditorStore.getState().secondaryColor : useEditorStore.getState().primaryColor;
         const r = parseInt(color.slice(1, 3), 16) || 0;
         const g = parseInt(color.slice(3, 5), 16) || 0;
         const b = parseInt(color.slice(5, 7), 16) || 0;
@@ -1033,7 +1059,8 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             opacity: opacityCap,
             flow,
             color: { r, g, b },
-            mode: activeTool === 'eraser' ? 'erase' : 'paint',
+            mode: shouldErase ? 'erase' : 'paint',
+            blendMode: brushOptions.mode === 'multiply' ? 'multiply' : 'normal',
             base: buffer.base.data,
             work: buffer.work.data,
             coverage: buffer.coverage,
@@ -1242,6 +1269,16 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         }
 
         if (strokeBufferRef.current && (activeTool === 'brush' || activeTool === 'eraser')) {
+            const buffer = strokeBufferRef.current;
+            const layer = layers.find(l => l.id === buffer.layerId);
+            if (layer && !useEditorStore.getState().quickMaskMode) {
+                useEditorStore.getState().commitHistory(createPixelHistoryAction(
+                    layer,
+                    { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height },
+                    buffer.base,
+                    buffer.label,
+                ));
+            }
             strokeBufferRef.current = null;
         }
 
@@ -1313,6 +1350,10 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             return 'crosshair';
         }
         if (activeTool === 'clone-stamp' && modifiers.alt) return CURSOR_CLONE_SAMPLE;
+        if (activeTool === 'brush' || activeTool === 'eraser') {
+            if (preciseBrushCursor) return 'crosshair';
+            return brushCursor(brushSettings.size, zoom, brushSettings.hardness);
+        }
         if (activeTool === 'fill') return 'cell';
         return 'crosshair';
     };
@@ -1590,8 +1631,37 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                     flexDirection: 'column'
                 }} onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
 
+                    {(activeTool === 'brush' || activeTool === 'eraser') && (
+                        <div data-testid="brush-preset-picker" style={{ padding: '8px 10px', minWidth: 190, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: 'hsl(var(--text-secondary))' }}>
+                                Size: {brushSettings.size}px
+                                <input
+                                    data-testid="brush-picker-size"
+                                    type="range"
+                                    min={1}
+                                    max={500}
+                                    value={brushSettings.size}
+                                    onChange={e => useEditorStore.getState().setBrushSize(Number(e.target.value))}
+                                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                                />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: 'hsl(var(--text-secondary))' }}>
+                                Hardness: {Math.round(brushSettings.hardness * 100)}%
+                                <input
+                                    data-testid="brush-picker-hardness"
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    value={Math.round(brushSettings.hardness * 100)}
+                                    onChange={e => useEditorStore.getState().setBrushHardness(Number(e.target.value) / 100)}
+                                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                                />
+                            </label>
+                        </div>
+                    )}
+
                     {/* OPTION 1: Selection Actions */}
-                    {selection.hasSelection && (
+                    {selection.hasSelection && activeTool !== 'brush' && activeTool !== 'eraser' && (
                         <>
                             <button style={menuItemStyle} onClick={() => {
                                 useEditorStore.getState().openTransformSelection();
@@ -1637,7 +1707,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                     )}
 
                     {/* OPTION 2: No Selection -> Free Edit Layer */}
-                    {!selection.hasSelection && (
+                    {!selection.hasSelection && activeTool !== 'brush' && activeTool !== 'eraser' && (
                         <button style={menuItemStyle} onClick={() => {
                             handleFreeEditLayer();
                             setContextMenu(null);

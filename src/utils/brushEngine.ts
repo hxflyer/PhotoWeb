@@ -9,6 +9,7 @@ export interface BrushDabOptions {
     flow: number;
     color: { r: number; g: number; b: number };
     mode: 'paint' | 'erase';
+    blendMode?: 'normal' | 'multiply';
     base: Uint8ClampedArray;
     work: Uint8ClampedArray;
     coverage: Float32Array;
@@ -57,6 +58,12 @@ export function applyBrushDab(options: BrushDabOptions): void {
                 continue;
             }
 
+            const dstR = options.base[idx];
+            const dstG = options.base[idx + 1];
+            const dstB = options.base[idx + 2];
+            const paintR = options.blendMode === 'multiply' ? Math.round((options.color.r * dstR) / 255) : options.color.r;
+            const paintG = options.blendMode === 'multiply' ? Math.round((options.color.g * dstG) / 255) : options.color.g;
+            const paintB = options.blendMode === 'multiply' ? Math.round((options.color.b * dstB) / 255) : options.color.b;
             const dstA = options.base[idx + 3] / 255;
             const srcA = effect;
             const outA = srcA + dstA * (1 - srcA);
@@ -66,9 +73,9 @@ export function applyBrushDab(options: BrushDabOptions): void {
                 options.work[idx + 2] = 0;
                 options.work[idx + 3] = 0;
             } else {
-                options.work[idx] = Math.round((options.color.r * srcA + options.base[idx] * dstA * (1 - srcA)) / outA);
-                options.work[idx + 1] = Math.round((options.color.g * srcA + options.base[idx + 1] * dstA * (1 - srcA)) / outA);
-                options.work[idx + 2] = Math.round((options.color.b * srcA + options.base[idx + 2] * dstA * (1 - srcA)) / outA);
+                options.work[idx] = Math.round((paintR * srcA + dstR * dstA * (1 - srcA)) / outA);
+                options.work[idx + 1] = Math.round((paintG * srcA + dstG * dstA * (1 - srcA)) / outA);
+                options.work[idx + 2] = Math.round((paintB * srcA + dstB * dstA * (1 - srcA)) / outA);
                 options.work[idx + 3] = Math.round(outA * 255);
             }
         }

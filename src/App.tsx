@@ -49,6 +49,8 @@ import { applyAdjustmentToLayer } from './adjustments';
 import { initAutoSaveCheck } from './core/autoSave';
 import { captureLayerRegion, createPixelHistoryAction } from './core/history';
 import { bindTypePanelStore, bindTypeToastBridge, getEditingStyle, updateEditingStyle, type TypeLayerData } from './tools/type';
+import { setBrushOptions } from './tools/brush';
+import { setTemporaryEyedropperPrimary } from './tools/eyedropper';
 import { moveSelectedPixelsBy } from './tools/move';
 import { isMarqueeGestureActive } from './tools/marquee';
 import { cloneShapeData } from './tools/shapeCommands';
@@ -659,6 +661,19 @@ function App() {
       if (!meta && !e.shiftKey && !e.altKey && key === 'x') { e.preventDefault(); gs().swapColors(); return; }
       if (!meta && !e.shiftKey && !e.altKey && key === 'd') { e.preventDefault(); gs().resetColors(); return; }
 
+      if (!meta && e.shiftKey && e.altKey && key === 'r' && gs().activeTool === 'brush') {
+        e.preventDefault();
+        const s = gs();
+        const layer = s.layers.find(l => l.id === s.activeLayerId);
+        if (!layer?.isBackground) setBrushOptions({ mode: 'clear' });
+        return;
+      }
+      if (!meta && e.shiftKey && e.altKey && key === 'n' && gs().activeTool === 'brush') {
+        e.preventDefault();
+        setBrushOptions({ mode: 'source-over' });
+        return;
+      }
+
       // F cycles screen modes (Standard / Full Screen With Menu / Full Screen).
       // Shift+F cycles backward. Reads through the store so the View menu and
       // toolbar icon stay in sync.
@@ -849,6 +864,7 @@ function App() {
       const s = gs();
       if (!isPaintFamily(s.activeTool)) return;
       priorTool = s.activeTool;
+      setTemporaryEyedropperPrimary(true);
       s.setTool('eyedropper');
     };
     const onUp = (e: KeyboardEvent) => {
@@ -856,6 +872,7 @@ function App() {
       if (priorTool && gs().activeTool === 'eyedropper') {
         gs().setTool(priorTool);
       }
+      setTemporaryEyedropperPrimary(false);
       priorTool = null;
     };
     window.addEventListener('keydown', onDown);

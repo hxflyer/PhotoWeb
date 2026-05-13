@@ -17,6 +17,12 @@ const options: EyedropperOptions = {
     sample: 'current-layer',
 };
 
+let temporaryPrimarySample = false;
+
+export function setTemporaryEyedropperPrimary(enabled: boolean): void {
+    temporaryPrimarySample = enabled;
+}
+
 export function setEyedropperOptions(next: Partial<EyedropperOptions>): void {
     Object.assign(options, next);
 }
@@ -75,7 +81,7 @@ export const eyedropperTool: Tool = {
             : (store.layers.find(l => l.id === store.activeLayerId)?.canvas ?? null);
         if (!source) return;
         const color = sampleAverage(source, point.x, point.y, options.sampleSize);
-        if (e.alt) {
+        if (e.alt && !temporaryPrimarySample) {
             store.setSecondaryColor(color);
         } else {
             store.setPrimaryColor(color);

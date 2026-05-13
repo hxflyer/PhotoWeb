@@ -6,7 +6,7 @@ import { captureLayerRegion, createPixelHistoryAction, createMaskPixelHistoryAct
 export interface BrushOptions {
     smoothing: number;
     spacing: number;
-    mode: GlobalCompositeOperation;
+    mode: GlobalCompositeOperation | 'clear';
     pressureSize: boolean;
     pressureOpacity: boolean;
 }
@@ -225,7 +225,7 @@ function stampStroke(
     const start = spacing - stroke.leftover;
     let i = start;
     ctx.save();
-    ctx.globalCompositeOperation = options.mode;
+    ctx.globalCompositeOperation = options.mode === 'clear' ? 'destination-out' : options.mode;
     ctx.globalAlpha = opacity * opacityFactor;
     while (i <= dist) {
         const x = from.x + (dx * i) / (dist || 1);
