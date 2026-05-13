@@ -1,6 +1,8 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { captureLayerRegion, createPixelHistoryAction, cropImageData, expandStrokeBounds, makeStrokeBounds, strokeBoundsToRect, type StrokeBounds } from '../core/history';
+import { paintSymmetryPoints } from '../utils/paintSymmetry';
+import type { EditorStore } from '../store/types';
 
 interface PencilOptions {
     spacing: number;
@@ -40,6 +42,14 @@ function stamp(ctx: CanvasRenderingContext2D, x: number, y: number, size: number
     ctx.restore();
 }
 
+function stampWithSymmetry(layerCtx: CanvasRenderingContext2D, store: EditorStore, x: number, y: number, size: number, opacity: number): void {
+    const points = paintSymmetryPoints({ x, y }, store.width, store.height, store.paintSymmetry);
+    for (const point of points) {
+        stamp(layerCtx, point.x, point.y, size, opacity, store.primaryColor);
+        expandStrokeBounds(state.bounds, point.x, point.y, size / 2 + 1);
+    }
+}
+
 export const pencilTool: Tool = {
     id: 'pencil',
     label: 'Pencil',
@@ -68,12 +78,10 @@ export const pencilTool: Tool = {
                 const t = i / steps;
                 const x = from.x + (click.x - from.x) * t;
                 const y = from.y + (click.y - from.y) * t;
-                stamp(layer.ctx, x, y, size, opacity, store.primaryColor);
-                expandStrokeBounds(state.bounds, x, y, size / 2 + 1);
+                stampWithSymmetry(layer.ctx, store, x, y, size, opacity);
             }
         } else {
-            stamp(layer.ctx, click.x, click.y, size, opacity, store.primaryColor);
-            expandStrokeBounds(state.bounds, click.x, click.y, size / 2 + 1);
+            stampWithSymmetry(layer.ctx, store, click.x, click.y, size, opacity);
         }
         state.last = click;
         layer.markDirty(null);
@@ -96,8 +104,7 @@ export const pencilTool: Tool = {
             const t = i / steps;
             const x = state.last.x + (next.x - state.last.x) * t;
             const y = state.last.y + (next.y - state.last.y) * t;
-            stamp(layer.ctx, x, y, size, opacity, store.primaryColor);
-            expandStrokeBounds(state.bounds, x, y, size / 2 + 1);
+            stampWithSymmetry(layer.ctx, store, x, y, size, opacity);
         }
         layer.markDirty(null);
         state.last = next;

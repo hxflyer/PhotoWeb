@@ -16,6 +16,7 @@ import { ingestFiles, summaryToast } from '../../utils/fileIngest';
 import { applyBrushDab } from '../../utils/brushEngine';
 import { createPixelHistoryAction } from '../../core/history';
 import { getBrushOptions } from '../../tools/brush';
+import { paintSymmetryPoints } from '../../utils/paintSymmetry';
 import { getCropRect } from '../../tools/crop';
 import { getSelectionToolOperation } from '../../tools/selectionModifiers';
 
@@ -100,6 +101,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         width, height, zoom, pan,
         activeTool, setPan, setZoom,
         layers, activeLayerId, brushSettings,
+        paintSymmetry,
         selection, setSelectionPath, setHasSelection, setIsDraggingSelection, clearSelection,
         addSelectionOperation, setSelectionOperations, setFreeEditMode, setPolyPoints,
         showRulers, showGrid, gridSize, activeChannel, channelVisibility, activeSnapTargets, viewedLayerMaskId,
@@ -236,6 +238,10 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             if (e.key === 'CapsLock') {
                 const caps = e.getModifierState?.('CapsLock');
                 setPreciseBrushCursor(prev => caps && caps !== prev ? true : !prev);
+            }
+            if (e.key === 'Enter' && useEditorStore.getState().paintSymmetry.pending) {
+                e.preventDefault();
+                useEditorStore.getState().commitPaintSymmetryPath();
             }
             if (e.key === '~' || e.code === 'Backquote') setTemporaryBrushErase(true);
         };
@@ -1014,6 +1020,11 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
 
     // Plot Point helper (Updated for Clipping)
     const plotPoint = (x: number, y: number, targetCtx: CanvasRenderingContext2D) => {
+        const points = paintSymmetryPoints({ x, y }, width, height, paintSymmetry);
+        for (const point of points) plotSinglePoint(point.x, point.y, targetCtx);
+    };
+
+    const plotSinglePoint = (x: number, y: number, targetCtx: CanvasRenderingContext2D) => {
         if (useEditorStore.getState().quickMaskMode) {
             paintQuickMaskDab(x, y);
             return;
@@ -1590,6 +1601,60 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                         imageRendering: 'auto',
                     }}
                 />
+                {paintSymmetry.mode !== 'none' && paintSymmetry.visible && (
+                    <svg
+                        data-testid="paint-symmetry-path"
+                        data-pending={paintSymmetry.pending ? 'true' : 'false'}
+                        width={width}
+                        height={height}
+                        viewBox={`0 0 ${width} ${height}`}
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            pointerEvents: 'none',
+                            overflow: 'visible',
+                        }}
+                    >
+                        <g stroke="#45a3ff" strokeWidth={1 / zoom} fill="none" strokeDasharray={paintSymmetry.pending ? '4 3' : undefined}>
+                            {(paintSymmetry.mode === 'vertical' || paintSymmetry.mode === 'dual-axis' || paintSymmetry.mode === 'wavy') && (
+                                paintSymmetry.mode === 'wavy'
+                                    ? <path d={`M ${width / 2} 0 C ${width * 0.35} ${height * 0.25}, ${width * 0.65} ${height * 0.75}, ${width / 2} ${height}`} />
+                                    : <line x1={width / 2} y1={0} x2={width / 2} y2={height} />
+                            )}
+                            {(paintSymmetry.mode === 'horizontal' || paintSymmetry.mode === 'dual-axis') && (
+                                <line x1={0} y1={height / 2} x2={width} y2={height / 2} />
+                            )}
+                            {paintSymmetry.mode === 'diagonal' && (
+                                <line x1={0} y1={0} x2={width} y2={height} />
+                            )}
+                            {paintSymmetry.mode === 'circle' && (
+                                <circle cx={width / 2} cy={height / 2} r={Math.min(width, height) / 3} />
+                            )}
+                            {paintSymmetry.mode === 'parallel-lines' && (
+                                <>
+                                    <line x1={width / 3} y1={0} x2={width / 3} y2={height} />
+                                    <line x1={(width * 2) / 3} y1={0} x2={(width * 2) / 3} y2={height} />
+                                </>
+                            )}
+                            {(paintSymmetry.mode === 'radial' || paintSymmetry.mode === 'mandala' || paintSymmetry.mode === 'spiral') && (
+                                Array.from({ length: paintSymmetry.mode === 'mandala' ? Math.min(10, paintSymmetry.segments) : Math.min(12, paintSymmetry.segments) }, (_, i) => {
+                                    const angle = (Math.PI * 2 * i) / paintSymmetry.segments;
+                                    const r = Math.hypot(width, height);
+                                    return (
+                                        <line
+                                            key={i}
+                                            x1={width / 2}
+                                            y1={height / 2}
+                                            x2={width / 2 + Math.cos(angle) * r}
+                                            y2={height / 2 + Math.sin(angle) * r}
+                                        />
+                                    );
+                                })
+                            )}
+                            {paintSymmetry.pending && <rect x={0} y={0} width={width} height={height} />}
+                        </g>
+                    </svg>
+                )}
                 <TypeLayerVisuals />
                 <TypeOverlayMount />
             </div>

@@ -461,6 +461,27 @@ export interface BrushPresetGroup {
     collapsed?: boolean;
 }
 
+export type PaintSymmetryMode =
+    | 'none'
+    | 'vertical'
+    | 'horizontal'
+    | 'dual-axis'
+    | 'diagonal'
+    | 'wavy'
+    | 'circle'
+    | 'spiral'
+    | 'parallel-lines'
+    | 'radial'
+    | 'mandala';
+
+export interface PaintSymmetrySettings {
+    mode: PaintSymmetryMode;
+    lastMode: Exclude<PaintSymmetryMode, 'none'> | null;
+    visible: boolean;
+    pending: boolean;
+    segments: number;
+}
+
 export interface ToolPreset {
     id: string;
     name: string;
@@ -515,6 +536,7 @@ export interface ToolsSlice {
     brushPresets: BrushPreset[];
     brushPresetGroups: BrushPresetGroup[];
     selectedBrushPresetGroupId: string | null;
+    paintSymmetry: PaintSymmetrySettings;
     toolPresets: ToolPreset[];
     patternPresets: PatternPreset[];
     activePatternId: string | null;
@@ -543,6 +565,10 @@ export interface ToolsSlice {
     createBrushPresetGroup: (name: string) => string;
     setSelectedBrushPresetGroup: (id: string | null) => void;
     toggleBrushPresetGroup: (id: string) => void;
+    setPaintSymmetryMode: (mode: PaintSymmetryMode, segments?: number) => void;
+    setPaintSymmetryVisible: (visible: boolean) => void;
+    setPaintSymmetrySegments: (segments: number) => void;
+    commitPaintSymmetryPath: () => void;
     saveToolPreset: (name: string, optionsBlob: Record<string, unknown>) => void;
     applyToolPreset: (id: string, apply: (blob: Record<string, unknown>) => void) => void;
     removeToolPreset: (id: string) => void;

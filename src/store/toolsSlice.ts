@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type {
-    EditorStore, ToolsSlice, BrushPreset, BrushPresetGroup, ToolPreset, PatternPreset,
+    EditorStore, ToolsSlice, BrushPreset, BrushPresetGroup, PaintSymmetryMode, ToolPreset, PatternPreset,
     GradientPresetEntry, GradientColorStop, GradientOpacityStop,
 } from './types';
 import { commitActiveEditingType } from '../tools/type';
@@ -157,6 +157,7 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
     brushPresets: loadStoredBrushPresets(),
     brushPresetGroups: loadStoredBrushPresetGroups(),
     selectedBrushPresetGroupId: DEFAULT_BRUSH_GROUP_ID,
+    paintSymmetry: { mode: 'none', lastMode: null, visible: true, pending: false, segments: 5 },
     toolPresets: loadStoredToolPresets(),
     patternPresets: loadStoredPatternPresets(),
     gradientPresets: loadStoredGradientPresets(),
@@ -315,6 +316,38 @@ export const createToolsSlice: StateCreator<EditorStore, [], [], ToolsSlice> = (
         persistBrushPresetGroups(next);
         return { brushPresetGroups: next };
     }),
+
+    setPaintSymmetryMode: (mode, segments) => set(state => {
+        const nextMode = mode === 'none' ? 'none' : mode;
+        const lastMode = nextMode === 'none'
+            ? state.paintSymmetry.lastMode
+            : nextMode as Exclude<PaintSymmetryMode, 'none'>;
+        return {
+            paintSymmetry: {
+                ...state.paintSymmetry,
+                mode: nextMode,
+                lastMode,
+                visible: true,
+                pending: nextMode !== 'none',
+                segments: segments ?? state.paintSymmetry.segments,
+            },
+        };
+    }),
+
+    setPaintSymmetryVisible: (visible) => set(state => ({
+        paintSymmetry: { ...state.paintSymmetry, visible },
+    })),
+
+    setPaintSymmetrySegments: (segments) => set(state => ({
+        paintSymmetry: {
+            ...state.paintSymmetry,
+            segments: Math.max(2, Math.min(state.paintSymmetry.mode === 'mandala' ? 10 : 12, Math.round(segments))),
+        },
+    })),
+
+    commitPaintSymmetryPath: () => set(state => ({
+        paintSymmetry: { ...state.paintSymmetry, pending: false, visible: true },
+    })),
 
     saveToolPreset: (name, optionsBlob) => set(state => {
         const preset: ToolPreset = {

@@ -53,6 +53,7 @@ import { getCropOptions, setCropOptions, type CropAspectId, type CropOverlayId }
 import { clearRulerMeasurement, getRulerMeasurement, straightenRulerMeasurement } from '../../tools/ruler';
 import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
 import type { BlendModeId } from '../../core/blendModes';
+import type { PaintSymmetryMode } from '../../store/types';
 import {
     GradientAngleIcon, GradientDiamondIcon, GradientLinearIcon, GradientRadialIcon, GradientReflectedIcon,
     SelectionAddIcon, SelectionIntersectIcon, SelectionNewIcon, SelectionSubtractIcon,
@@ -805,6 +806,84 @@ function RulerOptions() {
     );
 }
 
+const symmetryOptions: { value: PaintSymmetryMode; label: string }[] = [
+    { value: 'none', label: 'Symmetry Off' },
+    { value: 'vertical', label: 'Vertical' },
+    { value: 'horizontal', label: 'Horizontal' },
+    { value: 'dual-axis', label: 'Dual Axis' },
+    { value: 'diagonal', label: 'Diagonal' },
+    { value: 'wavy', label: 'Wavy' },
+    { value: 'circle', label: 'Circle' },
+    { value: 'spiral', label: 'Spiral' },
+    { value: 'parallel-lines', label: 'Parallel Lines' },
+    { value: 'radial', label: 'Radial' },
+    { value: 'mandala', label: 'Mandala' },
+];
+
+function PaintSymmetryControl() {
+    const paintSymmetry = useEditorStore(s => s.paintSymmetry);
+    const setPaintSymmetryMode = useEditorStore(s => s.setPaintSymmetryMode);
+    const setPaintSymmetryVisible = useEditorStore(s => s.setPaintSymmetryVisible);
+    const setPaintSymmetrySegments = useEditorStore(s => s.setPaintSymmetrySegments);
+    const commitPaintSymmetryPath = useEditorStore(s => s.commitPaintSymmetryPath);
+    const hasSegments = paintSymmetry.mode === 'radial' || paintSymmetry.mode === 'mandala';
+    return (
+        <>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Symmetry:')}
+                <select
+                    data-testid="paint-symmetry-menu"
+                    className="opts-input"
+                    title="Paint Symmetry"
+                    style={{ width: 118 }}
+                    value={paintSymmetry.mode}
+                    onChange={e => setPaintSymmetryMode(e.target.value as PaintSymmetryMode)}
+                >
+                    {symmetryOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                    {paintSymmetry.lastMode && <option value={paintSymmetry.lastMode}>Last Used Symmetry</option>}
+                </select>
+            </div>
+            {hasSegments && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {S.label('Segments:')}
+                    <input
+                        data-testid="paint-symmetry-segments"
+                        className="opts-input"
+                        type="number"
+                        min={2}
+                        max={paintSymmetry.mode === 'mandala' ? 10 : 12}
+                        value={paintSymmetry.segments}
+                        onChange={e => setPaintSymmetrySegments(Number(e.target.value))}
+                        style={{ width: 46 }}
+                    />
+                </div>
+            )}
+            {paintSymmetry.mode !== 'none' && (
+                <>
+                    <button
+                        data-testid="paint-symmetry-commit"
+                        className="opts-btn"
+                        disabled={!paintSymmetry.pending}
+                        onClick={commitPaintSymmetryPath}
+                    >
+                        OK
+                    </button>
+                    <button
+                        data-testid="paint-symmetry-visibility"
+                        className="opts-btn"
+                        onClick={() => setPaintSymmetryVisible(!paintSymmetry.visible)}
+                    >
+                        {paintSymmetry.visible ? 'Hide Symmetry' : 'Show Symmetry'}
+                    </button>
+                </>
+            )}
+        </>
+    );
+}
+
 function BrushOptions() {
     const [, force] = useState(0);
     const opts = getBrushOptions();
@@ -831,6 +910,7 @@ function BrushOptions() {
                     style={{ width: 60, accentColor: 'hsl(var(--accent-primary))' }} />
                 <span className="opts-label" style={{ minWidth: 30 }}>{Math.round(opts.smoothing * 100)}%</span>
             </div>
+            <PaintSymmetryControl />
         </>
     );
 }
@@ -864,6 +944,7 @@ function PencilOptions() {
                     style={{ accentColor: 'hsl(var(--accent-primary))' }} />
                 Pressure for Opacity
             </label>
+            <PaintSymmetryControl />
         </>
     );
 }
@@ -884,6 +965,7 @@ function EraserOptions() {
                 </select>
             </div>
             <BrushControls showFlow={false} />
+            <PaintSymmetryControl />
         </>
     );
 }
