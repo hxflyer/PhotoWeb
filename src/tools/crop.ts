@@ -130,10 +130,11 @@ function resizeFromHandle(base: CropRect, handle: CropHandle, dx: number, dy: nu
     if (handle.includes('n')) y1 += dy;
     if (handle.includes('s')) y2 += dy;
 
-    // Aspect ratio constraint. Photoshop Crop keeps the starting crop ratio
-    // while Shift is held; preset ratios apply when Shift is not overriding.
+    // Aspect ratio constraint. Existing Slice F behavior uses Shift as a
+    // square override; the canvas-expansion flow keeps Shift+Alt centered
+    // expansion on the starting crop ratio.
     const presetRatio = aspectRatio();
-    const ratio = shift ? base.w / base.h : presetRatio;
+    const ratio = shift ? (alt ? base.w / base.h : 1) : presetRatio;
     if (ratio !== null) {
         const isCorner = handle.length === 2;
         if (isCorner) {
