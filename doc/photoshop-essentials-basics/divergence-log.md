@@ -455,3 +455,21 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Enhanced Warp uses Adobe's Bezier/control-handle deformation and private rasterization.
 **Photoweb behavior:** Warp uses deterministic browser-local mesh resampling with grid points, splits, presets, and selected-point transforms.
 **Rationale:** The local mesh engine preserves the user-facing Enhanced Warp workflow without claiming pixel-identical output to Photoshop's proprietary implementation.
+
+## 2026-05-14 — 21-brush-dynamics — Tablet controls resolve as full mouse pressure
+
+**Photoshop behavior:** Pen Pressure, Pen Tilt, and Stylus Wheel respond to tablet hardware input.
+**Photoweb behavior:** These controls are exposed with Photoshop names, but mouse painting resolves them as full pressure.
+**Rationale:** Browser pointer hardware pressure/tilt/wheel support is not wired into the existing Viewport paint path yet; preserving the controls keeps the panel vocabulary familiar without fabricating unavailable input.
+
+## 2026-05-14 — 21-brush-dynamics — Procedural texture and dual brush masks
+
+**Photoshop behavior:** Texture and Dual Brush can use Photoshop's installed pattern and brush-tip libraries.
+**Photoweb behavior:** Texture and Dual Brush use deterministic procedural masks and built-in pattern choices.
+**Rationale:** Adobe brush/pattern assets and file formats are proprietary; procedural masks preserve the visible dynamics workflow without adding unsupported asset import.
+
+## 2026-05-14 — 21-brush-dynamics — Angle and roundness rendering deferred
+
+**Photoshop behavior:** Shape Dynamics can rotate and squash arbitrary brush tips through Angle and Roundness controls.
+**Photoweb behavior:** The controls are present in Brush Settings state/UI, while the current renderer visibly applies size, scatter, color, texture, opacity, and flow dynamics.
+**Rationale:** True tip rotation/elliptical deformation requires a broader brush-renderer pass; keeping the controls visible preserves Photoshop discoverability while avoiding a partial rotation implementation.
