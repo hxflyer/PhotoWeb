@@ -12,7 +12,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 02-preferences             (4) — Preferences dialog & background auto-save  commit: 574c068
 - [x] 03-navigation              (5) — Zoom, Hand, fit/100%, scrubby zoom, shortcuts  commit: 99aa54b
 - [x] 04a-file-open-place        (5) — File > Open, drag-drop, Place Embedded, Load Files  commit: d72d1ee
-- [ ] 04b-file-new               (2) — File > New dialog
+- [x] 04b-file-new               (2) — File > New dialog  commit: 8b1358f
 - [ ] 04c-file-save-close        (2) — Save As to protect original, Close / Close All
 - [ ] 05a-image-size             (9) — Image Size dialog: pixels, resolution, resampling
 - [ ] 05b-canvas-size            (1) — Canvas Size dialog, Crop Tool expand
