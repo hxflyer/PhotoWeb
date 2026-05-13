@@ -454,6 +454,19 @@ function CropOptions() {
                 onClick={() => update({ aspect: 'free', customRatio: { w: 1, h: 1 } })}
             ><X size={13} /></button>
             {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.classicMode}
+                    onChange={e => update({ classicMode: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Classic Mode
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" checked={opts.hideCroppedArea}
+                    onChange={e => update({ hideCroppedArea: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Hide
+            </label>
+            {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Overlay:')}
                 <select className="opts-input" style={{ width: 100 }} value={opts.overlay}
@@ -1564,7 +1577,7 @@ export function OptionsBar() {
         'marquee-rect': 'Rectangular Marquee', 'marquee-ellipse': 'Elliptical Marquee',
         'select': 'Marquee', 'lasso': 'Lasso', 'lasso-poly': 'Polygonal Lasso',
         'magic-wand': 'Magic Wand', 'quick-selection': 'Quick Selection',
-        'crop': 'Crop', 'eyedropper': 'Eyedropper', 'ruler': 'Ruler',
+        'crop': 'Crop', 'perspective-crop': 'Perspective Crop', 'eyedropper': 'Eyedropper', 'ruler': 'Ruler',
         'pen': 'Pen', 'freeform-pen': 'Freeform Pen',
         'path-selection': 'Path Selection', 'direct-selection': 'Direct Selection',
         'type-horizontal': 'Type', 'type-vertical': 'Vertical Type',
@@ -1585,6 +1598,7 @@ export function OptionsBar() {
             case 'magic-wand': return <MagicWandOptions />;
             case 'quick-selection': return <QuickSelOptions />;
             case 'crop': return <CropOptions />;
+            case 'perspective-crop': return <CropOptions />;
             case 'eyedropper': return <EyedropperOptions />;
             case 'ruler': return <RulerOptions />;
             case 'brush': return <BrushOptions />;

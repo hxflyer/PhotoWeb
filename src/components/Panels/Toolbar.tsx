@@ -51,6 +51,9 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
     },
     {
         primary: { id: 'crop', icon: Crop, label: 'Crop Tool', shortcut: 'C' },
+        subs: [
+            { id: 'perspective-crop', icon: Crop, label: 'Perspective Crop Tool', shortcut: 'C' },
+        ],
     },
     {
         primary: { id: 'eyedropper', icon: Pipette, label: 'Eyedropper Tool', shortcut: 'I' },

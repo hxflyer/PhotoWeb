@@ -12,6 +12,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   'clone-stamp': 'Clone Stamp',
   gradient: 'Gradient',
   crop: 'Crop',
+  'perspective-crop': 'Perspective Crop',
   'shape-rect': 'Rectangle Shape',
   'shape-circle': 'Ellipse Shape',
   'marquee-rect': 'Rectangular Marquee',

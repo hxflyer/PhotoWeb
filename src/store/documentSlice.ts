@@ -78,6 +78,40 @@ function guardDocumentSize(
     return true;
 }
 
+function selectionBounds(selection: import('./types').SelectionState, width: number, height: number): { x: number; y: number; width: number; height: number } | null {
+    if (!selection.hasSelection || selection.operations.length === 0) return null;
+    let minX = width;
+    let minY = height;
+    let maxX = 0;
+    let maxY = 0;
+    for (const op of selection.operations) {
+        if (op.mask) {
+            for (let y = 0; y < op.mask.height; y++) {
+                for (let x = 0; x < op.mask.width; x++) {
+                    if (op.mask.data[y * op.mask.width + x] === 0) continue;
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + 1);
+                    maxY = Math.max(maxY, y + 1);
+                }
+            }
+        } else {
+            for (const p of op.path) {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            }
+        }
+    }
+    minX = Math.max(0, Math.floor(minX));
+    minY = Math.max(0, Math.floor(minY));
+    maxX = Math.min(width, Math.ceil(maxX));
+    maxY = Math.min(height, Math.ceil(maxY));
+    if (maxX <= minX || maxY <= minY) return null;
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlice> = (set, get) => ({
     width: 800,
     height: 600,
@@ -262,6 +296,44 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             set({ width: beforeState.width, height: beforeState.height });
             get().reportError('save', `Canvas size failed: ${(err as Error)?.message ?? 'allocation error'}.`, 'error');
         }
+    },
+
+    cropToSelection: () => {
+        const state = get();
+        const rect = selectionBounds(state.selection, state.width, state.height);
+        if (!rect) return;
+        if (!guardDocumentSize(rect.width, rect.height, get().reportError)) return;
+        get().executeDocumentCommand({
+            kind: 'transform',
+            label: 'Crop',
+            run: () => {
+                const { layers } = get();
+                layers.forEach(layer => {
+                    const tmp = document.createElement('canvas');
+                    tmp.width = rect.width;
+                    tmp.height = rect.height;
+                    const tctx = tmp.getContext('2d');
+                    if (!tctx) return;
+                    tctx.drawImage(layer.canvas, -rect.x, -rect.y);
+                    layer.canvas.width = rect.width;
+                    layer.canvas.height = rect.height;
+                    layer.ctx.drawImage(tmp, 0, 0);
+                    layer.markDirty(null);
+                });
+                set({
+                    width: rect.width,
+                    height: rect.height,
+                    selection: {
+                        ...get().selection,
+                        hasSelection: false,
+                        path: [],
+                        polyPoints: [],
+                        operations: [],
+                        isDraggingSelection: false,
+                    },
+                });
+            },
+        });
     },
 
     trimCanvas: (basis: TrimBasis, sides) => get().executeDocumentCommand({

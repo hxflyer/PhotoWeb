@@ -13,6 +13,8 @@ export interface CropOptions {
     overlay: CropOverlayId;
     deleteCroppedPixels: boolean;
     straighten: boolean;
+    classicMode: boolean;
+    hideCroppedArea: boolean;
 }
 
 interface CropRect {
@@ -36,6 +38,8 @@ const options: CropOptions = {
     overlay: 'rule-of-thirds',
     deleteCroppedPixels: true,
     straighten: false,
+    classicMode: false,
+    hideCroppedArea: false,
 };
 
 interface StraightenState {
@@ -288,6 +292,24 @@ export const cropTool: Tool = {
             options.overlay = overlayOrder[(idx + 1) % overlayOrder.length];
             ctx.requestRender();
         }
+        if (e.key.toLowerCase() === 'h') {
+            options.hideCroppedArea = !options.hideCroppedArea;
+            ctx.requestRender();
+        }
+        if (e.key.toLowerCase() === 'p') {
+            options.classicMode = !options.classicMode;
+            ctx.requestRender();
+        }
+        if (e.key.toLowerCase() === 'x') {
+            const rect = state.rect ?? { x: 0, y: 0, w: ctx.getStore().width, h: ctx.getStore().height };
+            const cx = rect.x + rect.w / 2;
+            const cy = rect.y + rect.h / 2;
+            state.rect = normalizeRect({ x: cx - rect.h / 2, y: cy - rect.w / 2, w: rect.h, h: rect.w });
+            if (options.aspect === 'custom') {
+                options.customRatio = { w: options.customRatio.h, h: options.customRatio.w };
+            }
+            ctx.requestRender();
+        }
     },
     renderOverlay: (overlay, toolCtx) => {
         const store = toolCtx.getStore();
@@ -309,7 +331,7 @@ function drawCropOverlay(ctx: CanvasRenderingContext2D, rect: CropRect, width: n
     const sideLength = 56 / zoom;
     ctx.save();
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+    ctx.fillStyle = options.hideCroppedArea ? 'rgba(0, 0, 0, 0.92)' : 'rgba(0, 0, 0, 0.42)';
     ctx.beginPath();
     ctx.rect(0, 0, width, height);
     ctx.rect(x, y, w, h);
@@ -481,4 +503,11 @@ function applyCrop(
     });
 }
 
+export const perspectiveCropTool: Tool = {
+    ...cropTool,
+    id: 'perspective-crop',
+    label: 'Perspective Crop',
+};
+
 registerTool(cropTool);
+registerTool(perspectiveCropTool);

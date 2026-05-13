@@ -173,6 +173,7 @@ export type ToolId =
     | 'clone-stamp'
     | 'gradient'
     | 'crop'
+    | 'perspective-crop'
     | 'shape-rect'
     | 'shape-circle'
     // Phase 1 tool registry IDs — pointer events dispatched via src/tools/registry.ts
@@ -237,6 +238,7 @@ export interface DocumentSlice {
     straightenActiveLayer: (degrees: number) => void;
     resizeImage: (newW: number, newH: number, method: import('../core/imageTransforms').ResampleMethod, resolution?: number, resample?: boolean) => void;
     resizeCanvas: (newW: number, newH: number, anchorX: number, anchorY: number, extensionColor: string) => void;
+    cropToSelection: () => void;
     trimCanvas: (basis: import('../core/imageTransforms').TrimBasis, sides: { top: boolean; right: boolean; bottom: boolean; left: boolean }) => void;
     newDocument: (w: number, h: number, bg: string, name?: string, resolution?: number) => boolean;
     openImageAsDocument: (img: HTMLImageElement, name: string) => boolean;

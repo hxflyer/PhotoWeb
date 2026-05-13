@@ -520,7 +520,7 @@ function App() {
           m: ['marquee-rect', 'marquee-ellipse'],
           l: ['lasso', 'lasso-poly', 'magnetic-lasso'],
           w: ['quick-selection', 'magic-wand'],
-          c: ['crop'],
+          c: ['crop', 'perspective-crop'],
           t: ['type-horizontal', 'type-vertical'],
           p: ['pen', 'freeform-pen'],
           a: ['direct-selection', 'path-selection'],

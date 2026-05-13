@@ -344,7 +344,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Flip Canvas Horizontal', () => useEditorStore.getState().flipCanvas('horizontal')),
         act('Flip Canvas Vertical', () => useEditorStore.getState().flipCanvas('vertical')),
       ),
-      act('Crop', () => {}, undefined, true),
+      act('Crop', () => useEditorStore.getState().cropToSelection()),
       act('Trim…', () => useEditorStore.getState().openTrimDialog()),
     ],
 

@@ -83,13 +83,13 @@ describe('01b — click-and-hold flyout', () => {
     it('hold on a tool without subs is a no-op and the tool still activates on click', () => {
         useEditorStore.getState().setTool('hand');
         const { getByTestId } = render(<Toolbar />);
-        // The Crop tool group has no subs.
-        const crop = getByTestId('toolbar-crop');
-        fireEvent.mouseDown(crop, { button: 0, clientX: 0, clientY: 0 });
+        // The Move tool group has no subs.
+        const move = getByTestId('toolbar-move');
+        fireEvent.mouseDown(move, { button: 0, clientX: 0, clientY: 0 });
         act(() => { vi.advanceTimersByTime(400); });
-        fireEvent.mouseUp(crop);
-        fireEvent.click(crop);
-        expect(useEditorStore.getState().activeTool).toBe('crop');
+        fireEvent.mouseUp(move);
+        fireEvent.click(move);
+        expect(useEditorStore.getState().activeTool).toBe('move');
     });
 });
 
