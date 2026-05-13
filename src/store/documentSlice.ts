@@ -80,6 +80,7 @@ function guardDocumentSize(
 export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlice> = (set, get) => ({
     width: 800,
     height: 600,
+    resolution: 72,
     hasAutosave: false,
     documentName: 'Untitled',
     isDirty: false,
@@ -160,8 +161,11 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         },
     }),
 
-    resizeImage: (newW, newH, method: ResampleMethod) => {
+    resizeImage: (newW, newH, method: ResampleMethod, resolution, resample = true) => {
         if (!guardDocumentSize(newW, newH, get().reportError)) return;
+        const nextResolution = Number.isFinite(resolution) && resolution !== undefined && resolution > 0
+            ? resolution
+            : get().resolution;
         const beforeState = get();
         const beforeSnapshots = beforeState.layers.map(l => {
             const tmp = document.createElement('canvas');
@@ -175,12 +179,14 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
                 label: 'Image Size',
                 run: () => {
                     const { layers } = get();
-                    layers.forEach(layer => {
-                        const result = resampleCanvas(layer.canvas, newW, newH, method);
-                        copyCanvasContent(layer.canvas, result);
-                        layer.markDirty(null);
-                    });
-                    set({ width: newW, height: newH });
+                    if (resample) {
+                        layers.forEach(layer => {
+                            const result = resampleCanvas(layer.canvas, newW, newH, method);
+                            copyCanvasContent(layer.canvas, result);
+                            layer.markDirty(null);
+                        });
+                    }
+                    set({ width: newW, height: newH, resolution: nextResolution });
                 },
             });
         } catch (err) {
@@ -194,7 +200,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
                 layer.ctx.drawImage(snap.canvas, 0, 0);
                 layer.markDirty(null);
             });
-            set({ width: beforeState.width, height: beforeState.height });
+            set({ width: beforeState.width, height: beforeState.height, resolution: beforeState.resolution });
             get().reportError('save', `Image size failed: ${(err as Error)?.message ?? 'allocation error'}.`, 'error');
         }
     },
@@ -260,8 +266,9 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         },
     }),
 
-    newDocument: (w, h, bg, name) => {
+    newDocument: (w, h, bg, name, resolution) => {
         if (!guardDocumentSize(w, h, get().reportError)) return false;
+        const nextResolution = Number.isFinite(resolution) && resolution !== undefined && resolution > 0 ? resolution : 72;
         let newLayer: LayerClass;
         try {
             newLayer = new LayerClass(w, h, 'Background');
@@ -278,6 +285,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         set({
             width: w,
             height: h,
+            resolution: nextResolution,
             layers: [newLayer],
             activeLayerId: newLayer.id,
             selectedLayerIds: [newLayer.id],
@@ -309,6 +317,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             isDirty: false,
             width: 0,
             height: 0,
+            resolution: 72,
             selection: {
                 ...get().selection,
                 hasSelection: false,
@@ -336,6 +345,7 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         set({
             width: w,
             height: h,
+            resolution: 72,
             layers: [newLayer],
             activeLayerId: newLayer.id,
             selectedLayerIds: [newLayer.id],

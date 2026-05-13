@@ -163,6 +163,7 @@ export function StatusBar() {
   const zoom = useEditorStore(s => s.zoom);
   const width = useEditorStore(s => s.width);
   const height = useEditorStore(s => s.height);
+  const resolution = useEditorStore(s => s.resolution);
   const layers = useEditorStore(s => s.layers);
   const documentName = useEditorStore(s => s.documentName);
   const isDirty = useEditorStore(s => s.isDirty);
@@ -275,7 +276,7 @@ export function StatusBar() {
       infoText = 'sRGB IEC61966-2.1 (8bpc)';
       break;
     case 'documentDimensions':
-      infoText = `${width} px × ${height} px (72 ppi)`;
+      infoText = `${width} px × ${height} px (${resolution} ppi)`;
       break;
     case 'currentTool':
       infoText = toolLabel;

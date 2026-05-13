@@ -73,6 +73,7 @@ export interface CompoundHistoryCommandOptions {
 export interface SerializedDocumentSnapshot {
     width?: number;
     height?: number;
+    resolution?: number;
     selection?: unknown;
     quickMaskMode?: boolean;
     selectedLayerIds?: string[];

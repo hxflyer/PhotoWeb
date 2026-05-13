@@ -221,6 +221,7 @@ export interface ClipboardImageInfo {
 export interface DocumentSlice {
     width: number;
     height: number;
+    resolution: number;
     hasAutosave: boolean;
     documentName: string;
     isDirty: boolean;
@@ -231,10 +232,10 @@ export interface DocumentSlice {
     setCanvasSize: (width: number, height: number) => void;
     rotateCanvas: (degrees: number) => void;
     flipCanvas: (axis: 'horizontal' | 'vertical') => void;
-    resizeImage: (newW: number, newH: number, method: import('../core/imageTransforms').ResampleMethod) => void;
+    resizeImage: (newW: number, newH: number, method: import('../core/imageTransforms').ResampleMethod, resolution?: number, resample?: boolean) => void;
     resizeCanvas: (newW: number, newH: number, anchorX: number, anchorY: number, extensionColor: string) => void;
     trimCanvas: (basis: import('../core/imageTransforms').TrimBasis, sides: { top: boolean; right: boolean; bottom: boolean; left: boolean }) => void;
-    newDocument: (w: number, h: number, bg: string, name?: string) => boolean;
+    newDocument: (w: number, h: number, bg: string, name?: string, resolution?: number) => boolean;
     openImageAsDocument: (img: HTMLImageElement, name: string) => boolean;
     setDocumentName: (name: string) => void;
     setHasAutosave: (has: boolean) => void;

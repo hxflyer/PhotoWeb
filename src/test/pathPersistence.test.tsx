@@ -22,6 +22,7 @@ function resetStore() {
         documentName: 'path-rt',
         width: 200,
         height: 200,
+        resolution: 72,
     }));
     useEditorStore.getState().addLayer();
     clearPaths();
@@ -34,6 +35,7 @@ function getStoreView() {
         activeLayerId: s.activeLayerId,
         width: s.width,
         height: s.height,
+        resolution: s.resolution,
         documentName: s.documentName,
         savedSelections: s.savedSelections,
     };

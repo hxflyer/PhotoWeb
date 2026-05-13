@@ -244,6 +244,7 @@ describe('Batch A — ImageSize chain-link icon', () => {
                 isOpen
                 currentWidth={100}
                 currentHeight={50}
+                currentResolution={72}
                 onConfirm={() => { /* noop */ }}
                 onClose={() => { /* noop */ }}
             />
