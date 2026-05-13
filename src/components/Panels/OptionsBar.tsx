@@ -4,6 +4,14 @@ import {
     Circle, Lasso, Pentagon, Square, Layers, ZoomIn, ZoomOut,
     AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
     Repeat2, X,
+    AlignHorizontalDistributeCenter,
+    AlignHorizontalJustifyCenter,
+    AlignHorizontalJustifyEnd,
+    AlignHorizontalJustifyStart,
+    AlignVerticalDistributeCenter,
+    AlignVerticalJustifyCenter,
+    AlignVerticalJustifyEnd,
+    AlignVerticalJustifyStart,
 } from 'lucide-react';
 import { getMagicWandOptions, setMagicWandOptions, type MagicWandSampleSize } from '../../tools/magicWand';
 import { getQuickSelectionOptions, setQuickSelectionOptions } from '../../tools/quickSelection';
@@ -186,7 +194,22 @@ function ModeDropdown(props?: { value?: BlendModeId; onChange?: (v: BlendModeId)
 function MoveOptions() {
     const [, force] = useState(0);
     const opts = getMoveOptions();
+    const { selectedLayerIds, alignSelectedLayers, distributeSelectedLayers } = useEditorStore();
     const update = (next: Parameters<typeof setMoveOptions>[0]) => { setMoveOptions(next); force(t => t + 1); };
+    const canAlign = selectedLayerIds.length >= 2;
+    const canDistribute = selectedLayerIds.length >= 3;
+    const alignButtons = [
+        { id: 'left', title: 'Align Left Edges', Icon: AlignHorizontalJustifyStart },
+        { id: 'horizontal-center', title: 'Align Horizontal Centers', Icon: AlignHorizontalJustifyCenter },
+        { id: 'right', title: 'Align Right Edges', Icon: AlignHorizontalJustifyEnd },
+        { id: 'top', title: 'Align Top Edges', Icon: AlignVerticalJustifyStart },
+        { id: 'vertical-center', title: 'Align Vertical Centers', Icon: AlignVerticalJustifyCenter },
+        { id: 'bottom', title: 'Align Bottom Edges', Icon: AlignVerticalJustifyEnd },
+    ] as const;
+    const distributeButtons = [
+        { id: 'horizontal-center', title: 'Distribute Horizontal Centers', Icon: AlignHorizontalDistributeCenter },
+        { id: 'vertical-center', title: 'Distribute Vertical Centers', Icon: AlignVerticalDistributeCenter },
+    ] as const;
     return (
         <>
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
@@ -218,6 +241,36 @@ function MoveOptions() {
                 />
                 Show Transform Controls
             </label>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {alignButtons.map(({ id, title, Icon }) => (
+                    <button
+                        key={id}
+                        data-testid={`move-align-${id}`}
+                        className="opts-btn"
+                        title={title}
+                        disabled={!canAlign}
+                        onClick={() => alignSelectedLayers(id)}
+                    >
+                        <Icon size={13} />
+                    </button>
+                ))}
+            </div>
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {distributeButtons.map(({ id, title, Icon }) => (
+                    <button
+                        key={id}
+                        data-testid={`move-distribute-${id}`}
+                        className="opts-btn"
+                        title={title}
+                        disabled={!canDistribute}
+                        onClick={() => distributeSelectedLayers(id)}
+                    >
+                        <Icon size={13} />
+                    </button>
+                ))}
+            </div>
         </>
     );
 }

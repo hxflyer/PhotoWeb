@@ -477,7 +477,12 @@ function App() {
           const layer = s.layers.find(l => l.id === s.activeLayerId);
           if (layer && layer.kind === 'group') s.ungroupLayerGroup(layer.id);
         } else {
-          s.createLayerGroup();
+          const groupableIds = s.selectedLayerIds.filter(id => {
+            const layer = s.layers.find(l => l.id === id);
+            return layer && !layer.isBackground;
+          });
+          if (groupableIds.length > 0) s.groupLayers(groupableIds);
+          else s.createLayerGroup();
         }
         return;
       }

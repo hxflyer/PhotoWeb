@@ -283,6 +283,7 @@ export function LayersPanel() {
         ungroupLayerGroup, toggleLayerGroupExpanded, selectLayer, setSelectedLayerIds,
         addLayerMask, removeLayerMask, applyLayerMask, setLayerMaskEnabled, setLayerMaskLinked,
         addLayerEffect,
+        copyLayerStyle, pasteLayerStyle,
         activeLayerEditTarget, setActiveLayerEditTarget,
         openNewLayerDialog,
         convertBackgroundLayer,
@@ -291,6 +292,8 @@ export function LayersPanel() {
 
     const [editingNameId, setEditingNameId] = useState<string | null>(null);
     const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
+    const [draggedEffectsLayerId, setDraggedEffectsLayerId] = useState<string | null>(null);
+    const draggedEffectsLayerIdRef = useRef<string | null>(null);
     const [dropHint, setDropHint] = useState<{ targetId: string; zone: 'above' | 'inside' | 'below' } | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string; submenu: 'main' | 'fx' } | null>(null);
     const [layerStyleDialog, setLayerStyleDialog] = useState<{ layerId: string; tab: string } | null>(null);
@@ -358,6 +361,8 @@ export function LayersPanel() {
 
     const handleDragStart = (_e: React.DragEvent, id: string) => {
         setDraggedLayerId(id);
+        setDraggedEffectsLayerId(null);
+        draggedEffectsLayerIdRef.current = null;
         setDropHint(null);
     };
 
@@ -371,6 +376,12 @@ export function LayersPanel() {
 
     const handleDragOver = (e: React.DragEvent, targetId: string) => {
         e.preventDefault();
+        const effectsSourceId = draggedEffectsLayerIdRef.current ?? draggedEffectsLayerId;
+        if (effectsSourceId) {
+            if (effectsSourceId !== targetId) e.dataTransfer.dropEffect = 'copy';
+            setDropHint(null);
+            return;
+        }
         if (!draggedLayerId || draggedLayerId === targetId) {
             setDropHint(null);
             return;
@@ -394,6 +405,18 @@ export function LayersPanel() {
 
     const handleDrop = (e: React.DragEvent, targetId: string) => {
         e.preventDefault();
+        const effectsSourceId = draggedEffectsLayerIdRef.current ?? draggedEffectsLayerId;
+        if (effectsSourceId) {
+            if (effectsSourceId !== targetId) {
+                copyLayerStyle(effectsSourceId);
+                pasteLayerStyle(targetId);
+            }
+            draggedEffectsLayerIdRef.current = null;
+            setDraggedEffectsLayerId(null);
+            setDraggedLayerId(null);
+            setDropHint(null);
+            return;
+        }
         if (!draggedLayerId || draggedLayerId === targetId) {
             setDraggedLayerId(null);
             setDropHint(null);
@@ -733,7 +756,27 @@ export function LayersPanel() {
                             {layer.effects && layer.effects.some(e => e.enabled) && (
                                 <span
                                     data-testid={`layer-fx-${layer.id}`}
-                                    title="Layer has effects"
+                                    draggable
+                                    title="Layer has effects. Alt-drag to copy effects."
+                                    onClick={(e) => e.stopPropagation()}
+                                    onDoubleClick={(e) => {
+                                        e.stopPropagation();
+                                        setLayerStyleDialog({ layerId: layer.id, tab: 'effects' });
+                                    }}
+                                    onDragStart={(e) => {
+                                        e.stopPropagation();
+                                        e.dataTransfer.effectAllowed = 'copy';
+                                        e.dataTransfer.setData('text/plain', layer.id);
+                                        draggedEffectsLayerIdRef.current = layer.id;
+                                        setDraggedEffectsLayerId(layer.id);
+                                        setDraggedLayerId(null);
+                                        setDropHint(null);
+                                    }}
+                                    onDragEnd={() => {
+                                        draggedEffectsLayerIdRef.current = null;
+                                        setDraggedEffectsLayerId(null);
+                                        setDropHint(null);
+                                    }}
                                     style={{
                                         fontSize: 9,
                                         fontWeight: 700,

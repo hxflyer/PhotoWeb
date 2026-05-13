@@ -323,3 +323,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Trying to move Background with the Move Tool opens a warning dialog explaining Background-layer limits and offering Convert to Normal Layer.
 **Photoweb behavior:** Move/reorder/transparent-erase gestures are blocked silently while the lock icon and Layer menu provide conversion.
 **Rationale:** Photoweb's existing lock behavior is silent no-op; adding a modal just for Background movement would interrupt the browser editor flow while the visible lock affordance preserves the discoverable Photoshop habit.
+
+## 2026-05-13 — 08a-layer-ops — Effects badge copies without requiring Alt/Option
+
+**Photoshop behavior:** Copying layer effects by drag requires holding Alt/Option while dragging an effect name or the `Effects` label to another layer.
+**Photoweb behavior:** The Layers panel `fx` badge is a direct drag-copy handle; Alt/Option-drag works, but the badge does not require the modifier.
+**Rationale:** Photoweb does not yet render individual effect-name rows under each layer, so the badge itself carries the effect-transfer affordance. Making it forgiving keeps the Layers panel gesture discoverable in a browser drag surface.
