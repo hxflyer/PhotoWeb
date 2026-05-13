@@ -353,3 +353,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Transform Selection supports Skew, Distort, Perspective, and Warp from the transform context menu.
 **Photoweb behavior:** This tick implements command invocation, linked/free resize, center resize, rotation snap, readouts, commit, and cancel; Skew, Distort, Perspective, and Warp remain deferred.
 **Rationale:** Correct advanced transform geometry overlaps the broader Free Transform and Warp clusters, so this cluster preserves the core Transform Selection habit without a partial advanced-mode implementation.
+
+## 2026-05-14 — 12-marquee — Single Row and Single Column Marquee deferred
+
+**Photoshop behavior:** The marquee flyout includes Single Row Marquee Tool and Single Column Marquee Tool for selecting one-pixel-wide rows or columns.
+**Photoweb behavior:** This tick continues to focus on Rectangular and Elliptical Marquee behavior and does not add row/column marquee tools.
+**Rationale:** The hand-clustered work item is scoped to rectangular/elliptical geometry, while row/column tools need their own toolbar entries, cursor semantics, and one-pixel selection-mask behavior.
