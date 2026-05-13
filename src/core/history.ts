@@ -95,6 +95,7 @@ export interface SerializedDocumentSnapshot {
         parentId: string | null;
         expanded: boolean;
         isBackground: boolean;
+        clippedToBelow: boolean;
         typeData: unknown;
         shapeData: unknown;
         mask: {

@@ -451,6 +451,14 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         sep,
         act('Scale Effects…', () => useEditorStore.getState().openScaleEffectsDialog()),
       ),
+      act(
+        useEditorStore.getState().layers.find(l => l.id === useEditorStore.getState().activeLayerId)?.clippedToBelow
+          ? 'Release Clipping Mask'
+          : 'Create Clipping Mask',
+        () => useEditorStore.getState().toggleClippingMask(),
+        '⌘⌥G',
+        !useEditorStore.getState().activeLayerId,
+      ),
       sep,
       sub('Layer Mask',
         act('Reveal All', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.addLayerMask(s.activeLayerId, 'reveal-all'); }),

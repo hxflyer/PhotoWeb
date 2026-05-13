@@ -132,9 +132,7 @@ export class Canvas2DCompositor implements Compositor {
             ctx.rect(union.x, union.y, union.width, union.height);
             ctx.clip();
             ctx.clearRect(union.x, union.y, union.width, union.height);
-            req.layers
-                .filter(layer => layer.parentId === null)
-                .forEach(layer => this.renderLayer(ctx, layer, req.layers, req.skipTypeLayers));
+            this.renderLayerStack(ctx, req.layers.filter(layer => layer.parentId === null), req.layers, req.skipTypeLayers);
             ctx.restore();
 
             targetCtx.save();
@@ -147,9 +145,7 @@ export class Canvas2DCompositor implements Compositor {
             targetCtx.restore();
         } else {
             ctx.clearRect(0, 0, w, h);
-            req.layers
-                .filter(layer => layer.parentId === null)
-                .forEach(layer => this.renderLayer(ctx, layer, req.layers, req.skipTypeLayers));
+            this.renderLayerStack(ctx, req.layers.filter(layer => layer.parentId === null), req.layers, req.skipTypeLayers);
             ctx.globalAlpha = 1;
             ctx.globalCompositeOperation = 'source-over';
 
@@ -199,6 +195,70 @@ export class Canvas2DCompositor implements Compositor {
             return;
         }
         this.renderDrawableLayer(ctx, layer);
+    }
+
+    private renderLayerStack(
+        ctx: CanvasRenderingContext2D,
+        siblings: Layer[],
+        allLayers: Layer[],
+        skipTypeLayers?: boolean,
+    ): void {
+        for (let i = 0; i < siblings.length; i++) {
+            const base = siblings[i];
+            if (base.clippedToBelow) {
+                this.renderLayer(ctx, base, allLayers, skipTypeLayers);
+                continue;
+            }
+            this.renderLayer(ctx, base, allLayers, skipTypeLayers);
+            const baseMask = this.clippingMaskForLayer(base, allLayers, skipTypeLayers);
+            let j = i + 1;
+            while (j < siblings.length && siblings[j].clippedToBelow) {
+                this.renderClippedLayer(ctx, siblings[j], allLayers, baseMask, skipTypeLayers);
+                j++;
+            }
+            i = j - 1;
+        }
+    }
+
+    private renderClippedLayer(
+        ctx: CanvasRenderingContext2D,
+        layer: Layer,
+        layers: Layer[],
+        baseMask: HTMLCanvasElement,
+        skipTypeLayers?: boolean,
+    ): void {
+        if (!layer.visible || !layer.canvas) return;
+        if (skipTypeLayers && layer.kind === 'type') return;
+        const scratch = document.createElement('canvas');
+        scratch.width = ctx.canvas.width;
+        scratch.height = ctx.canvas.height;
+        const sctx = scratch.getContext('2d');
+        if (!sctx) return;
+        this.renderLayer(sctx, layer, layers, skipTypeLayers);
+        const clipped = this.applyAlphaMask(scratch, baseMask);
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(clipped, 0, 0);
+        ctx.restore();
+    }
+
+    private clippingMaskForLayer(layer: Layer, layers: Layer[], skipTypeLayers?: boolean): HTMLCanvasElement {
+        const mask = document.createElement('canvas');
+        mask.width = layer.canvas.width;
+        mask.height = layer.canvas.height;
+        const mctx = mask.getContext('2d');
+        if (!mctx) return mask;
+        if (!layer.visible || (skipTypeLayers && layer.kind === 'type')) return mask;
+        if (layer.kind === 'group') {
+            const children = layers.filter(child => child.parentId === layer.id);
+            this.renderLayerStack(mctx, children, layers, skipTypeLayers);
+        } else if (layer.mask && layer.mask.enabled) {
+            mctx.drawImage(this.applyMask(layer.canvas, layer.mask.canvas, { density: layer.mask.density, feather: layer.mask.feather }), 0, 0);
+        } else {
+            mctx.drawImage(layer.canvas, 0, 0);
+        }
+        return mask;
     }
 
     private renderDrawableLayer(ctx: CanvasRenderingContext2D, layer: Layer): void {
@@ -285,9 +345,7 @@ export class Canvas2DCompositor implements Compositor {
         groupCanvas.height = ctx.canvas.height;
         const groupCtx = groupCanvas.getContext('2d');
         if (!groupCtx) return;
-        layers
-            .filter(layer => layer.parentId === group.id)
-            .forEach(layer => this.renderLayer(groupCtx, layer, layers, skipTypeLayers));
+        this.renderLayerStack(groupCtx, layers.filter(layer => layer.parentId === group.id), layers, skipTypeLayers);
         const sourceCanvas = group.mask && group.mask.enabled
             ? this.applyMask(groupCanvas, group.mask.canvas, { density: group.mask.density, feather: group.mask.feather })
             : groupCanvas;
@@ -433,6 +491,19 @@ export class Canvas2DCompositor implements Compositor {
 
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(alphaMask, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+        return merged;
+    }
+
+    private applyAlphaMask(source: HTMLCanvasElement, mask: HTMLCanvasElement): HTMLCanvasElement {
+        const merged = document.createElement('canvas');
+        merged.width = source.width;
+        merged.height = source.height;
+        const ctx = merged.getContext('2d');
+        if (!ctx) return source;
+        ctx.drawImage(source, 0, 0);
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(mask, 0, 0);
         ctx.globalCompositeOperation = 'source-over';
         return merged;
     }

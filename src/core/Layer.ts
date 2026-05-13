@@ -139,6 +139,7 @@ export class Layer {
     parentId: string | null = null;
     expanded: boolean = true;
     isBackground: boolean = false;
+    clippedToBelow: boolean = false;
     // Advanced Blending flags (Photoshop's "Layer Style ▸ Blending Options").
     knockout: KnockoutMode = 'none';
     blendInteriorEffectsAsGroup: boolean = false;

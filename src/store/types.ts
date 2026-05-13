@@ -318,6 +318,9 @@ export interface LayersSlice {
     setLayerBlendingFlag: (id: string, flag: 'blendInteriorEffectsAsGroup' | 'blendClippedLayersAsGroup' | 'transparencyShapesLayer' | 'layerMaskHidesEffects' | 'vectorMaskHidesEffects', value: boolean) => void;
     setLayerBlendIfRanges: (id: string, channel: 'gray' | 'r' | 'g' | 'b', side: 'thisLayer' | 'underlyingLayer', range: import('../core/Layer').BlendIfChannelRange) => void;
     setLayerBlendIfChannel: (id: string, channel: 'gray' | 'r' | 'g' | 'b') => void;
+    createClippingMask: (id?: string) => void;
+    releaseClippingMask: (id?: string) => void;
+    toggleClippingMask: (id?: string) => void;
     mergeLayerDown: (id: string) => void;
     mergeVisible: () => void;
     stampVisible: () => void;

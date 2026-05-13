@@ -51,6 +51,7 @@ function captureDocumentSnapshot(state: EditorStore): SerializedDocumentSnapshot
                 parentId: layer.parentId,
                 expanded: layer.expanded,
                 isBackground: layer.isBackground,
+                clippedToBelow: layer.clippedToBelow,
                 typeData: cloneValue(layer.typeData),
                 shapeData: cloneValue(layer.shapeData),
                 mask: layer.mask
@@ -84,6 +85,7 @@ function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<
         layer.parentId = data.parentId;
         layer.expanded = data.expanded;
         layer.isBackground = data.isBackground;
+        layer.clippedToBelow = data.clippedToBelow;
         layer.typeData = cloneValue(data.typeData);
         layer.shapeData = cloneValue(data.shapeData);
         layer.ctx.putImageData(data.imageData, 0, 0);

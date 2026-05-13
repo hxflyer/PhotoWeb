@@ -37,6 +37,7 @@ function cloneLayerForDocument(src: LayerInstance, width = src.canvas.width, hei
     clone.fill = src.fill;
     clone.blendMode = src.blendMode;
     clone.expanded = src.expanded;
+    clone.clippedToBelow = src.clippedToBelow;
     clone.locks = { ...src.locks };
     clone.colorTag = src.colorTag;
     clone.effects = src.effects?.map(e => ({ ...e, params: structuredClone(e.params ?? {}) })) ?? [];

@@ -561,6 +561,11 @@ function App() {
         }
         return;
       }
+      if (meta && key === 'g' && e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        gs().toggleClippingMask();
+        return;
+      }
       if (meta && key === 'e' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         const s = gs();

@@ -50,6 +50,7 @@ export const SHORTCUTS: ShortcutEntry[] = [
     { group: 'Layer', label: 'New Layer',       keys: '⌘⇧N',   action: 'layer.new' },
     { group: 'Layer', label: 'Duplicate Layer', keys: '⌘J',     action: 'layer.duplicate' },
     { group: 'Layer', label: 'Layer via Cut',   keys: '⌘⇧J',   action: 'layer.viaCut' },
+    { group: 'Layer', label: 'Create / Release Clipping Mask', keys: '⌘⌥G', action: 'layer.clippingMask' },
     { group: 'Layer', label: 'Group Layers',    keys: '⌘G',     action: 'layer.group' },
     { group: 'Layer', label: 'Ungroup Layers',  keys: '⌘⇧G',   action: 'layer.ungroup' },
     { group: 'Layer', label: 'Merge Down',      keys: '⌘E',     action: 'layer.mergeDown' },

@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Plus, Trash2, Brush, Move, Lock, Folder, FolderPlus, ChevronDown, ChevronRight, Link2, Unlink2 } from 'lucide-react';
+import { Eye, EyeOff, Plus, Trash2, Brush, Move, Lock, Folder, FolderPlus, ChevronDown, ChevronRight, Link2, Unlink2, CornerDownRight } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { useState, useEffect, useRef } from 'react';
 import type { LayerColorTag } from '../../core/Layer';
@@ -413,6 +413,7 @@ export function LayersPanel() {
         reorderLayers, moveLayerToGroup, setLayerOpacity, setLayerBlendMode, previewLayerBlendMode,
         mergeLayerDown, mergeVisible, stampVisible, flattenImage, layerViaCopy, layerViaCut,
         ungroupLayerGroup, toggleLayerGroupExpanded, selectLayer, setSelectedLayerIds,
+        toggleClippingMask,
         addLayerMask, removeLayerMask, applyLayerMask, setLayerMaskEnabled, setLayerMaskLinked,
         addLayerEffect,
         copyLayerStyle, pasteLayerStyle,
@@ -472,7 +473,10 @@ export function LayersPanel() {
     };
 
     const handleVisibleRowClick = (e: React.MouseEvent, layerId: string) => {
-        if (e.shiftKey) {
+        if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+            toggleClippingMask(layerId);
+            setActiveLayer(layerId);
+        } else if (e.shiftKey) {
             // Range select against the displayed visible-row order (not the internal flat array)
             // so collapsed children of groups aren't silently included.
             const visibleIds = visibleLayerRows.map(r => r.layer.id);
@@ -604,6 +608,8 @@ export function LayersPanel() {
         },
         { label: 'Panel Options…', onClick: () => setPanelOptionsOpen(true) },
         { separator: true, label: '' },
+        { label: active?.clippedToBelow ? 'Release Clipping Mask' : 'Create Clipping Mask', onClick: () => activeLayerId && toggleClippingMask(activeLayerId), disabled: !activeLayerId },
+        { separator: true, label: '' },
         { label: 'Merge Down', onClick: () => activeLayerId && mergeLayerDown(activeLayerId), disabled: !activeLayerId },
         { label: 'Merge Visible', onClick: () => mergeVisible() },
         { label: 'Stamp Visible', onClick: () => stampVisible() },
@@ -729,6 +735,7 @@ export function LayersPanel() {
                             data-testid={`layer-row-${layer.id}`}
                             data-layer-selected={isSelected ? 'true' : 'false'}
                             data-layer-active={isActive ? 'true' : 'false'}
+                            data-layer-clipped={layer.clippedToBelow ? 'true' : 'false'}
                             draggable={!layer.isBackground}
                             onDragStart={(e) => handleDragStart(e, layer.id)}
                             onDragOver={(e) => handleDragOver(e, layer.id)}
@@ -768,6 +775,20 @@ export function LayersPanel() {
                             >
                             {dropHint && dropHint.targetId === layer.id && dropHint.zone === 'above' && (
                                 <div style={{ position: 'absolute', left: 0, right: 0, bottom: -1, height: 2, background: 'hsl(var(--accent-primary))', pointerEvents: 'none', zIndex: 5 }} />
+                            )}
+                            {layer.clippedToBelow && (
+                                <span
+                                    data-testid={`layer-clipping-indicator-${layer.id}`}
+                                    title="Clipped to layer below"
+                                    style={{
+                                        color: isActive ? '#fff' : 'hsl(var(--text-muted))',
+                                        display: 'flex',
+                                        flexShrink: 0,
+                                        marginLeft: 10,
+                                    }}
+                                >
+                                    <CornerDownRight size={14} />
+                                </span>
                             )}
                             {layer.kind === 'group' && (
                                 <button
@@ -1099,6 +1120,10 @@ export function LayersPanel() {
                         { label: 'Ungroup Layers', run: () => ungroupLayerGroup(contextMenu.layerId), disabled: layers.find(layer => layer.id === contextMenu.layerId)?.kind !== 'group' },
                         { label: 'Layer via Copy', run: () => layerViaCopy() },
                         { label: 'Layer via Cut', run: () => layerViaCut() },
+                        {
+                            label: layers.find(layer => layer.id === contextMenu.layerId)?.clippedToBelow ? 'Release Clipping Mask' : 'Create Clipping Mask',
+                            run: () => toggleClippingMask(contextMenu.layerId),
+                        },
                         { label: 'Merge Down', run: () => mergeLayerDown(contextMenu.layerId) },
                         { label: 'Merge Visible', run: () => mergeVisible() },
                         { label: 'Stamp Visible', run: () => stampVisible() },

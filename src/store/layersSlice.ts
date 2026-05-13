@@ -187,7 +187,17 @@ function makeBackgroundLayer(layer: Layer, backgroundColor = '#ffffff'): void {
     layer.fill = 1;
     layer.blendMode = 'normal';
     layer.parentId = null;
+    layer.clippedToBelow = false;
     layer.locks = { transparency: true, image: false, position: true, all: false };
+}
+
+function findClippingBaseIndex(layers: Layer[], layerIndex: number): number {
+    const layer = layers[layerIndex];
+    if (!layer || layer.isBackground) return -1;
+    for (let i = layerIndex - 1; i >= 0; i--) {
+        if (layers[i].parentId === layer.parentId) return i;
+    }
+    return -1;
 }
 
 function applyDefringe(data: Uint8ClampedArray, w: number, h: number, width: number): void {
@@ -933,6 +943,51 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         })),
     }),
 
+    createClippingMask: (id) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Create Clipping Mask',
+        affectedIds: id ? [id] : (get().activeLayerId ? [get().activeLayerId!] : []),
+        layerId: id ?? get().activeLayerId ?? undefined,
+        run: () => {
+            const { layers, activeLayerId } = get();
+            const layerId = id ?? activeLayerId;
+            const index = layerId ? layers.findIndex(l => l.id === layerId) : -1;
+            if (index <= 0 || findClippingBaseIndex(layers, index) === -1) return;
+            const layer = layers[index];
+            if (layer.isBackground) return;
+            layer.clippedToBelow = true;
+            layer.markDirty(null);
+            const baseIndex = findClippingBaseIndex(layers, index);
+            if (baseIndex !== -1) layers[baseIndex].markDirty(null);
+            set({ layers: [...layers] });
+        },
+    }),
+
+    releaseClippingMask: (id) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Release Clipping Mask',
+        affectedIds: id ? [id] : (get().activeLayerId ? [get().activeLayerId!] : []),
+        layerId: id ?? get().activeLayerId ?? undefined,
+        run: () => {
+            const { layers, activeLayerId } = get();
+            const layerId = id ?? activeLayerId;
+            const layer = layerId ? layers.find(l => l.id === layerId) : undefined;
+            if (!layer || !layer.clippedToBelow) return;
+            layer.clippedToBelow = false;
+            layer.markDirty(null);
+            set({ layers: [...layers] });
+        },
+    }),
+
+    toggleClippingMask: (id) => {
+        const { layers, activeLayerId } = get();
+        const layerId = id ?? activeLayerId;
+        if (!layerId) return;
+        const layer = layerId ? layers.find(l => l.id === layerId) : undefined;
+        if (layer?.clippedToBelow) get().releaseClippingMask(layerId);
+        else get().createClippingMask(layerId);
+    },
+
     soloLayer: (id) => get().executeDocumentCommand({
         kind: 'layer-property',
         label: 'Solo Layer',
@@ -1573,6 +1628,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
             dup.blendMode = src.blendMode;
             dup.parentId = src.parentId;
             dup.expanded = src.expanded;
+            dup.clippedToBelow = src.clippedToBelow;
             dup.locks = { ...src.locks };
             dup.colorTag = src.colorTag;
             dup.typeData = src.typeData ? structuredClone(src.typeData) : null;
