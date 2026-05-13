@@ -275,3 +275,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Saving layered PSDs prompts to maximize compatibility with other apps / older Photoshop versions.
 **Photoweb behavior:** No prompt; the internal .pwbdoc format is the only layered save target.
 **Rationale:** PSD export is not in scope.
+
+## 2026-05-13 — 05a-image-size — Match another document omitted
+
+**Photoshop behavior:** Image Size can use the Window menu to populate Width and Height from another open document.
+**Photoweb behavior:** Image Size edits only the active single document.
+**Rationale:** Multi-document UI is excluded per CLAUDE.md §4.
+
+## 2026-05-13 — 05a-image-size — Preserve Details labels map to browser resampling
+
+**Photoshop behavior:** Preserve Details and Preserve Details 2.0 use Adobe's proprietary upscaling algorithms.
+**Photoweb behavior:** The menu exposes both Photoshop labels, but both route to photoweb's deterministic bicubic-smoother resampler.
+**Rationale:** Proprietary/native upscaling and external AI/cloud services are outside scope; the labels preserve Photoshop discoverability while keeping resizing local and deterministic.
