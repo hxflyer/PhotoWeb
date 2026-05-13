@@ -4,16 +4,16 @@ The /loop processes the first unchecked `[ ]` item. Read [RUN-CONTRACT.md](RUN-C
 
 When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the same line.
 
-- [x] 01a-interface-shell        (4) — Doc window, tab, status bar, pasteboard, color theme  commit: 826c293
-- [x] 01b-toolbar                (1) — Toolbar UI: column, flyout, default-tool, keyboard cycle  commit: 317d4ea
-- [x] 01c-panels                 (2) — Panel groups, Window menu, panel menu icon  commit: f34f63a
-- [x] 01d-screen-modes           (2) — F / Shift+F cycle, Tab hide panels  commit: 6da14c0
-- [x] 01e-neutral-color-mode     (1) — Preferences toggle to flatten cosmetic UI gradients  commit: aa8a239
-- [x] 02-preferences             (4) — Preferences dialog & background auto-save  commit: 574c068
-- [x] 03-navigation              (5) — Zoom, Hand, fit/100%, scrubby zoom, shortcuts  commit: 99aa54b
-- [x] 04a-file-open-place        (5) — File > Open, drag-drop, Place Embedded, Load Files  commit: d72d1ee
-- [x] 04b-file-new               (2) — File > New dialog  commit: 8b1358f
-- [ ] 04c-file-save-close        (2) — Save As to protect original, Close / Close All
+- [x] 01a-interface-shell        (4) — Doc window, tab, status bar, pasteboard, color theme  commit: 63290e3
+- [x] 01b-toolbar                (1) — Toolbar UI: column, flyout, default-tool, keyboard cycle  commit: 0e1b00f
+- [x] 01c-panels                 (2) — Panel groups, Window menu, panel menu icon  commit: 898b23d
+- [x] 01d-screen-modes           (2) — F / Shift+F cycle, Tab hide panels  commit: 92ed3eb
+- [x] 01e-neutral-color-mode     (1) — Preferences toggle to flatten cosmetic UI gradients  commit: 93f5a87
+- [x] 02-preferences             (4) — Preferences dialog & background auto-save  commit: 93cc126
+- [x] 03-navigation              (5) — Zoom, Hand, fit/100%, scrubby zoom, shortcuts  commit: 678d2b2
+- [x] 04a-file-open-place        (5) — File > Open, drag-drop, Place Embedded, Load Files  commit: 2f4647f
+- [x] 04b-file-new               (2) — File > New dialog  commit: 137edb3
+- [x] 04c-file-save-close        (2) — Save As to protect original, Close / Close All  commit: 5b015f4
 - [ ] 05a-image-size             (9) — Image Size dialog: pixels, resolution, resampling
 - [ ] 05b-canvas-size            (1) — Canvas Size dialog, Crop Tool expand
 - [ ] 05c-rotate-straighten      (1) — Image Rotation, Straighten button, Ruler Tool
