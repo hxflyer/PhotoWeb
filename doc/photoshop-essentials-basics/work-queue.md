@@ -23,7 +23,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 08a-layer-ops              (5) — Stamp visible, copy effects, auto-select, align, groups  commit: c0c1e8b
 - [x] 08b-properties-panel       (1) — Per-layer-type Properties panel  commit: 4b4d45c
 - [x] 08c-doc-transfer           (2) — Move layers between documents  commit: 2bfa8ee
-- [ ] 09-blend-modes             (3) — Blend mode menu, live preview, Shift+/- cycle
+- [x] 09-blend-modes             (3) — Blend mode menu, live preview, Shift+/- cycle  commit: 096de03
 - [ ] 10-layer-styles            (3) — Layer Style dialog, save/load, Opacity vs Fill
 - [ ] 11a-selections-overview    (3) — Shift add, Alt subtract, Shift+Alt intersect
 - [ ] 11b-transform-selection    (2) — Transform Selection command
