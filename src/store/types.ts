@@ -244,6 +244,7 @@ export interface DocumentSlice {
     saveFile: (name: string) => Promise<void>;
     loadFile: (name: string) => Promise<void>;
     recordClipboardImageInfo: (info: ClipboardImageInfo | null) => void;
+    closeDocument: () => void;
 }
 
 export type LayerEditTarget = 'layer' | 'mask';

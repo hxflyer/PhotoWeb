@@ -30,6 +30,7 @@ interface MenuBarProps {
   onOpenFile: () => void;
   onPlaceEmbedded: () => void;
   onLoadFilesIntoStack: () => void;
+  onClose: () => void;
 }
 
 // ── Sub-menu popup ────────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ function MenuPopup({ items, x, y, onClose, depth = 0 }: PopupProps) {
 }
 
 // ── MenuBar ───────────────────────────────────────────────────────────────────
-export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, onPlaceEmbedded, onLoadFilesIntoStack }: MenuBarProps) {
+export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, onPlaceEmbedded, onLoadFilesIntoStack, onClose }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const barRef = useRef<HTMLDivElement>(null);
@@ -154,6 +155,9 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       sub('Scripts',
         act('Load Files into Stack…', onLoadFilesIntoStack),
       ),
+      sep,
+      act('Close', onClose, '⌘W', useEditorStore.getState().layers.length === 0),
+      act('Close All', onClose, '⌘⌥W', useEditorStore.getState().layers.length === 0),
       sep,
       act('Save', () => {
         const s = useEditorStore.getState();

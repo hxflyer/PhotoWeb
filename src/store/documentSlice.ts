@@ -299,6 +299,27 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
 
     recordClipboardImageInfo: (info) => set({ clipboardImageInfo: info }),
 
+    closeDocument: () => {
+        set({
+            layers: [],
+            activeLayerId: null,
+            selectedLayerIds: [],
+            layerSelectionAnchorId: null,
+            documentName: '',
+            isDirty: false,
+            width: 0,
+            height: 0,
+            selection: {
+                ...get().selection,
+                hasSelection: false,
+                path: [],
+                polyPoints: [],
+                operations: [],
+                isDraggingSelection: false,
+            },
+        });
+    },
+
     openImageAsDocument: (img, name) => {
         const w = Math.max(1, Math.round(img.naturalWidth || img.width));
         const h = Math.max(1, Math.round(img.naturalHeight || img.height));

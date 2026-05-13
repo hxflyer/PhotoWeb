@@ -53,6 +53,8 @@ import { loadImage } from './utils/imageLoader';
 import { ingestFiles, summaryToast } from './utils/fileIngest';
 import { requestViewportFit } from './utils/viewportFit';
 import { copyActiveDocumentForClipboard } from './utils/copyImageForClipboard';
+import { SaveAsDialog } from './components/Dialogs/SaveAsDialog';
+import { CloseConfirmDialog } from './components/Dialogs/CloseConfirmDialog';
 import { getLayerContentBounds } from './utils/canvasUtils';
 import './App.css';
 
@@ -94,6 +96,7 @@ function App() {
   const [warpState, setWarpState] = useState<{ layerId: string; snapshot: ImageData } | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveDialogName, setSaveDialogName] = useState('Untitled');
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [adjustmentPreview, setAdjustmentPreview] = useState<{ image: ImageData; scale: number } | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
@@ -375,6 +378,18 @@ function App() {
       if (meta && key === 's' && e.shiftKey && !e.altKey) { e.preventDefault(); setSaveDialogName(gs().documentName); setSaveDialogOpen(true); return; }
       if (meta && key === 's' && e.shiftKey && e.altKey) { e.preventDefault(); doQuickExportPng(); return; }
       if (meta && key === 'w' && e.shiftKey && e.altKey) { e.preventDefault(); gs().openExportDialog(); return; }
+      // File > Close (Cmd+W) and File > Close All (Cmd+Alt+W) — in single-doc
+      // mode both collapse to the same Close path. Guard against firing while
+      // a transform/warp gesture is live: Photoshop habit is to commit/cancel
+      // the gesture first.
+      if (meta && key === 'w' && !e.shiftKey) {
+        e.preventDefault();
+        if (freeTransform || warpState) return;
+        const s = gs();
+        if (s.layers.length === 0) return;
+        if (s.isDirty) { setCloseConfirmOpen(true); } else { s.closeDocument(); }
+        return;
+      }
 
       if (meta && key === 'r') { e.preventDefault(); const s = gs(); s.setShowRulers(!s.showRulers); return; }
       if (meta && (key === "'" || key === '"')) { e.preventDefault(); const s = gs(); s.setShowGrid(!s.showGrid); return; }
@@ -844,10 +859,23 @@ function App() {
             }}
             onPlaceEmbedded={() => importFileRef.current?.click()}
             onLoadFilesIntoStack={() => loadFilesIntoStackRef.current?.click()}
+            onClose={() => {
+              const s = gs();
+              if (s.layers.length === 0) return;
+              if (s.isDirty) { setCloseConfirmOpen(true); } else { s.closeDocument(); }
+            }}
           />
         }
         optionsBar={<OptionsBar />}
-        documentTab={<DocumentTab />}
+        documentTab={
+          <DocumentTab
+            onRequestClose={() => {
+              const s = gs();
+              if (s.layers.length === 0) return;
+              if (s.isDirty) { setCloseConfirmOpen(true); } else { s.closeDocument(); }
+            }}
+          />
+        }
         toolbar={<Toolbar />}
         canvas={<Viewport toolsBlocked={!!freeTransform} />}
         rightPanel={<RightPanelDock />}
@@ -909,22 +937,21 @@ function App() {
         </div>
       )}
 
-      {/* Save As dialog */}
-      {saveDialogOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <div style={{ background: 'hsl(var(--bg-panel))', border: '1px solid hsl(var(--border-light))', borderRadius: 4, padding: 16, color: 'hsl(var(--text-main))', fontSize: 12, minWidth: 280 }}>
-            <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Save As</div>
-            <input type="text" value={saveDialogName} onChange={e => setSaveDialogName(e.target.value)} autoFocus
-              onKeyDown={e => { if (e.key === 'Enter') { setSaveDialogOpen(false); gs().saveFile(saveDialogName).then(() => gs().addToast(`Saved "${saveDialogName}"`, 'success')).catch(() => gs().addToast('Save failed', 'error')); } if (e.key === 'Escape') setSaveDialogOpen(false); }}
-              style={{ width: '100%', background: 'hsl(var(--bg-input))', border: '1px solid hsl(var(--border-light))', borderRadius: 2, color: 'hsl(var(--text-main))', padding: '5px 8px', fontSize: 12, marginBottom: 12 }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setSaveDialogOpen(false)} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid hsl(var(--border-light))', borderRadius: 2, color: 'hsl(var(--text-main))', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={() => { setSaveDialogOpen(false); gs().saveFile(saveDialogName).then(() => gs().addToast(`Saved "${saveDialogName}"`, 'success')).catch(() => gs().addToast('Save failed', 'error')); }}
-                style={{ padding: '4px 12px', background: 'hsl(var(--accent-primary))', border: 'none', borderRadius: 2, color: 'white', cursor: 'pointer' }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SaveAsDialog isOpen={saveDialogOpen} initialName={saveDialogName} onClose={() => setSaveDialogOpen(false)} />
+
+      <CloseConfirmDialog
+        isOpen={closeConfirmOpen}
+        documentName={gs().documentName}
+        onCancel={() => setCloseConfirmOpen(false)}
+        onDontSave={() => { setCloseConfirmOpen(false); gs().closeDocument(); }}
+        onSave={() => {
+          const s = gs();
+          const name = s.documentName || 'Untitled';
+          s.saveFile(name)
+            .then(() => { gs().addToast(`Saved "${name}"`, 'success'); setCloseConfirmOpen(false); gs().closeDocument(); })
+            .catch(() => gs().addToast('Save failed', 'error'));
+        }}
+      />
 
       <ToastContainer />
       <RequirementsOverlay />

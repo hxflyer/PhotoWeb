@@ -233,3 +233,45 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** `Untitled-N` counter resets when Photoshop quits.
 **Photoweb behavior:** Counter persists in localStorage and continues across browser reloads.
 **Rationale:** Browser has no process-lifetime equivalent of "quit Photoshop". Persisting matches the in-session habit users have of seeing `Untitled-2`, `Untitled-3` etc. without the counter resetting whenever they refresh the tab.
+
+## 2026-05-13 — 04c-file-save-close — Save As Format list omits PSD, TIFF, GIF, BMP
+
+**Photoshop behavior:** Save As Format dropdown lists ~15 formats (Photoshop, JPEG, PNG, TIFF, GIF, BMP, EPS, PSB, …).
+**Photoweb behavior:** Three formats — Photoshop Document (.pwbdoc), JPEG (.jpg), PNG (.png).
+**Rationale:** Smart Objects / PSD parity / print formats are scope-excluded ([CLAUDE.md §4](../../CLAUDE.md)). JPEG + PNG cover the canonical browser-export cases; the internal Photoshop Document keeps layered saves inside photoweb's OPFS-backed store.
+
+## 2026-05-13 — 04c-file-save-close — "Photoshop Document" writes .pwbdoc to OPFS, not .psd to disk
+
+**Photoshop behavior:** Save As → Photoshop writes a layered .psd file to the user-chosen disk location.
+**Photoweb behavior:** Writes a .pwbdoc JSON manifest into OPFS / localStorage under the chosen name.
+**Rationale:** Browsers cannot write arbitrary disk paths without per-save File System Access gestures; PSD parity is also excluded. The .pwbdoc format keeps layer data round-trippable within photoweb's own document store.
+
+## 2026-05-13 — 04c-file-save-close — JPEG Options omits Preview and file-size readout
+
+**Photoshop behavior:** JPEG Options shows a Preview checkbox and a live file-size readout (e.g. "8.4M").
+**Photoweb behavior:** Quality slider + Format radios only.
+**Rationale:** A live size readout requires re-encoding the JPEG every time Quality changes; the preview requires also decoding the result back into a thumbnail. Neither is load-bearing for the muscle-memory contract (Quality slider + Baseline radios are what users adjust). Deferred.
+
+## 2026-05-13 — 04c-file-save-close — JPEG Baseline radios accepted but encoder uses browser default
+
+**Photoshop behavior:** Baseline ("Standard") / Baseline Optimized / Progressive controls the JPEG marker layout.
+**Photoweb behavior:** The radios are visible and the choice is captured, but `canvas.toBlob('image/jpeg', q)` always writes the browser's default JPEG (typically optimized).
+**Rationale:** The browser canvas encoder does not expose the baseline switch. The choice is preserved for parity with Photoshop's UI; future-us can rewrite via a JS encoder if a real difference becomes necessary.
+
+## 2026-05-13 — 04c-file-save-close — No Home Screen on last Close
+
+**Photoshop behavior:** Closing the last document returns to the Home Screen with thumbnails of recent files.
+**Photoweb behavior:** The viewport's existing empty-state overlay ("Open or drop an image to begin") takes over.
+**Rationale:** `home_screen` is excluded per [CLAUDE.md §4](../../CLAUDE.md). The empty-state overlay communicates the same "no document open" idea using the surface photoweb already has.
+
+## 2026-05-13 — 04c-file-save-close — Close All collapses to Close (no Apply to All)
+
+**Photoshop behavior:** Close All iterates open documents, showing a save-changes prompt with an "Apply to All" checkbox for the rest of the stack.
+**Photoweb behavior:** Single-document. Cmd/Ctrl+Alt+W reuses the single-doc Close path; no "Apply to All" checkbox.
+**Rationale:** `multi_doc_ui` is excluded per [CLAUDE.md §4](../../CLAUDE.md). The Close All hotkey and menu entry exist so muscle memory is honored even though the underlying behavior matches plain Close.
+
+## 2026-05-13 — 04c-file-save-close — No PSD Maximize Compatibility prompt
+
+**Photoshop behavior:** Saving layered PSDs prompts to maximize compatibility with other apps / older Photoshop versions.
+**Photoweb behavior:** No prompt; the internal .pwbdoc format is the only layered save target.
+**Rationale:** PSD export is not in scope.

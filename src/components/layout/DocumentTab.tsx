@@ -1,18 +1,21 @@
 import { useEditorStore } from '../../store/editorStore';
 
-/**
- * Photoshop document tab: renders directly below the Options Bar and above
- * the canvas, showing `<filename>.<ext> @ <zoom>% (RGB/8) *`. The trailing
- * `*` only appears when the document is dirty.
- *
- * The leading `×` close button is intentionally omitted in this tick:
- * `File > Close` with a save-changes-or-discard prompt lives in
- * cluster 04c-file-save-close.
- */
-export function DocumentTab() {
+interface Props {
+    onRequestClose?: () => void;
+}
+
+// Photoshop document tab: `× <filename>.<ext> @ <zoom>% (RGB/8) *`. The leading
+// × triggers File > Close (matches macOS Photoshop tab position per the
+// close-images-photoshop lesson). The trailing * appears when isDirty.
+export function DocumentTab({ onRequestClose }: Props) {
     const documentName = useEditorStore(s => s.documentName);
     const zoom = useEditorStore(s => s.zoom);
     const isDirty = useEditorStore(s => s.isDirty);
+    if (!documentName) {
+        // No active document — the close path clears documentName; let the
+        // empty-state overlay in the viewport carry the user-facing message.
+        return <div data-testid="document-tab" style={{ height: '100%', backgroundColor: 'hsl(var(--bg-header))', borderBottom: '1px solid hsl(var(--bg-canvas))' }} />;
+    }
 
     // Basename only — strip any path separators a stored name might carry.
     const lastSlash = Math.max(documentName.lastIndexOf('/'), documentName.lastIndexOf('\\'));
@@ -36,6 +39,38 @@ export function DocumentTab() {
                 fontFamily: 'var(--font-sans)',
             }}
         >
+            <button
+                data-testid="document-tab-close"
+                onClick={() => onRequestClose?.()}
+                aria-label="Close document"
+                title="Close"
+                style={{
+                    width: 16,
+                    height: 16,
+                    marginRight: 8,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'hsl(var(--text-muted))',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    lineHeight: 1,
+                    padding: 0,
+                    borderRadius: 2,
+                }}
+                onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'hsl(var(--bg-canvas))';
+                    (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--text-main))';
+                }}
+                onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                    (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--text-muted))';
+                }}
+            >
+                ×
+            </button>
             <span
                 data-testid="document-tab-name"
                 style={{
