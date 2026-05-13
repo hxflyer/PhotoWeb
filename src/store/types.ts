@@ -691,12 +691,31 @@ export interface ColorSlice {
     primaryColor: string;
     secondaryColor: string;
     swatches: string[];
+    swatchGroups: SwatchGroup[];
+    selectedSwatchGroupId: string;
     setPrimaryColor: (color: string) => void;
     setSecondaryColor: (color: string) => void;
     swapColors: () => void;
     resetColors: () => void;
-    addSwatch: (color: string) => void;
-    removeSwatch: (index: number) => void;
+    addSwatch: (color: string, name?: string, groupId?: string) => void;
+    removeSwatch: (index: number, groupId?: string) => void;
+    addSwatchGroup: (name?: string) => string;
+    selectSwatchGroup: (id: string) => void;
+    toggleSwatchGroup: (id: string, all?: boolean) => void;
+    renameSwatchGroup: (id: string, name: string) => void;
+}
+
+export interface SwatchItem {
+    id: string;
+    color: string;
+    name: string;
+}
+
+export interface SwatchGroup {
+    id: string;
+    name: string;
+    collapsed: boolean;
+    swatches: SwatchItem[];
 }
 
 export type PanelId =

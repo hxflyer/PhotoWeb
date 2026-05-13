@@ -7,6 +7,7 @@ export * from './selectionMask';
 import './blurFilters.tsx';
 import './sharpenFilters.tsx';
 import './noiseFilters.tsx';
+import './pixelateFilters.tsx';
 import './distortFilters.tsx';
 import './stylizeFilters.tsx';
 import './renderFilters.tsx';

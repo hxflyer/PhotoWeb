@@ -497,3 +497,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** The Properties panel exposes live-gradient angle, scale, position, and reset alignment controls.
 **Photoweb behavior:** Gradient Fill layers store exact start/end points and repaint from those endpoints.
 **Rationale:** The existing gradient renderer is endpoint-driven, so storing endpoints preserves the drawn result and keeps later angle/scale/position UI derivable.
+
+## 2026-05-14 — 23-color-swatches — Swatch file formats deferred
+
+**Photoshop behavior:** Custom swatches can be saved, reset, appended, and reloaded through Photoshop swatch set files and Adobe-managed libraries.
+**Photoweb behavior:** Swatch groups and colors persist in browser storage while keeping a backward-compatible flat swatch list for existing project code.
+**Rationale:** Native Photoshop swatch file import/export and Creative Cloud libraries are outside the browser-local scope; browser persistence preserves the lesson's reusable palette workflow.
+
+## 2026-05-14 — 23-color-swatches — Swatch-to-layer drag application deferred
+
+**Photoshop behavior:** Dragging swatches onto document contents can create clipped or non-clipped Solid Color fill layers, directly recolor type/shape layers, or add Color Overlay effects depending on layer type and modifier keys.
+**Photoweb behavior:** Swatches can be selected for foreground/background, saved into groups, dragged as color payloads, and dropped into the Swatches panel, but document-layer drop application remains unavailable.
+**Rationale:** Photoshop's swatch drop behavior spans fill layers, layer hit-testing, type/shape source data, clipping masks, and layer effects. This tick lands the palette/sampling workflow first without introducing partial layer mutations.

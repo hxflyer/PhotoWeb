@@ -50,6 +50,10 @@ import { getMoveOptions, setMoveOptions } from '../../tools/move';
 import { getShapeOptions, setShapeOptions } from '../../tools/shapes';
 import { getCustomShapeLibrary, CUSTOM_SHAPE_VIEWBOX } from '../../tools/customShapes';
 import { getCropOptions, setCropOptions, type CropAspectId, type CropOverlayId } from '../../tools/crop';
+import {
+    getEyedropperOptions, setEyedropperOptions,
+    type EyedropperSample, type SampleSize,
+} from '../../tools/eyedropper';
 import { clearRulerMeasurement, getRulerMeasurement, straightenRulerMeasurement } from '../../tools/ruler';
 import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
 import type { BlendModeId } from '../../core/blendModes';
@@ -744,27 +748,44 @@ function CropOptions() {
 }
 
 function EyedropperOptions() {
+    const [, force] = useState(0);
+    const opts = getEyedropperOptions();
+    const update = (next: Parameters<typeof setEyedropperOptions>[0]) => {
+        setEyedropperOptions(next);
+        force(t => t + 1);
+    };
     return (
         <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Sample Size:')}
-                <select className="opts-input" style={{ width: 90 }}>
-                    <option>Point Sample</option>
-                    <option>3 by 3 Average</option>
-                    <option>5 by 5 Average</option>
-                    <option>11 by 11 Average</option>
-                    <option>31 by 31 Average</option>
-                    <option>51 by 51 Average</option>
-                    <option>101 by 101 Average</option>
+                <select
+                    data-testid="eyedropper-sample-size"
+                    className="opts-input"
+                    style={{ width: 130 }}
+                    value={opts.sampleSize}
+                    onChange={e => update({ sampleSize: Number(e.target.value) as SampleSize })}
+                >
+                    <option value={1}>Point Sample</option>
+                    <option value={3}>3 by 3 Average</option>
+                    <option value={5}>5 by 5 Average</option>
+                    <option value={11}>11 by 11 Average</option>
+                    <option value={31}>31 by 31 Average</option>
+                    <option value={51}>51 by 51 Average</option>
+                    <option value={101}>101 by 101 Average</option>
                 </select>
             </div>
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Sample:')}
-                <select className="opts-input" style={{ width: 100 }}>
-                    <option>All Layers</option>
-                    <option>Current Layer</option>
-                    <option>Current & Below</option>
+                <select
+                    data-testid="eyedropper-sample-source"
+                    className="opts-input"
+                    style={{ width: 120 }}
+                    value={opts.sample}
+                    onChange={e => update({ sample: e.target.value as EyedropperSample })}
+                >
+                    <option value="current-layer">Current Layer</option>
+                    <option value="all-layers">All Layers</option>
                 </select>
             </div>
             {S.sep()}
