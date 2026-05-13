@@ -130,10 +130,10 @@ function resizeFromHandle(base: CropRect, handle: CropHandle, dx: number, dy: nu
     if (handle.includes('n')) y1 += dy;
     if (handle.includes('s')) y2 += dy;
 
-    // Aspect ratio constraint (Shift forces a square; options.aspect picks a
-    // preset; both honor corner-handle anchoring at the opposite corner).
+    // Aspect ratio constraint. Photoshop Crop keeps the starting crop ratio
+    // while Shift is held; preset ratios apply when Shift is not overriding.
     const presetRatio = aspectRatio();
-    const ratio = shift ? 1 : presetRatio;
+    const ratio = shift ? base.w / base.h : presetRatio;
     if (ratio !== null) {
         const isCorner = handle.length === 2;
         if (isCorner) {
