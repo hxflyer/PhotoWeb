@@ -6,7 +6,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 
 - [x] 01a-interface-shell        (4) — Doc window, tab, status bar, pasteboard, color theme  commit: 826c293
 - [x] 01b-toolbar                (1) — Toolbar UI: column, flyout, default-tool, keyboard cycle  commit: 317d4ea
-- [ ] 01c-panels                 (2) — Panel groups, Window menu, panel menu icon
+- [x] 01c-panels                 (2) — Panel groups, Window menu, panel menu icon  commit: f34f63a
 - [ ] 01d-screen-modes           (2) — F / Shift+F cycle, Tab hide panels
 - [ ] 01e-neutral-color-mode     (1) — Preferences toggle to flatten cosmetic UI gradients
 - [ ] 02-preferences             (4) — Preferences dialog & background auto-save
