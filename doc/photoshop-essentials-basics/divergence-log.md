@@ -389,3 +389,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** In Photoshop CC 2018, holding Shift while choosing Select > Select and Mask opens the classic Refine Edge dialog; without Shift, Select and Mask opens the newer workspace.
 **Photoweb behavior:** Select > Select and Mask opens the classic Refine Edge-style dialog directly.
 **Rationale:** Photoweb has one refinement dialog rather than two separate selection-refinement workspaces. Opening the classic controls directly preserves the lesson's usable Radius/Smooth/Feather/Contrast/Shift Edge workflow without adding a duplicate shell.
+
+## 2026-05-14 — 16b-focus-area — Focus Area uses local edge-strength analysis
+
+**Photoshop behavior:** Focus Area analyzes in-focus image regions with Adobe's proprietary focus-detection engine and its add/subtract brushes re-analyze visually similar image areas after each stroke.
+**Photoweb behavior:** Focus Area uses a deterministic browser-local edge-strength metric with range/noise thresholds, optional softening, and direct add/subtract brush mask edits.
+**Rationale:** Photoweb has no Adobe focus-analysis engine or cloud service. A deterministic local focus metric preserves the selection workflow, view modes, output choices, and Refine Edge handoff without pretending to match Photoshop's private algorithm.
