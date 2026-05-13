@@ -37,7 +37,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 17-layer-masks             (7) — Add, paint, paste-into, view-as-mask, fake mask  commit: ff06770
 - [x] 18-clipping-masks          (2) — Clip to layer below, photo-in-text  commit: 4643f85
 - [x] 19a-free-transform         (3) — Ctrl/Cmd+T scale / rotate / skew / distort / perspective  commit: ea9039a
-- [ ] 19b-warp                   (1) — Warp grid, enhanced Warp 2020
+- [x] 19b-warp                   (1) — Warp grid, enhanced Warp 2020  commit: 5ebe985
 - [ ] 20a-brush-tool             (3) — Brush Tool, cursor, eraser-via-Clear
 - [ ] 20b-brush-presets          (3) — Custom brushes, save/load, Brushes panel
 - [ ] 20c-paint-symmetry         (1) — Paint Symmetry (butterfly icon)

@@ -407,3 +407,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Photoshop CC 2019+ scales proportionally by default and uses Shift to invert proportional scaling.
 **Photoweb behavior:** Corner scaling keeps the legacy Photoshop habit where Shift constrains proportions.
 **Rationale:** The cluster includes older Free Transform lessons and long-standing Photoshop muscle memory that teach Shift-to-constrain; retaining that behavior avoids changing existing photoweb transform tests and user expectations.
+
+## 2026-05-14 — 19b-warp — Warp is destructive without Smart Objects
+
+**Photoshop behavior:** Warp remains editable when applied to a Smart Object.
+**Photoweb behavior:** Warp commits a destructive pixel transform to the active layer.
+**Rationale:** Smart Objects are outside the current project scope; undo/redo preserves reversibility within document history.
+
+## 2026-05-14 — 19b-warp — Deterministic mesh resampling
+
+**Photoshop behavior:** Enhanced Warp uses Adobe's Bezier/control-handle deformation and private rasterization.
+**Photoweb behavior:** Warp uses deterministic browser-local mesh resampling with grid points, splits, presets, and selected-point transforms.
+**Rationale:** The local mesh engine preserves the user-facing Enhanced Warp workflow without claiming pixel-identical output to Photoshop's proprietary implementation.
