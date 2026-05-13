@@ -377,3 +377,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** The Color Range dialog includes Load and Save buttons for storing and reusing Color Range settings.
 **Photoweb behavior:** This tick persists the last-used dialog controls in local app preferences, but does not expose external Color Range setting files.
 **Rationale:** Browser-local preference restore covers the repeated-use workflow without introducing a new file format and import/export path for a single selection command.
+
+## 2026-05-14 — 15-pen-paths — Path Options gear styling remains fixed
+
+**Photoshop behavior:** The Pen and Curvature Pen tools expose Path Options for changing overlay thickness and color.
+**Photoweb behavior:** Pen-family paths continue to render with the existing fixed blue overlay while this tick focuses on path creation, editing, and selection conversion.
+**Rationale:** Overlay appearance is cosmetic and shared by several vector/path tools; path-to-selection and Curvature Pen behavior are the cluster's functional gaps.
