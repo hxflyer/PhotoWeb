@@ -50,6 +50,7 @@ import { rerenderShapeLayer } from './tools/shapeRender';
 import type { ShapeData } from './store/types';
 import { nudgeSelectionBorderBy } from './tools/selectionMove';
 import { loadImage } from './utils/imageLoader';
+import { ingestFiles, summaryToast } from './utils/fileIngest';
 import { requestViewportFit } from './utils/viewportFit';
 import { getLayerContentBounds } from './utils/canvasUtils';
 import './App.css';
@@ -240,6 +241,7 @@ function App() {
   const autoSaveStarted = useRef(false);
   const openFileRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const loadFilesIntoStackRef = useRef<HTMLInputElement>(null);
   const numberKeyWindow = useRef<{ digits: number; time: number } | null>(null);
 
   useEffect(() => {
@@ -756,6 +758,16 @@ function App() {
     if (importFileRef.current) importFileRef.current.value = '';
   }
 
+  async function handleLoadFilesIntoStack(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      const summary = await ingestFiles(files, { treatFirstAsNewDoc: true });
+      const toast = summaryToast(summary);
+      if (toast) gs().addToast(toast.message, toast.level);
+    }
+    if (loadFilesIntoStackRef.current) loadFilesIntoStackRef.current.value = '';
+  }
+
   const filterDlg = dialogs.filterDialog;
   const adjustmentDlg = dialogs.adjustmentDialog;
   useEffect(() => {
@@ -828,7 +840,8 @@ function App() {
               if (gs().isDirty && !window.confirm('Unsaved changes will be lost. Open another file anyway?')) return;
               openFileRef.current?.click();
             }}
-            onImportImage={() => importFileRef.current?.click()}
+            onPlaceEmbedded={() => importFileRef.current?.click()}
+            onLoadFilesIntoStack={() => loadFilesIntoStackRef.current?.click()}
           />
         }
         optionsBar={<OptionsBar />}
@@ -867,6 +880,7 @@ function App() {
       {/* Hidden open-file input */}
       <input ref={openFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleOpenFile} />
       <input ref={importFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImportFile} />
+      <input ref={loadFilesIntoStackRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleLoadFilesIntoStack} />
 
       {/* Autosave recovery banner */}
       {hasAutosave && (

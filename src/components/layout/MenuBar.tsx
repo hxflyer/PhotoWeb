@@ -27,7 +27,8 @@ interface MenuBarProps {
   onFreeTransform: () => void;
   onWarp: () => void;
   onOpenFile: () => void;
-  onImportImage: () => void;
+  onPlaceEmbedded: () => void;
+  onLoadFilesIntoStack: () => void;
 }
 
 // ── Sub-menu popup ────────────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ function MenuPopup({ items, x, y, onClose, depth = 0 }: PopupProps) {
 }
 
 // ── MenuBar ───────────────────────────────────────────────────────────────────
-export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, onImportImage }: MenuBarProps) {
+export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, onPlaceEmbedded, onLoadFilesIntoStack }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const barRef = useRef<HTMLDivElement>(null);
@@ -148,7 +149,10 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
     File: [
       act('New…', onNew, '⌘N'),
       act('Open…', onOpenFile, '⌘O'),
-      act('Import Image…', onImportImage),
+      act('Place Embedded…', onPlaceEmbedded),
+      sub('Scripts',
+        act('Load Files into Stack…', onLoadFilesIntoStack),
+      ),
       sep,
       act('Save', () => {
         const s = useEditorStore.getState();

@@ -12,6 +12,7 @@ import type { ToolKeyEvent, ToolPointerEvent } from '../../tools/Tool';
 import { Canvas2DCompositor } from '../../compositor/Canvas2DCompositor';
 import { TypeLayerVisuals, TypeOverlayMount } from './TypeOverlayMount';
 import { VIEWPORT_FIT_EVENT } from '../../utils/viewportFit';
+import { ingestFiles, summaryToast } from '../../utils/fileIngest';
 import { applyBrushDab } from '../../utils/brushEngine';
 import { getCropRect } from '../../tools/crop';
 
@@ -1395,58 +1396,19 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         clearSelection();
     };
 
-    // Handle image / .pwbdoc file drop (MVP: single-file drops only).
+    // Handle image / .pwbdoc file drop. Routes through the shared ingest
+    // pipeline: each image adds as a layer; if no document is open, the
+    // first image opens a new document. .pwbdoc native files take the
+    // load-from-localStorage path.
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-
-        const files = e.dataTransfer.files;
+        const files = Array.from(e.dataTransfer.files);
         if (files.length === 0) return;
-        if (files.length > 1) {
-            useEditorStore.getState().addToast('Only one file can be dropped at a time', 'info');
-            return;
-        }
-
-        const file = files[0];
-        const lowerName = file.name.toLowerCase();
-        const isPhotoweb = lowerName.endsWith('.pwbdoc');
-
-        if (isPhotoweb) {
-            const base = file.name.replace(/\.pwbdoc$/i, '');
-            const reader = new FileReader();
-            reader.onload = () => {
-                try {
-                    const text = reader.result as string;
-                    if (typeof localStorage !== 'undefined') {
-                        localStorage.setItem(`photoweb-doc:${base}`, text);
-                    }
-                    useEditorStore.getState().loadFile(base)
-                        .then(() => useEditorStore.getState().addToast(`Opened "${file.name}"`, 'success'))
-                        .catch(() => useEditorStore.getState().addToast(`Could not open ${file.name}`, 'error'));
-                } catch {
-                    useEditorStore.getState().addToast(`Could not read ${file.name}`, 'error');
-                }
-            };
-            reader.onerror = () => useEditorStore.getState().addToast(`Could not read ${file.name}`, 'error');
-            reader.readAsText(file);
-            return;
-        }
-
-        if (!file.type.startsWith('image/')) {
-            useEditorStore.getState().addToast(`Unsupported file: ${file.name}`, 'info');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                useEditorStore.getState().addLayerFromImage(img, file.name);
-                useEditorStore.getState().addToast(`Added "${file.name}"`, 'success');
-            };
-            img.src = event.target?.result as string;
-        };
-        reader.readAsDataURL(file);
+        void ingestFiles(files, { treatFirstAsNewDoc: true }).then(summary => {
+            const toast = summaryToast(summary);
+            if (toast) useEditorStore.getState().addToast(toast.message, toast.level);
+        });
     };
 
     const handleDragOver = (e: React.DragEvent) => {

@@ -185,3 +185,27 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Past ~500% zoom, View > Show > Pixel Grid auto-appears.
 **Photoweb behavior:** Pixel grid not implemented.
 **Rationale:** Visual debugging aid; defer.
+
+## 2026-05-13 — 04a-file-open-place — No Free Transform auto-arm on place / drop-as-layer
+
+**Photoshop behavior:** Place Embedded (or drag-drop into existing doc) pre-arms Free Transform so the user resizes / repositions the image before committing with the Options Bar check mark. Multi-file drops pause for each image so the user can transform-and-commit one at a time.
+**Photoweb behavior:** The image lands at native size, position (0, 0), already committed. User can then press Cmd+T for Free Transform.
+**Rationale:** Pre-arming the existing Free Transform flow needs an event-trigger and a way to auto-commit between files. Convenience polish deferred to a follow-up.
+
+## 2026-05-13 — 04a-file-open-place — No Home Screen / Recent Files panel
+
+**Photoshop behavior:** Drop on Home Screen opens as new doc; Home Screen also lists recent file thumbnails.
+**Photoweb behavior:** No Home Screen; drop on blank workspace opens as new doc.
+**Rationale:** `home_screen` excluded per CLAUDE.md §4.
+
+## 2026-05-13 — 04a-file-open-place — Load Files into Stack omits auto-align + Smart Object options
+
+**Photoshop behavior:** File > Scripts > Load Files into Stack opens a dialog with "Attempt to Automatically Align Source Images" and "Create Smart Object after Loading Layers" checkboxes.
+**Photoweb behavior:** Plain multi-select OS file picker — each chosen file becomes a layer; no align, no Smart Object.
+**Rationale:** Smart Objects excluded per CLAUDE.md §4; auto-align is a complex photo-merging algorithm out of scope.
+
+## 2026-05-13 — 04a-file-open-place — No Open With / Camera Raw routing
+
+**Photoshop behavior:** Open dialog has "Open As" and routes raw files to Camera Raw.
+**Photoweb behavior:** Single OS file picker; no raw support.
+**Rationale:** `camera_raw` excluded per CLAUDE.md §4.
