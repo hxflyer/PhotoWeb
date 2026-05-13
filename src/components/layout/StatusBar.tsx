@@ -22,6 +22,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   'magnetic-lasso': 'Magnetic Lasso',
   'magic-wand': 'Magic Wand',
   'quick-selection': 'Quick Selection',
+  'object-selection': 'Object Selection',
   pencil: 'Pencil',
   dodge: 'Dodge',
   burn: 'Burn',

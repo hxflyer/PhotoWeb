@@ -200,6 +200,7 @@ export type ToolId =
     | 'magnetic-lasso'
     | 'magic-wand'
     | 'quick-selection'
+    | 'object-selection'
     | 'pencil'
     | 'dodge'
     | 'burn'

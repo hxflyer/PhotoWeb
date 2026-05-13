@@ -16,6 +16,7 @@ import {
 import { getMagicWandOptions, setMagicWandOptions, type MagicWandSampleSize } from '../../tools/magicWand';
 import { getSelectionToolOperation, setSelectionToolOperation, type SelectionOp } from '../../tools/selectionModifiers';
 import { getQuickSelectionOptions, setQuickSelectionOptions } from '../../tools/quickSelection';
+import { getObjectSelectionOptions, setObjectSelectionOptions, type ObjectSelectionOptions as ObjectSelectionToolOptions } from '../../tools/objectSelection';
 import {
     getGradientOptions, setGradientOptions, getGradientPresets,
     type GradientType, type GradientMethod, type GradientStop,
@@ -548,6 +549,79 @@ function QuickSelOptions() {
                     onChange={e => update({ autoEnhance: e.target.checked })}
                     style={{ accentColor: 'hsl(var(--accent-primary))' }} />
                 Auto-Enhance
+            </label>
+        </>
+    );
+}
+
+function ObjectSelectionOptionsPanel() {
+    const { setSelectionMode } = useEditorStore();
+    const [opts, setOpts] = useState(getObjectSelectionOptions);
+    const update = (next: Partial<ObjectSelectionToolOptions>) => {
+        const merged = { ...opts, ...next };
+        setOpts(merged);
+        setObjectSelectionOptions(next);
+        if (next.mode === 'rectangle') setSelectionMode('rect');
+        if (next.mode === 'lasso') setSelectionMode('lasso');
+    };
+
+    return (
+        <>
+            <SelectionOperationButtons />
+            {S.sep()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Mode:')}
+                <button
+                    data-testid="object-selection-mode-rectangle"
+                    className={`opts-btn${opts.mode === 'rectangle' ? ' active' : ''}`}
+                    title="Rectangle"
+                    aria-pressed={opts.mode === 'rectangle'}
+                    onClick={() => update({ mode: 'rectangle' })}
+                >
+                    <Square size={13} />
+                </button>
+                <button
+                    data-testid="object-selection-mode-lasso"
+                    className={`opts-btn${opts.mode === 'lasso' ? ' active' : ''}`}
+                    title="Lasso"
+                    aria-pressed={opts.mode === 'lasso'}
+                    onClick={() => update({ mode: 'lasso' })}
+                >
+                    <Lasso size={13} />
+                </button>
+            </div>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input
+                    data-testid="object-selection-sample-all-layers"
+                    type="checkbox"
+                    checked={opts.sampleAllLayers}
+                    onChange={e => update({ sampleAllLayers: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
+                Sample All Layers
+            </label>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input
+                    data-testid="object-selection-auto-enhance"
+                    type="checkbox"
+                    checked={opts.autoEnhance}
+                    onChange={e => update({ autoEnhance: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
+                Auto-Enhance
+            </label>
+            {S.sep()}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input
+                    data-testid="object-selection-object-subtract"
+                    type="checkbox"
+                    checked={opts.objectSubtract}
+                    onChange={e => update({ objectSubtract: e.target.checked })}
+                    style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                />
+                Object Subtract
             </label>
         </>
     );
@@ -1728,7 +1802,7 @@ export function OptionsBar() {
         'dodge': 'Dodge', 'burn': 'Burn', 'sponge': 'Sponge',
         'marquee-rect': 'Rectangular Marquee', 'marquee-ellipse': 'Elliptical Marquee',
         'select': 'Marquee', 'lasso': 'Lasso', 'lasso-poly': 'Polygonal Lasso', 'magnetic-lasso': 'Magnetic Lasso',
-        'magic-wand': 'Magic Wand', 'quick-selection': 'Quick Selection',
+        'magic-wand': 'Magic Wand', 'quick-selection': 'Quick Selection', 'object-selection': 'Object Selection',
         'crop': 'Crop', 'perspective-crop': 'Perspective Crop', 'eyedropper': 'Eyedropper', 'ruler': 'Ruler',
         'pen': 'Pen', 'freeform-pen': 'Freeform Pen',
         'path-selection': 'Path Selection', 'direct-selection': 'Direct Selection',
@@ -1750,6 +1824,7 @@ export function OptionsBar() {
             case 'magnetic-lasso': return <LassoOptions mode="magnetic" />;
             case 'magic-wand': return <MagicWandOptions />;
             case 'quick-selection': return <QuickSelOptions />;
+            case 'object-selection': return <ObjectSelectionOptionsPanel />;
             case 'crop': return <CropOptions />;
             case 'perspective-crop': return <CropOptions />;
             case 'eyedropper': return <EyedropperOptions />;

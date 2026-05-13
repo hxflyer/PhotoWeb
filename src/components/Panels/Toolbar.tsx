@@ -47,6 +47,7 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
     {
         primary: { id: 'quick-selection', icon: ToolbarQuickSelectionIcon, label: 'Quick Selection Tool', shortcut: 'W' },
         subs: [
+            { id: 'object-selection', icon: MousePointer2, label: 'Object Selection Tool', shortcut: 'W' },
             { id: 'magic-wand', icon: Wand2, label: 'Magic Wand Tool', shortcut: 'W' },
         ],
     },

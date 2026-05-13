@@ -93,7 +93,7 @@ export const SHORTCUTS: ShortcutEntry[] = [
     { group: 'Tools', label: 'Paint Bucket / Gradient',         keys: 'G / Shift+G', action: 'tool.fillGroup' },
     { group: 'Tools', label: 'Rectangular / Elliptical Marquee', keys: 'M / Shift+M', action: 'tool.marqueeGroup' },
     { group: 'Tools', label: 'Lasso / Polygonal / Magnetic Lasso', keys: 'L / Shift+L', action: 'tool.lassoGroup' },
-    { group: 'Tools', label: 'Quick Selection / Magic Wand',    keys: 'W / Shift+W', action: 'tool.selectGroup' },
+    { group: 'Tools', label: 'Quick Selection / Magic Wand / Object Selection', keys: 'W / Shift+W', action: 'tool.selectGroup' },
     { group: 'Tools', label: 'Crop',                            keys: 'C',           action: 'tool.crop' },
     { group: 'Tools', label: 'Horizontal / Vertical Type',      keys: 'T / Shift+T', action: 'tool.typeGroup' },
     { group: 'Tools', label: 'Pen / Freeform Pen',              keys: 'P / Shift+P', action: 'tool.penGroup' },

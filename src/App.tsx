@@ -589,7 +589,7 @@ function App() {
           j: ['spot-healing', 'healing-brush', 'patch', 'red-eye'],
           m: ['marquee-rect', 'marquee-ellipse'],
           l: ['lasso', 'lasso-poly', 'magnetic-lasso'],
-          w: ['quick-selection', 'magic-wand'],
+          w: ['quick-selection', 'magic-wand', 'object-selection'],
           c: ['crop', 'perspective-crop'],
           t: ['type-horizontal', 'type-vertical'],
           p: ['pen', 'freeform-pen'],
