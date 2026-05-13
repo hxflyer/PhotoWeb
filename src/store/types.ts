@@ -331,6 +331,10 @@ export interface LayersSlice {
     selectAllLayers: () => void;
     deselectLayers: () => void;
     setSelectedLayerIds: (ids: string[], activeId?: string) => void;
+    moveLayerContentTo: (id: string, x: number, y: number) => void;
+    resizeLayerContent: (id: string, width: number, height: number) => void;
+    rotateLayerContent: (id: string, degrees: number) => void;
+    flipLayerContent: (id: string, axis: 'horizontal' | 'vertical') => void;
     alignSelectedLayers: (
         alignment: 'left' | 'horizontal-center' | 'right' | 'top' | 'vertical-center' | 'bottom',
         target?: 'selection' | 'canvas'

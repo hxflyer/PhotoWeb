@@ -14,6 +14,7 @@ import {
     applyCoalescedStylePatch,
     applyCoalescedDataPatch,
     commitCoalescedTypeEdit,
+    convertActiveLayerToShape,
 } from '../../tools/typeCommands';
 import {
     applyShapeEdit,
@@ -106,6 +107,159 @@ function LayerSection({ layer }: { layer: Layer }) {
                     onChange={e => setLayerFill(layer.id, +e.target.value / 100)}
                     style={{ flex: 1 }} />
                 <span style={{ width: 36, textAlign: 'right' }}>{Math.round(layer.fill * 100)}%</span>
+            </div>
+        </div>
+    );
+}
+
+interface PixelBounds {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+}
+
+function getLayerPixelBounds(layer: Layer): PixelBounds | null {
+    const image = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+    let left = layer.canvas.width;
+    let top = layer.canvas.height;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < image.height; y += 1) {
+        for (let x = 0; x < image.width; x += 1) {
+            if (image.data[(y * image.width + x) * 4 + 3] === 0) continue;
+            left = Math.min(left, x);
+            top = Math.min(top, y);
+            right = Math.max(right, x + 1);
+            bottom = Math.max(bottom, y + 1);
+        }
+    }
+    if (right === -1 || bottom === -1) return null;
+    return { left, top, right, bottom };
+}
+
+function buttonStyle(disabled = false): React.CSSProperties {
+    return {
+        ...inputStyle,
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        textAlign: 'center',
+        whiteSpace: 'nowrap',
+    };
+}
+
+function DocumentPropertiesSection({ layer }: { layer: Layer }) {
+    const {
+        width, height, resolution,
+        openImageSizeDialog, openTrimDialog, rotateCanvas, setTool,
+    } = useEditorStore();
+    if (!layer.isBackground) return null;
+    return (
+        <div style={sectionStyle}>
+            <div style={labelStyle}>Document</div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Canvas</span>
+                <span data-testid="properties-document-size">{width} × {height} px</span>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Resolution</span>
+                <span data-testid="properties-document-resolution">{resolution} ppi</span>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Color Mode</span>
+                <span>RGB Color / 8 Bits</span>
+            </div>
+            <div style={{ ...rowStyle, gap: 4, flexWrap: 'wrap' }}>
+                <button data-testid="properties-background-image-size" onClick={() => openImageSizeDialog()} style={buttonStyle()}>Image Size…</button>
+                <button data-testid="properties-background-crop" onClick={() => setTool('crop')} style={buttonStyle()}>Crop</button>
+                <button data-testid="properties-background-trim" onClick={() => openTrimDialog()} style={buttonStyle()}>Trim…</button>
+                <button data-testid="properties-background-rotate" onClick={() => rotateCanvas(90)} style={buttonStyle()}>Rotate 90°</button>
+            </div>
+        </div>
+    );
+}
+
+function PixelTransformSection({ layer }: { layer: Layer }) {
+    const {
+        selectedLayerIds,
+        moveLayerContentTo, resizeLayerContent, rotateLayerContent, flipLayerContent,
+        alignSelectedLayers, distributeSelectedLayers,
+    } = useEditorStore();
+    if (layer.kind !== 'raster' || layer.isBackground) return null;
+    const bounds = getLayerPixelBounds(layer);
+    const locked = layer.locks.all || layer.lockPosition;
+    const canEdit = !!bounds && !locked;
+    const canAlign = selectedLayerIds.length >= 2;
+    const canDistribute = selectedLayerIds.length >= 3;
+    const w = bounds ? bounds.right - bounds.left : 0;
+    const h = bounds ? bounds.bottom - bounds.top : 0;
+    return (
+        <div style={sectionStyle}>
+            <div style={labelStyle}>Transform</div>
+            {!bounds && <div style={{ fontSize: 11, color: 'hsl(var(--text-muted))' }}>No visible pixels.</div>}
+            <div style={rowStyle}>
+                <span style={{ width: 40 }}>X</span>
+                <input
+                    data-testid="properties-pixel-x"
+                    type="number"
+                    value={bounds?.left ?? 0}
+                    disabled={!canEdit}
+                    onChange={e => bounds && moveLayerContentTo(layer.id, Number(e.target.value) || 0, bounds.top)}
+                    style={{ ...inputStyle, width: 62 }}
+                />
+                <span style={{ width: 22 }}>Y</span>
+                <input
+                    data-testid="properties-pixel-y"
+                    type="number"
+                    value={bounds?.top ?? 0}
+                    disabled={!canEdit}
+                    onChange={e => bounds && moveLayerContentTo(layer.id, bounds.left, Number(e.target.value) || 0)}
+                    style={{ ...inputStyle, width: 62 }}
+                />
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 40 }}>W</span>
+                <input
+                    data-testid="properties-pixel-width"
+                    type="number"
+                    min={1}
+                    value={w}
+                    disabled={!canEdit}
+                    onChange={e => resizeLayerContent(layer.id, Math.max(1, Number(e.target.value) || 1), h || 1)}
+                    style={{ ...inputStyle, width: 62 }}
+                />
+                <span style={{ width: 22 }}>H</span>
+                <input
+                    data-testid="properties-pixel-height"
+                    type="number"
+                    min={1}
+                    value={h}
+                    disabled={!canEdit}
+                    onChange={e => resizeLayerContent(layer.id, w || 1, Math.max(1, Number(e.target.value) || 1))}
+                    style={{ ...inputStyle, width: 62 }}
+                />
+            </div>
+            <div style={{ ...rowStyle, gap: 4, flexWrap: 'wrap' }}>
+                <button data-testid="properties-pixel-rotate" disabled={!canEdit} onClick={() => rotateLayerContent(layer.id, 90)} style={buttonStyle(!canEdit)}>Rotate 90°</button>
+                <button data-testid="properties-pixel-flip-horizontal" disabled={!canEdit} onClick={() => flipLayerContent(layer.id, 'horizontal')} style={buttonStyle(!canEdit)}>Flip H</button>
+                <button data-testid="properties-pixel-flip-vertical" disabled={!canEdit} onClick={() => flipLayerContent(layer.id, 'vertical')} style={buttonStyle(!canEdit)}>Flip V</button>
+            </div>
+            <div style={labelStyle}>Align and Distribute</div>
+            <div style={{ ...rowStyle, gap: 4, flexWrap: 'wrap' }}>
+                <button data-testid="properties-align-left" disabled={!canAlign} onClick={() => alignSelectedLayers('left')} style={buttonStyle(!canAlign)}>Left</button>
+                <button data-testid="properties-align-h-center" disabled={!canAlign} onClick={() => alignSelectedLayers('horizontal-center')} style={buttonStyle(!canAlign)}>H Center</button>
+                <button data-testid="properties-align-right" disabled={!canAlign} onClick={() => alignSelectedLayers('right')} style={buttonStyle(!canAlign)}>Right</button>
+                <button data-testid="properties-align-top" disabled={!canAlign} onClick={() => alignSelectedLayers('top')} style={buttonStyle(!canAlign)}>Top</button>
+                <button data-testid="properties-align-v-center" disabled={!canAlign} onClick={() => alignSelectedLayers('vertical-center')} style={buttonStyle(!canAlign)}>V Center</button>
+                <button data-testid="properties-align-bottom" disabled={!canAlign} onClick={() => alignSelectedLayers('bottom')} style={buttonStyle(!canAlign)}>Bottom</button>
+            </div>
+            <div style={{ ...rowStyle, gap: 4, flexWrap: 'wrap' }}>
+                <button data-testid="properties-distribute-h-center" disabled={!canDistribute} onClick={() => distributeSelectedLayers('horizontal-center')} style={buttonStyle(!canDistribute)}>Distribute H</button>
+                <button data-testid="properties-distribute-v-center" disabled={!canDistribute} onClick={() => distributeSelectedLayers('vertical-center')} style={buttonStyle(!canDistribute)}>Distribute V</button>
+            </div>
+            <div style={{ ...rowStyle, gap: 4, flexWrap: 'wrap' }}>
+                <button data-testid="properties-align-canvas-h-center" disabled={!bounds} onClick={() => alignSelectedLayers('horizontal-center', 'canvas')} style={buttonStyle(!bounds)}>Canvas H</button>
+                <button data-testid="properties-align-canvas-v-center" disabled={!bounds} onClick={() => alignSelectedLayers('vertical-center', 'canvas')} style={buttonStyle(!bounds)}>Canvas V</button>
             </div>
         </div>
     );
@@ -610,6 +764,222 @@ function TypeSection({ layer }: { layer: Layer }) {
                     <option value="vertical">Vertical</option>
                 </select>
             </div>
+            <div style={labelStyle}>Transform</div>
+            <div style={rowStyle}>
+                <span style={{ width: 32 }}>X</span>
+                <input
+                    data-testid="properties-type-x"
+                    type="number"
+                    value={Math.round(data.transform.x)}
+                    onChange={e => applyTypeEdit(layer.id, 'Edit Type X', {
+                        transform: { ...data.transform, x: Number(e.target.value) || 0 },
+                    })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+                <span style={{ width: 20 }}>Y</span>
+                <input
+                    data-testid="properties-type-y"
+                    type="number"
+                    value={Math.round(data.transform.y)}
+                    onChange={e => applyTypeEdit(layer.id, 'Edit Type Y', {
+                        transform: { ...data.transform, y: Number(e.target.value) || 0 },
+                    })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 32 }}>W</span>
+                <input
+                    data-testid="properties-type-width"
+                    type="number"
+                    min={1}
+                    value={Math.round(data.transform.width)}
+                    onChange={e => applyTypeEdit(layer.id, 'Edit Type Width', {
+                        transform: { ...data.transform, width: Math.max(1, Number(e.target.value) || 1) },
+                    })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+                <span style={{ width: 20 }}>H</span>
+                <input
+                    data-testid="properties-type-height"
+                    type="number"
+                    min={1}
+                    value={Math.round(data.transform.height)}
+                    onChange={e => applyTypeEdit(layer.id, 'Edit Type Height', {
+                        transform: { ...data.transform, height: Math.max(1, Number(e.target.value) || 1) },
+                    })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Rotate</span>
+                <input
+                    data-testid="properties-type-rotation"
+                    type="number"
+                    value={Math.round((data.transform.rotation * 180) / Math.PI)}
+                    onChange={e => applyTypeEdit(layer.id, 'Edit Type Rotation', {
+                        transform: { ...data.transform, rotation: ((Number(e.target.value) || 0) * Math.PI) / 180 },
+                    })}
+                    style={{ ...inputStyle, width: 72 }}
+                />
+                <span>°</span>
+            </div>
+            <div style={labelStyle}>Character</div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Leading</span>
+                <select
+                    data-testid="properties-type-leading"
+                    value={data.style.lineHeight}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Leading', { lineHeight: Number(e.target.value) })}
+                    style={{ ...inputStyle, flex: 1 }}
+                >
+                    <option value={0}>Auto</option>
+                    <option value={1}>1.0</option>
+                    <option value={1.2}>1.2</option>
+                    <option value={1.5}>1.5</option>
+                    <option value={2}>2.0</option>
+                </select>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Tracking</span>
+                <input
+                    data-testid="properties-type-tracking"
+                    type="number"
+                    value={data.style.letterSpacing}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Tracking', { letterSpacing: Number(e.target.value) || 0 })}
+                    style={{ ...inputStyle, width: 72 }}
+                />
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Scale</span>
+                <input
+                    data-testid="properties-type-scale-x"
+                    type="number"
+                    min={1}
+                    value={Math.round(data.style.scaleX * 100)}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Horizontal Scale', { scaleX: Math.max(0.01, (Number(e.target.value) || 1) / 100) })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+                <span>%</span>
+                <input
+                    data-testid="properties-type-scale-y"
+                    type="number"
+                    min={1}
+                    value={Math.round(data.style.scaleY * 100)}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Vertical Scale', { scaleY: Math.max(0.01, (Number(e.target.value) || 1) / 100) })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+                <span>%</span>
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Baseline</span>
+                <input
+                    data-testid="properties-type-baseline"
+                    type="number"
+                    value={data.style.baselineShift}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Baseline Shift', { baselineShift: Number(e.target.value) || 0 })}
+                    style={{ ...inputStyle, width: 72 }}
+                />
+            </div>
+            <div style={labelStyle}>Paragraph</div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Indent</span>
+                <input
+                    data-testid="properties-type-indent-left"
+                    type="number"
+                    value={data.style.indentLeft}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Left Indent', { indentLeft: Number(e.target.value) || 0 })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+                <input
+                    data-testid="properties-type-indent-right"
+                    type="number"
+                    value={data.style.indentRight}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Right Indent', { indentRight: Number(e.target.value) || 0 })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+            </div>
+            <div style={rowStyle}>
+                <span style={{ width: 70 }}>Spacing</span>
+                <input
+                    data-testid="properties-type-space-before"
+                    type="number"
+                    value={data.style.spaceBefore}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Space Before Paragraph', { spaceBefore: Number(e.target.value) || 0 })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+                <input
+                    data-testid="properties-type-space-after"
+                    type="number"
+                    value={data.style.spaceAfter}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Space After Paragraph', { spaceAfter: Number(e.target.value) || 0 })}
+                    style={{ ...inputStyle, width: 58 }}
+                />
+            </div>
+            <div style={labelStyle}>Type Options</div>
+            <div style={{ ...rowStyle, gap: 8, flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        data-testid="properties-type-all-caps"
+                        type="checkbox"
+                        checked={data.style.allCaps}
+                        onChange={e => applyTypeStyleEdit(layer.id, 'Toggle All Caps', { allCaps: e.target.checked, smallCaps: false })}
+                    />
+                    All Caps
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        data-testid="properties-type-small-caps"
+                        type="checkbox"
+                        checked={data.style.smallCaps}
+                        onChange={e => applyTypeStyleEdit(layer.id, 'Toggle Small Caps', { smallCaps: e.target.checked, allCaps: false })}
+                    />
+                    Small Caps
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        data-testid="properties-type-hyphenate"
+                        type="checkbox"
+                        checked={data.style.hyphenate}
+                        onChange={e => applyTypeStyleEdit(layer.id, 'Toggle Hyphenate', { hyphenate: e.target.checked })}
+                    />
+                    Hyphenate
+                </label>
+            </div>
+            <div style={{ ...rowStyle, gap: 8, flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        data-testid="properties-type-superscript"
+                        type="checkbox"
+                        checked={data.style.superscript}
+                        onChange={e => applyTypeStyleEdit(layer.id, 'Toggle Superscript', { superscript: e.target.checked, subscript: false })}
+                    />
+                    Superscript
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                        data-testid="properties-type-subscript"
+                        type="checkbox"
+                        checked={data.style.subscript}
+                        onChange={e => applyTypeStyleEdit(layer.id, 'Toggle Subscript', { subscript: e.target.checked, superscript: false })}
+                    />
+                    Subscript
+                </label>
+                <select
+                    data-testid="properties-type-antialias"
+                    value={data.style.antiAlias}
+                    onChange={e => applyTypeStyleEdit(layer.id, 'Edit Anti-Aliasing', {
+                        antiAlias: e.target.value as TypeLayerData['style']['antiAlias'],
+                    })}
+                    style={{ ...inputStyle, width: 100 }}
+                >
+                    <option value="none">None</option>
+                    <option value="sharp">Sharp</option>
+                    <option value="crisp">Crisp</option>
+                    <option value="strong">Strong</option>
+                    <option value="smooth">Smooth</option>
+                </select>
+            </div>
             <div style={rowStyle}>
                 <span style={{ width: 70 }}>Text Mode</span>
                 <div style={{ display: 'flex', gap: 2, flex: 1 }}>
@@ -640,6 +1010,18 @@ function TypeSection({ layer }: { layer: Layer }) {
                         }}
                     >Paragraph</button>
                 </div>
+            </div>
+            <div style={{ ...rowStyle, gap: 4 }}>
+                <button
+                    data-testid="properties-type-convert-shape"
+                    onClick={() => convertActiveLayerToShape()}
+                    style={{ ...inputStyle, cursor: 'pointer', flex: 1 }}
+                >Convert to Shape</button>
+                <button
+                    data-testid="properties-type-convert-frame"
+                    disabled
+                    style={{ ...inputStyle, cursor: 'default', opacity: 0.5, flex: 1 }}
+                >Convert to Frame</button>
             </div>
         </div>
     );
@@ -1950,6 +2332,8 @@ export function PropertiesPanel() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
             <LayerSection layer={layer} />
+            <DocumentPropertiesSection layer={layer} />
+            <PixelTransformSection layer={layer} />
             {layer.kind === 'type' && <TypeSection layer={layer} />}
             {layer.kind === 'shape' && <ShapeSection layer={layer} />}
             {layer.kind === 'adjustment' && layer.adjustment && <AdjustmentSection layer={layer} />}

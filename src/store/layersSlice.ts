@@ -2,6 +2,12 @@ import type { StateCreator } from 'zustand';
 import { Layer } from '../core/Layer';
 import type { LayerColorTag } from '../core/Layer';
 import { createFillLayer, paintFillLayer, type FillLayerData } from '../core/fillLayer';
+import {
+    flipCanvas as flipCanvasHelper,
+    resampleCanvas,
+    rotateCanvas as rotateCanvasHelper,
+    type FlipAxis,
+} from '../core/imageTransforms';
 import { getAdjustment } from '../adjustments';
 import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
 import type { EditorStore, LayersSlice } from './types';
@@ -105,6 +111,41 @@ function moveLayerPixels(layer: Layer, dx: number, dy: number, layers: Layer[]):
         maskSnapshot.getContext('2d')?.drawImage(layer.mask.canvas, 0, 0);
         layer.mask.ctx.clearRect(0, 0, layer.mask.canvas.width, layer.mask.canvas.height);
         layer.mask.ctx.drawImage(maskSnapshot, dx, dy);
+    }
+    layer.markDirty(null);
+}
+
+function copyLayerRegion(layer: Layer, bounds: Bounds, source: 'layer' | 'mask' = 'layer'): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, bounds.right - bounds.left);
+    canvas.height = Math.max(1, bounds.bottom - bounds.top);
+    const sourceCanvas = source === 'mask' ? layer.mask?.canvas : layer.canvas;
+    if (sourceCanvas) {
+        canvas.getContext('2d')?.drawImage(
+            sourceCanvas,
+            bounds.left,
+            bounds.top,
+            canvas.width,
+            canvas.height,
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+        );
+    }
+    return canvas;
+}
+
+function replaceLayerRegion(layer: Layer, bounds: Bounds, result: HTMLCanvasElement, x: number, y: number, maskResult?: HTMLCanvasElement): void {
+    layer.ctx.clearRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
+    layer.ctx.drawImage(result, x, y);
+    if (layer.mask?.linked) {
+        const maskRegion = copyLayerRegion(layer, bounds, 'mask');
+        const transformedMask = maskResult ?? (result.width === maskRegion.width && result.height === maskRegion.height
+            ? maskRegion
+            : resampleCanvas(maskRegion, result.width, result.height, 'nearest'));
+        layer.mask.ctx.clearRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
+        layer.mask.ctx.drawImage(transformedMask, x, y);
     }
     layer.markDirty(null);
 }
@@ -473,6 +514,84 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         };
     }),
 
+    moveLayerContentTo: (id, x, y) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: 'Move Layer Content',
+        layerId: id,
+        run: () => {
+            const { layers } = get();
+            const layer = layers.find(item => item.id === id);
+            if (!layer || layer.isBackground || layer.lockPosition) return;
+            const bounds = layerContentBounds(layer, layers);
+            if (!bounds) return;
+            moveLayerPixels(layer, Math.round(x - bounds.left), Math.round(y - bounds.top), layers);
+            set({ layers: [...layers] });
+        },
+    }),
+
+    resizeLayerContent: (id, width, height) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: 'Resize Layer Content',
+        layerId: id,
+        run: () => {
+            const { layers } = get();
+            const layer = layers.find(item => item.id === id);
+            if (!layer || layer.kind === 'group' || layer.isBackground || layer.locks.all) return;
+            const bounds = layerContentBounds(layer, layers);
+            if (!bounds) return;
+            const nextW = Math.max(1, Math.round(width));
+            const nextH = Math.max(1, Math.round(height));
+            const region = copyLayerRegion(layer, bounds);
+            const resized = resampleCanvas(region, nextW, nextH, 'bicubic');
+            const maskRegion = layer.mask?.linked ? copyLayerRegion(layer, bounds, 'mask') : undefined;
+            const resizedMask = maskRegion ? resampleCanvas(maskRegion, nextW, nextH, 'nearest') : undefined;
+            replaceLayerRegion(layer, bounds, resized, bounds.left, bounds.top, resizedMask);
+            set({ layers: [...layers] });
+        },
+    }),
+
+    rotateLayerContent: (id, degrees) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: `Rotate Layer Content ${degrees}°`,
+        layerId: id,
+        run: () => {
+            const { layers } = get();
+            const layer = layers.find(item => item.id === id);
+            if (!layer || layer.kind === 'group' || layer.isBackground || layer.locks.all) return;
+            const bounds = layerContentBounds(layer, layers);
+            if (!bounds) return;
+            const region = copyLayerRegion(layer, bounds);
+            const rotated = rotateCanvasHelper(region, degrees);
+            const maskRegion = layer.mask?.linked ? copyLayerRegion(layer, bounds, 'mask') : undefined;
+            const rotatedMask = maskRegion ? rotateCanvasHelper(maskRegion, degrees) : undefined;
+            const centerX = (bounds.left + bounds.right) / 2;
+            const centerY = (bounds.top + bounds.bottom) / 2;
+            const nextX = Math.round(centerX - rotated.width / 2);
+            const nextY = Math.round(centerY - rotated.height / 2);
+            replaceLayerRegion(layer, bounds, rotated, nextX, nextY, rotatedMask);
+            set({ layers: [...layers] });
+        },
+    }),
+
+    flipLayerContent: (id, axis: FlipAxis) => get().executeDocumentCommand({
+        kind: 'transform',
+        label: `Flip Layer Content ${axis === 'horizontal' ? 'Horizontal' : 'Vertical'}`,
+        layerId: id,
+        run: () => {
+            const { layers } = get();
+            const layer = layers.find(item => item.id === id);
+            if (!layer || layer.kind === 'group' || layer.isBackground || layer.locks.all) return;
+            const bounds = layerContentBounds(layer, layers);
+            if (!bounds) return;
+            const region = copyLayerRegion(layer, bounds);
+            const flipped = flipCanvasHelper(region, axis);
+            const maskRegion = layer.mask?.linked ? copyLayerRegion(layer, bounds, 'mask') : undefined;
+            const flippedMask = maskRegion ? flipCanvasHelper(maskRegion, axis) : undefined;
+            replaceLayerRegion(layer, bounds, flipped, bounds.left, bounds.top, flippedMask);
+            set({ layers: [...layers] });
+        },
+    }),
+
     alignSelectedLayers: (alignment, target = 'selection') => get().executeDocumentCommand({
         kind: 'transform',
         label: `Align ${alignment.replace(/-/g, ' ')}`,
@@ -485,7 +604,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
                 .filter(layer => !hasSelectedAncestor(layer, selectedIdSet, layers))
                 .map(layer => ({ layer, bounds: layerContentBounds(layer, layers) }))
                 .filter((item): item is { layer: Layer; bounds: Bounds } => item.bounds !== null);
-            if (targets.length < 2) return;
+            if (targets.length < (target === 'canvas' ? 1 : 2)) return;
             const reference = target === 'canvas'
                 ? { left: 0, top: 0, right: width, bottom: height }
                 : unionBounds(targets.map(item => item.bounds));

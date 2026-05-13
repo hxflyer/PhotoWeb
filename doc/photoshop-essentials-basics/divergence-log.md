@@ -329,3 +329,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Copying layer effects by drag requires holding Alt/Option while dragging an effect name or the `Effects` label to another layer.
 **Photoweb behavior:** The Layers panel `fx` badge is a direct drag-copy handle; Alt/Option-drag works, but the badge does not require the modifier.
 **Rationale:** Photoweb does not yet render individual effect-name rows under each layer, so the badge itself carries the effect-transfer affordance. Making it forgiving keeps the Layers panel gesture discoverable in a browser drag surface.
+
+## 2026-05-13 — 08b-properties-panel — Frame and AI quick actions omitted
+
+**Photoshop behavior:** The enhanced Properties panel offers Convert to Frame on type layers, Select Subject / Remove Background on pixel layers, and detailed Rulers & Grids / Guides groups for Background documents.
+**Photoweb behavior:** Convert to Frame is disabled, AI quick actions are absent, and Background Properties focuses on document size plus Image Size, Crop, Trim, and Rotate.
+**Rationale:** Photoweb has no Frame layer model, no AI/object-selection service, and only partial guide/grid infrastructure. The implemented controls preserve local, deterministic Photoshop habits already supported elsewhere in the app.
