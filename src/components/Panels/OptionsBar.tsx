@@ -14,6 +14,7 @@ import {
     AlignVerticalJustifyStart,
 } from 'lucide-react';
 import { getMagicWandOptions, setMagicWandOptions, type MagicWandSampleSize } from '../../tools/magicWand';
+import { getSelectionToolOperation, setSelectionToolOperation, type SelectionOp } from '../../tools/selectionModifiers';
 import { getQuickSelectionOptions, setQuickSelectionOptions } from '../../tools/quickSelection';
 import {
     getGradientOptions, setGradientOptions, getGradientPresets,
@@ -63,18 +64,36 @@ const S = {
 };
 
 const SELECTION_OP_BUTTONS = [
-    { title: 'New selection', Icon: SelectionNewIcon },
-    { title: 'Add to selection (Shift)', Icon: SelectionAddIcon },
-    { title: 'Subtract from selection (Option/Alt)', Icon: SelectionSubtractIcon },
-    { title: 'Intersect with selection (Shift+Option/Alt)', Icon: SelectionIntersectIcon },
-];
+    { mode: 'new', title: 'New selection', Icon: SelectionNewIcon },
+    { mode: 'add', title: 'Add to selection (Shift)', Icon: SelectionAddIcon },
+    { mode: 'sub', title: 'Subtract from selection (Option/Alt)', Icon: SelectionSubtractIcon },
+    { mode: 'intersect', title: 'Intersect with selection (Shift+Option/Alt)', Icon: SelectionIntersectIcon },
+] as const satisfies { mode: SelectionOp; title: string; Icon: typeof SelectionNewIcon }[];
+
+const SELECTION_OP_TEST_IDS: Record<SelectionOp, string> = {
+    new: 'selection-op-new',
+    add: 'selection-op-add',
+    sub: 'selection-op-subtract',
+    intersect: 'selection-op-intersect',
+};
 
 function SelectionOperationButtons({ compact = false }: { compact?: boolean }) {
+    const [active, setActive] = useState(getSelectionToolOperation);
     const buttons = compact ? SELECTION_OP_BUTTONS.slice(1, 3) : SELECTION_OP_BUTTONS;
     return (
         <div style={{ display: 'flex', gap: 1 }}>
-            {buttons.map(({ title, Icon }) => (
-                <button key={title} className="opts-btn" title={title}>
+            {buttons.map(({ mode, title, Icon }) => (
+                <button
+                    key={title}
+                    data-testid={SELECTION_OP_TEST_IDS[mode]}
+                    className={`opts-btn${active === mode ? ' active' : ''}`}
+                    title={title}
+                    aria-pressed={active === mode}
+                    onClick={() => {
+                        setSelectionToolOperation(mode);
+                        setActive(mode);
+                    }}
+                >
                     <Icon size={13} />
                 </button>
             ))}

@@ -1,6 +1,6 @@
 import type { OverlayRenderContext, Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
-import { commitSelectionOperation, resolveSelectionOp } from './selectionModifiers';
+import { commitSelectionOperation, resolveSelectionOp, type SelectionOp } from './selectionModifiers';
 import { beginSelectionInteraction, previewSelectionMove, type SelectionMoveAnchor } from './selectionMove';
 
 const DRAG_THRESHOLD = 3;
@@ -8,15 +8,17 @@ const DRAG_THRESHOLD = 3;
 interface FreeState {
     points: { x: number; y: number }[] | null;
     move: SelectionMoveAnchor | null;
+    op: SelectionOp;
 }
 interface PolyState {
     points: { x: number; y: number }[];
     live: { x: number; y: number } | null;
     move: SelectionMoveAnchor | null;
+    op: SelectionOp;
 }
 
-const free: FreeState = { points: null, move: null };
-const poly: PolyState = { points: [], live: null, move: null };
+const free: FreeState = { points: null, move: null, op: 'new' };
+const poly: PolyState = { points: [], live: null, move: null, op: 'new' };
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
@@ -40,7 +42,8 @@ export const lassoTool: Tool = {
         const store = ctx.getStore();
         free.move = null;
         free.points = null;
-        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+        free.op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection(), free.op);
         if (decision.kind === 'move') {
             free.move = decision.move;
             return;
@@ -74,8 +77,7 @@ export const lassoTool: Tool = {
         }
         const path = [...free.points];
         const store = ctx.getStore();
-        const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
-        commitSelectionOperation(store, { path, type: 'lasso' }, op);
+        commitSelectionOperation(store, { path, type: 'lasso' }, free.op);
         free.points = null;
     },
     renderOverlay: (overlay) => renderLassoFreeOverlay(overlay),
@@ -111,8 +113,7 @@ export const lassoPolyTool: Tool = {
             const dist = Math.hypot(point.x - first.x, point.y - first.y);
             if (dist < 10) {
                 const path = [...poly.points];
-                const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
-                commitSelectionOperation(store, { path, type: 'lasso-poly' }, op);
+                commitSelectionOperation(store, { path, type: 'lasso-poly' }, poly.op);
                 poly.points = [];
                 poly.live = null;
                 store.setPolyPoints([]);
@@ -123,7 +124,8 @@ export const lassoPolyTool: Tool = {
         // contract before adding the anchor point.
         if (poly.points.length === 0) {
             poly.move = null;
-            const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+            poly.op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+            const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection(), poly.op);
             if (decision.kind === 'move') {
                 poly.move = decision.move;
                 return;
@@ -164,8 +166,7 @@ export const lassoPolyTool: Tool = {
         if (e.key === 'Enter' && poly.points.length > 2) {
             const path = [...poly.points];
             const store = ctx.getStore();
-            const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
-            commitSelectionOperation(store, { path, type: 'lasso-poly' }, op);
+            commitSelectionOperation(store, { path, type: 'lasso-poly' }, poly.op);
             poly.points = [];
             poly.live = null;
             ctx.getStore().setPolyPoints([]);

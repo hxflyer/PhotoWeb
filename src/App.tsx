@@ -458,7 +458,7 @@ function App() {
         if (!gs().pasteTransferredLayer(false)) document.execCommand('paste');
         return;
       }
-      if (meta && key === 'i' && !e.shiftKey && !e.altKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
+      if (meta && key === 'i' && e.shiftKey && !e.altKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
 
       if (meta && key === '/') { e.preventDefault(); setShortcutsOpen(true); return; }
 

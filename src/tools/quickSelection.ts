@@ -114,7 +114,8 @@ export const quickSelectionTool: Tool = {
         if (e.button !== 0) return;
         const store = ctx.getStore();
         moveState.move = null;
-        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+        state.op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection(), state.op);
         if (decision.kind === 'move') {
             moveState.move = decision.move;
             return;
@@ -126,7 +127,6 @@ export const quickSelectionTool: Tool = {
         state.width = store.width;
         state.height = store.height;
         state.layerId = active.id;
-        state.op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
         state.mask = new Uint8ClampedArray(state.width * state.height);
         addBrushSelection(p(e));
     },

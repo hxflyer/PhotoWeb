@@ -8,6 +8,7 @@
 import { useEditorStore } from '../store/editorStore';
 import type { SelectionOperation, SelectionState } from '../store/types';
 import { snapPoint, type SnapTarget } from './snap';
+import type { SelectionOp } from './selectionModifiers';
 
 const SELECTION_SNAP_HYSTERESIS = 6;
 
@@ -252,10 +253,12 @@ export function beginSelectionInteraction(
     e: { canvasX: number; canvasY: number; shift: boolean; alt: boolean; meta: boolean; ctrl: boolean },
     selection: SelectionState,
     clearSelection: () => void,
+    op: SelectionOp = 'new',
 ): BeginInteractionResult {
     const point = { x: e.canvasX, y: e.canvasY };
     const hasModifier = e.shift || e.alt || e.meta || e.ctrl;
     if (!selection.hasSelection) return { kind: 'none' };
+    if (op !== 'new') return { kind: 'shift-add' };
     if (hasModifier) return { kind: 'shift-add' };
     if (selectionContainsPoint(selection, point.x, point.y)) {
         return {

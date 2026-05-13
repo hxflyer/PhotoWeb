@@ -196,7 +196,8 @@ export const magicWandTool: Tool = {
         if (e.button !== 0) return;
         const store = ctx.getStore();
         wandState.move = null;
-        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection());
+        const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
+        const decision = beginSelectionInteraction(e, store.selection, () => store.clearSelection(), op);
         if (decision.kind === 'move') {
             wandState.move = decision.move;
             return;
@@ -210,7 +211,6 @@ export const magicWandTool: Tool = {
         const mask = buildMagicWandMask(image, seed.x, seed.y, options);
         if (!mask.some(Boolean)) return;
 
-        const op = resolveSelectionOp(e.shift, e.alt || e.meta || e.ctrl);
         commitSelectionOperation(store, {
             path: [],
             type: 'lasso',

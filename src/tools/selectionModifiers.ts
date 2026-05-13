@@ -7,11 +7,21 @@ import { rasterizeSelectionOperations } from '../utils/selectionUtils';
 
 export type SelectionOp = 'new' | 'add' | 'sub' | 'intersect';
 
+let selectionToolOperation: SelectionOp = 'new';
+
+export function setSelectionToolOperation(op: SelectionOp): void {
+    selectionToolOperation = op;
+}
+
+export function getSelectionToolOperation(): SelectionOp {
+    return selectionToolOperation;
+}
+
 export function resolveSelectionOp(shift: boolean, alt: boolean): SelectionOp {
     if (shift && alt) return 'intersect';
     if (shift) return 'add';
     if (alt) return 'sub';
-    return 'new';
+    return selectionToolOperation;
 }
 
 type SelectionStore = Pick<

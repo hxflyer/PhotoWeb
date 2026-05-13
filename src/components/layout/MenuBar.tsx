@@ -535,7 +535,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         s.setSelectionOperations([{ mode: 'add', type: 'rect', path: [{ x: 0, y: 0 }, { x: s.width, y: s.height }] }]);
       }, '⌘A'),
       act('Deselect', () => useEditorStore.getState().clearSelection(), '⌘D'),
-      act('Reselect', () => {}, '⌘⇧D', true),
+      act('Reselect', () => useEditorStore.getState().reselect(), '⌘⇧D', !useEditorStore.getState().selection.lastCleared),
       act('Inverse', () => useEditorStore.getState().toggleInvertSelection(), '⌘⇧I'),
       sep,
       act('All Layers', () => {}, '⌘⌥A', true),

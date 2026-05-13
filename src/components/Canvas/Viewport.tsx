@@ -15,6 +15,7 @@ import { VIEWPORT_FIT_EVENT } from '../../utils/viewportFit';
 import { ingestFiles, summaryToast } from '../../utils/fileIngest';
 import { applyBrushDab } from '../../utils/brushEngine';
 import { getCropRect } from '../../tools/crop';
+import { getSelectionToolOperation } from '../../tools/selectionModifiers';
 
 // Custom Cursor SVGs
 const CURSOR_ADD = `url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L12 22M2 12L22 12" stroke="white" stroke-width="4"/><path d="M12 2L12 22M2 12L22 12" stroke="black" stroke-width="2"/></svg>') 12 12, crosshair`;
@@ -73,6 +74,8 @@ function drawSelectionMask(
     ctx.drawImage(maskCanvas, 0, 0);
 }
 const CURSOR_SUB = `url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 12L22 12" stroke="white" stroke-width="4"/><path d="M2 12L22 12" stroke="black" stroke-width="2"/></svg>') 12 12, crosshair`;
+const CURSOR_INTERSECT = `url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6 6L18 18M18 6L6 18" stroke="white" stroke-width="4"/><path d="M6 6L18 18M18 6L6 18" stroke="black" stroke-width="2"/></svg>') 12 12, crosshair`;
+const SELECTION_CURSOR_TOOLS = new Set(['select', 'marquee-rect', 'marquee-ellipse', 'lasso', 'lasso-poly', 'magic-wand', 'quick-selection']);
 
 interface ViewportProps {
     toolsBlocked?: boolean;
@@ -1266,9 +1269,14 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
     const getCursor = () => {
         if (selection.isFreeEditMode) return freeEditCursor;
         if (activeTool === 'move') return 'move';
-        if (activeTool === 'select') {
+        if (SELECTION_CURSOR_TOOLS.has(activeTool)) {
+            if (modifiers.shift && (modifiers.alt || modifiers.meta)) return CURSOR_INTERSECT;
             if (modifiers.shift) return CURSOR_ADD;
             if (modifiers.alt || modifiers.meta) return CURSOR_SUB;
+            const op = getSelectionToolOperation();
+            if (op === 'add') return CURSOR_ADD;
+            if (op === 'sub') return CURSOR_SUB;
+            if (op === 'intersect') return CURSOR_INTERSECT;
             return 'crosshair';
         }
         if (activeTool === 'clone-stamp' && modifiers.alt) return CURSOR_CLONE_SAMPLE;
@@ -1436,6 +1444,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
 
     return (
         <div ref={containerRef}
+            data-testid="viewport-workarea"
             onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
             onMouseLeave={(e) => { hideRulerCursor(); handleMouseUp(e); }}
             onWheel={handleWheel} onContextMenu={handleContextMenu}
