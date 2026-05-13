@@ -365,3 +365,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** While drawing with Magnetic or Polygonal Lasso, Alt/Option can temporarily switch between magnetic, polygonal, and standard lasso behavior inside the same in-progress outline.
 **Photoweb behavior:** This tick exposes and tightens each lasso tool separately, but does not mix the three lasso gesture engines mid-selection.
 **Rationale:** The current tool registry keeps each lasso engine's gesture state isolated; combining them safely needs a shared lasso path controller beyond this UI-exposure and control-wiring tick.
+
+## 2026-05-14 — 14a-content-selection-tools — Object Selection uses deterministic visible-pixel shrink-wrap
+
+**Photoshop behavior:** Object Selection uses Adobe object-recognition technology, Object Finder, and advanced Object Subtract analysis to wrap rough rectangles/lassos around detected subjects.
+**Photoweb behavior:** Object Selection is local and deterministic: it selects visible pixels inside the user's rectangle/lasso when possible, and falls back to the drawn rectangle/lasso when no visible object is detected. Object Finder/cloud detection is omitted.
+**Rationale:** Photoweb has no AI/object-recognition service. The deterministic mask preserves the manual Rectangle/Lasso habit, Sample All Layers behavior, and Shift/Add or Alt/Subtract refinement without pretending to run Photoshop's cloud or Sensei models.
