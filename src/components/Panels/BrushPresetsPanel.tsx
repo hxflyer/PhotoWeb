@@ -10,6 +10,7 @@ import { getBrushOptions, getBrushTip } from '../../tools/brush';
 import type { BrushPreset } from '../../store/types';
 import { NewBrushPresetDialog } from '../Dialogs/NewBrushPresetDialog';
 import { drawBrushTipPreview } from '../../utils/brushTips';
+import { BrushDynamicsControls } from './BrushDynamicsControls';
 
 interface ContextMenuState {
     presetId: string;
@@ -61,6 +62,7 @@ export function BrushPresetsPanel() {
     const [newGroupOpen, setNewGroupOpen] = useState(false);
     const [newGroupName, setNewGroupName] = useState('New Group');
     const [panelMenuOpen, setPanelMenuOpen] = useState(false);
+    const [panelTab, setPanelTab] = useState<'brushes' | 'settings'>('brushes');
 
     useEffect(() => {
         if (!menu) return;
@@ -153,7 +155,52 @@ export function BrushPresetsPanel() {
                     </div>
                 )}
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: 4 }}>
+            <div
+                role="tablist"
+                aria-label="Brushes panel tabs"
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid hsl(var(--border-light))' }}
+            >
+                <button
+                    role="tab"
+                    aria-selected={panelTab === 'brushes'}
+                    data-testid="brushes-panel-tab-brushes"
+                    onClick={() => setPanelTab('brushes')}
+                    style={{
+                        background: panelTab === 'brushes' ? 'hsl(var(--bg-input))' : 'transparent',
+                        border: 'none',
+                        borderRight: '1px solid hsl(var(--border-light))',
+                        color: panelTab === 'brushes' ? 'hsl(var(--text-main))' : 'hsl(var(--text-muted))',
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        padding: '5px 4px',
+                    }}
+                >
+                    Brushes
+                </button>
+                <button
+                    role="tab"
+                    aria-selected={panelTab === 'settings'}
+                    data-testid="brushes-panel-tab-settings"
+                    onClick={() => setPanelTab('settings')}
+                    style={{
+                        background: panelTab === 'settings' ? 'hsl(var(--bg-input))' : 'transparent',
+                        border: 'none',
+                        color: panelTab === 'settings' ? 'hsl(var(--text-main))' : 'hsl(var(--text-muted))',
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        padding: '5px 4px',
+                    }}
+                >
+                    Brush Settings
+                </button>
+            </div>
+            {panelTab === 'settings' ? (
+                <div style={{ flex: 1, minHeight: 0 }}>
+                    <BrushDynamicsControls />
+                </div>
+            ) : (
+                <>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: 4 }}>
                 {brushPresets.length === 0 && (
                     <div style={{ color: 'hsl(var(--text-muted))', padding: '8px 6px' }}>
                         No brush presets. Click New Preset to capture the current brush.
@@ -347,7 +394,9 @@ export function BrushPresetsPanel() {
                 >
                     <FilePlus size={13} />
                 </button>
-            </div>
+                    </div>
+                </>
+            )}
             {menu && (
                 <div
                     data-testid="brush-preset-context-menu"

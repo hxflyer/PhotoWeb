@@ -1,4 +1,5 @@
 import { decodeBrushTipAlpha, type BrushTipData } from './brushTips';
+import { brushDynamicsAlphaMultiplier, type BrushDynamicsStampOptions } from './brushDynamics';
 
 export interface BrushDabOptions {
     x: number;
@@ -12,6 +13,7 @@ export interface BrushDabOptions {
     color: { r: number; g: number; b: number };
     mode: 'paint' | 'erase';
     blendMode?: 'normal' | 'multiply';
+    dynamics?: BrushDynamicsStampOptions;
     customTip?: BrushTipData;
     base: Uint8ClampedArray;
     work: Uint8ClampedArray;
@@ -62,7 +64,10 @@ export function applyBrushDab(options: BrushDabOptions): void {
             const mask = options.selectionMask ? options.selectionMask[pixel] : 1;
             if (mask <= 0) continue;
 
-            const dabAlpha = Math.max(0, Math.min(1, tipAlpha * flow));
+            const dynamicAlpha = brushDynamicsAlphaMultiplier(px + 0.5, py + 0.5, options.dynamics);
+            if (dynamicAlpha <= 0) continue;
+
+            const dabAlpha = Math.max(0, Math.min(1, tipAlpha * dynamicAlpha * flow));
             options.coverage[pixel] = options.coverage[pixel] + (1 - options.coverage[pixel]) * dabAlpha;
             const effect = Math.min(options.coverage[pixel], opacityCap) * mask;
             const idx = pixel * 4;
@@ -156,7 +161,10 @@ function applyCustomBrushDab(options: BrushDabOptions, tip: BrushTipData): void 
             const sourceX = Math.min(tip.width - 1, Math.floor((dx / stampW) * tip.width));
             const tipAlpha = alpha[sourceY * tip.width + sourceX] / 255;
             if (tipAlpha <= 0) continue;
-            const dabAlpha = Math.max(0, Math.min(1, tipAlpha * flow));
+            const dynamicAlpha = brushDynamicsAlphaMultiplier(px + 0.5, py + 0.5, options.dynamics);
+            if (dynamicAlpha <= 0) continue;
+
+            const dabAlpha = Math.max(0, Math.min(1, tipAlpha * dynamicAlpha * flow));
             options.coverage[pixel] = options.coverage[pixel] + (1 - options.coverage[pixel]) * dabAlpha;
             const effect = Math.min(options.coverage[pixel], opacityCap) * mask;
             applyBrushPixel(options, pixel, effect);

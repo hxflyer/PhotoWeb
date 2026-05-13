@@ -16,6 +16,7 @@ import { ingestFiles, summaryToast } from '../../utils/fileIngest';
 import { applyBrushDab } from '../../utils/brushEngine';
 import { createPixelHistoryAction } from '../../core/history';
 import { getBrushOptions } from '../../tools/brush';
+import { getBrushDynamicsOptions, resolveBrushDynamicDabs } from '../../utils/brushDynamics';
 import { paintSymmetryPoints } from '../../utils/paintSymmetry';
 import { getCropRect } from '../../tools/crop';
 import { getSelectionToolOperation } from '../../tools/selectionModifiers';
@@ -268,6 +269,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         work: ImageData;
         coverage: Float32Array;
         label: string;
+        dabIndex: number;
     }
     const strokeBufferRef = useRef<StrokeBuffer | null>(null);
 
@@ -1051,33 +1053,48 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                 work: new ImageData(new Uint8ClampedArray(base.data), width, height),
                 coverage: new Float32Array(width * height),
                 label: shouldErase ? (activeTool === 'eraser' ? 'Eraser' : 'Brush Clear') : 'Brush Stroke',
+                dabIndex: 0,
             };
         }
 
         const buffer = strokeBufferRef.current;
-        const color = temporaryEraseOnBackground ? useEditorStore.getState().secondaryColor : useEditorStore.getState().primaryColor;
-        const r = parseInt(color.slice(1, 3), 16) || 0;
-        const g = parseInt(color.slice(3, 5), 16) || 0;
-        const b = parseInt(color.slice(5, 7), 16) || 0;
-
-        applyBrushDab({
+        const store = useEditorStore.getState();
+        const primaryColor = temporaryEraseOnBackground ? store.secondaryColor : store.primaryColor;
+        const dabs = resolveBrushDynamicDabs({
             x,
             y,
-            width,
-            height,
-            size,
-            hardness,
+            baseSize: size,
             opacity: opacityCap,
             flow,
-            color: { r, g, b },
-            mode: shouldErase ? 'erase' : 'paint',
-            blendMode: brushOptions.mode === 'multiply' ? 'multiply' : 'normal',
-            customTip: brushSettings.customTip,
-            base: buffer.base.data,
-            work: buffer.work.data,
-            coverage: buffer.coverage,
-            selectionMask: selection.hasSelection ? selectionMaskFloat : null,
+            primaryColor,
+            secondaryColor: store.secondaryColor,
+            dabIndex: buffer.dabIndex++,
+            pressure: 1,
+            angle: 0,
+            dynamics: getBrushDynamicsOptions(),
         });
+
+        for (const dab of dabs) {
+            applyBrushDab({
+                x: dab.x,
+                y: dab.y,
+                width,
+                height,
+                size: dab.size,
+                hardness,
+                opacity: dab.opacity,
+                flow: dab.flow,
+                color: dab.color,
+                mode: shouldErase ? 'erase' : 'paint',
+                blendMode: brushOptions.mode === 'multiply' ? 'multiply' : 'normal',
+                dynamics: dab.dynamics,
+                customTip: brushSettings.customTip,
+                base: buffer.base.data,
+                work: buffer.work.data,
+                coverage: buffer.coverage,
+                selectionMask: selection.hasSelection ? selectionMaskFloat : null,
+            });
+        }
 
         targetCtx.putImageData(buffer.work, 0, 0);
     };
