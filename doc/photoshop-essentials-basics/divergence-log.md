@@ -383,3 +383,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** The Pen and Curvature Pen tools expose Path Options for changing overlay thickness and color.
 **Photoweb behavior:** Pen-family paths continue to render with the existing fixed blue overlay while this tick focuses on path creation, editing, and selection conversion.
 **Rationale:** Overlay appearance is cosmetic and shared by several vector/path tools; path-to-selection and Curvature Pen behavior are the cluster's functional gaps.
+
+## 2026-05-14 — 16a-edge-refinement — Refine Edge opens directly from Select and Mask
+
+**Photoshop behavior:** In Photoshop CC 2018, holding Shift while choosing Select > Select and Mask opens the classic Refine Edge dialog; without Shift, Select and Mask opens the newer workspace.
+**Photoweb behavior:** Select > Select and Mask opens the classic Refine Edge-style dialog directly.
+**Rationale:** Photoweb has one refinement dialog rather than two separate selection-refinement workspaces. Opening the classic controls directly preserves the lesson's usable Radius/Smooth/Feather/Contrast/Shift Edge workflow without adding a duplicate shell.

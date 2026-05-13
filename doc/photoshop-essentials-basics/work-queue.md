@@ -32,7 +32,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 14a-content-selection-tools(3) — Magic Wand, Quick Selection, Object Selection (non-AI)  commit: ccb03c1
 - [x] 14b-color-range            (1) — Color Range dialog  commit: 6b622b6
 - [x] 15-pen-paths               (2) — Pen Tool, Curvature Pen Tool  commit: a7a4c12
-- [ ] 16a-edge-refinement        (2) — Quick Mask + Feather, classic Refine Edge dialog
+- [x] 16a-edge-refinement        (2) — Quick Mask + Feather, classic Refine Edge dialog  commit: e41db9b
 - [ ] 16b-focus-area             (2) — Focus Area auto-selection
 - [ ] 17-layer-masks             (7) — Add, paint, paste-into, view-as-mask, fake mask
 - [ ] 18-clipping-masks          (2) — Clip to layer below, photo-in-text
