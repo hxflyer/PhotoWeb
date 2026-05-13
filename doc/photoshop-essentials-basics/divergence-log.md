@@ -401,3 +401,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Layer > Layer Style > Create Layers can split layer effects into separate editable layers, then users can mask or group those generated effect layers independently.
 **Photoweb behavior:** Layer Mask Hides Effects is implemented in the compositor, but layer-effect decomposition into real layers remains unavailable.
 **Rationale:** Effect decomposition is a separate editability workflow that requires generated-layer ownership and synchronization rules; the compositor flag preserves the lesson's mask/effects visual behavior without introducing half-editable effect layers.
+
+## 2026-05-14 — 19a-free-transform — Legacy proportional-scaling modifier
+
+**Photoshop behavior:** Photoshop CC 2019+ scales proportionally by default and uses Shift to invert proportional scaling.
+**Photoweb behavior:** Corner scaling keeps the legacy Photoshop habit where Shift constrains proportions.
+**Rationale:** The cluster includes older Free Transform lessons and long-standing Photoshop muscle memory that teach Shift-to-constrain; retaining that behavior avoids changing existing photoweb transform tests and user expectations.
