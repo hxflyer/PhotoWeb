@@ -57,7 +57,7 @@ OUTPUT_JSON = BASE_DIR / "lessons.json"
 # carry them forward across re-runs so re-summarizing never wipes scope.
 OUTPUT_FIELDS = ("url", "slug", "image_count", "in_scope", "out_reason", "summary")
 
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "***REDACTED***")
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 

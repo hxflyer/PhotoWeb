@@ -43,7 +43,7 @@ LESSONS_JSON_PATH = Path("doc/photoshop-essentials-basics_bak/lessons.json")
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 SSL_CONTEXT = ssl._create_unverified_context()
 
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "***REDACTED***")
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 
