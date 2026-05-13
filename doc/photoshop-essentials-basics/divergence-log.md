@@ -317,3 +317,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Layers Panel Options also controls default masks on fill/adjustment layers and whether copied layer/group names receive "copy".
 **Photoweb behavior:** 07a implements the thumbnail size / no-thumbnail contract and defers default-mask and copied-name preferences.
 **Rationale:** This cluster is scoped to panel rows, thumbnails, visibility, locking, opacity/blend mode, add/delete/duplicate, and shortcuts; fill/adjustment defaults and naming preferences are separate application preference contracts.
+
+## 2026-05-13 — 07b-background-layer — Move Tool Background warning omitted
+
+**Photoshop behavior:** Trying to move Background with the Move Tool opens a warning dialog explaining Background-layer limits and offering Convert to Normal Layer.
+**Photoweb behavior:** Move/reorder/transparent-erase gestures are blocked silently while the lock icon and Layer menu provide conversion.
+**Rationale:** Photoweb's existing lock behavior is silent no-op; adding a modal just for Background movement would interrupt the browser editor flow while the visible lock affordance preserves the discoverable Photoshop habit.

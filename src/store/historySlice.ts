@@ -49,6 +49,7 @@ function captureDocumentSnapshot(state: EditorStore): SerializedDocumentSnapshot
                 dirtyRect: layer.dirtyRect ? { ...layer.dirtyRect } : null,
                 parentId: layer.parentId,
                 expanded: layer.expanded,
+                isBackground: layer.isBackground,
                 typeData: cloneValue(layer.typeData),
                 shapeData: cloneValue(layer.shapeData),
                 mask: layer.mask
@@ -81,6 +82,7 @@ function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<
         layer.colorTag = data.colorTag;
         layer.parentId = data.parentId;
         layer.expanded = data.expanded;
+        layer.isBackground = data.isBackground;
         layer.typeData = cloneValue(data.typeData);
         layer.shapeData = cloneValue(data.shapeData);
         layer.ctx.putImageData(data.imageData, 0, 0);

@@ -209,6 +209,7 @@ export const magicEraserTool: Tool = {
         const store = ctx.getStore();
         const layer = store.layers.find(l => l.id === store.activeLayerId);
         if (!layer) return;
+        if (layer.lockTransparency) return;
         const point = p(e);
         const w = layer.canvas.width;
         const h = layer.canvas.height;

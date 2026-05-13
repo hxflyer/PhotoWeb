@@ -285,6 +285,7 @@ export function LayersPanel() {
         addLayerEffect,
         activeLayerEditTarget, setActiveLayerEditTarget,
         openNewLayerDialog,
+        convertBackgroundLayer,
     } = useEditorStore();
     const editTarget = activeLayerEditTarget;
 
@@ -310,6 +311,7 @@ export function LayersPanel() {
     }, []);
 
     const active = layers.find(l => l.id === activeLayerId);
+    const activeIsBackground = !!active?.isBackground;
     const thumbnailSize = thumbnailPreference === 'none' ? 0 : THUMBNAIL_SIZES[thumbnailPreference];
     const visibleLayerRows = layers
         .map(layer => {
@@ -430,7 +432,7 @@ export function LayersPanel() {
     const flyoutItems: PanelFlyoutItem[] = [
         { label: 'New Layer…', onClick: () => openNewLayerDialog() },
         { label: 'Duplicate Layer', onClick: () => activeLayerId && layerViaCopy(), disabled: !activeLayerId },
-        { label: 'Delete Layer', onClick: () => activeLayerId && removeLayer(activeLayerId), disabled: !activeLayerId },
+        { label: 'Delete Layer', onClick: () => activeLayerId && removeLayer(activeLayerId), disabled: !activeLayerId || activeIsBackground },
         { separator: true, label: '' },
         { label: 'New Group', onClick: () => (selectedLayerIds.length > 1 ? groupLayers(selectedLayerIds) : createLayerGroup()) },
         { label: 'Ungroup Layers', onClick: () => activeLayerId && ungroupLayerGroup(activeLayerId), disabled: !activeLayerId || layers.find(l => l.id === activeLayerId)?.kind !== 'group' },
@@ -476,7 +478,7 @@ export function LayersPanel() {
                 <select
                     value={active?.blendMode ?? 'source-over'}
                     onChange={(e) => active && setLayerBlendMode(active.id, e.target.value as GlobalCompositeOperation)}
-                    disabled={!active}
+                    disabled={!active || activeIsBackground}
                     style={{
                         flex: 1, minWidth: 80,
                         background: 'hsl(var(--bg-input))',
@@ -498,7 +500,7 @@ export function LayersPanel() {
                         const v = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
                         setLayerOpacity(active.id, v / 100);
                     }}
-                    disabled={!active}
+                    disabled={!active || activeIsBackground}
                     style={{
                         width: 40,
                         background: 'hsl(var(--bg-input))',
@@ -521,25 +523,25 @@ export function LayersPanel() {
                 <button
                     title="Lock transparent pixels"
                     onClick={() => active && setLayerLock(active.id, 'transparency', !active.locks.transparency)}
-                    disabled={!active}
-                    style={headBtnStyle(!!active?.locks.transparency)}
+                    disabled={!active || activeIsBackground}
+                    style={headBtnStyle(!!active?.lockTransparency)}
                 ><TransparencyLockIcon /></button>
                 <button
                     title="Lock image pixels"
                     onClick={() => active && setLayerLock(active.id, 'image', !active.locks.image)}
-                    disabled={!active}
+                    disabled={!active || activeIsBackground}
                     style={headBtnStyle(!!active?.locks.image)}
                 ><Brush size={12} /></button>
                 <button
                     title="Lock position"
                     onClick={() => active && setLayerLock(active.id, 'position', !active.locks.position)}
-                    disabled={!active}
-                    style={headBtnStyle(!!active?.locks.position)}
+                    disabled={!active || activeIsBackground}
+                    style={headBtnStyle(!!active?.lockPosition)}
                 ><Move size={12} /></button>
                 <button
                     title="Lock all"
                     onClick={() => active && setLayerLock(active.id, 'all', !active.locks.all)}
-                    disabled={!active}
+                    disabled={!active || activeIsBackground}
                     style={headBtnStyle(!!active?.locks.all)}
                 ><Lock size={12} /></button>
                 <div style={{ flex: 1 }} />
@@ -552,7 +554,7 @@ export function LayersPanel() {
                         const v = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
                         setLayerFill(active.id, v / 100);
                     }}
-                    disabled={!active}
+                    disabled={!active || activeIsBackground}
                     style={{
                         width: 40,
                         background: 'hsl(var(--bg-input))',
@@ -574,14 +576,14 @@ export function LayersPanel() {
                 {[...visibleLayerRows].reverse().map(({ layer, depth }) => {
                     const isActive = activeLayerId === layer.id;
                     const isSelected = selectedLayerIds.includes(layer.id);
-                    const isLocked = layer.locks.all || layer.locks.transparency || layer.locks.image || layer.locks.position;
+                    const isLocked = layer.isBackground || layer.locks.all || layer.locks.transparency || layer.locks.image || layer.locks.position;
                     return (
                         <div
                             key={layer.id}
                             data-testid={`layer-row-${layer.id}`}
                             data-layer-selected={isSelected ? 'true' : 'false'}
                             data-layer-active={isActive ? 'true' : 'false'}
-                            draggable
+                            draggable={!layer.isBackground}
                             onDragStart={(e) => handleDragStart(e, layer.id)}
                             onDragOver={(e) => handleDragOver(e, layer.id)}
                             onDragLeave={handleDragLeave}
@@ -770,6 +772,7 @@ export function LayersPanel() {
                                     style={{
                                         flex: 1, fontSize: 12,
                                         color: isActive ? '#fff' : 'hsl(var(--text-main))',
+                                        fontStyle: layer.isBackground ? 'italic' : 'normal',
                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                     }}>
                                     {layer.kind === 'group' && <Folder size={12} style={{ marginRight: 4, verticalAlign: -2 }} />}
@@ -779,10 +782,25 @@ export function LayersPanel() {
 
                             {/* Lock indicator on right side */}
                             {isLocked && (
-                                <Lock
-                                    size={12}
-                                    style={{ color: isActive ? '#fff' : 'hsl(var(--text-muted))', flexShrink: 0 }}
-                                />
+                                layer.isBackground ? (
+                                    <button
+                                        type="button"
+                                        data-testid={`background-lock-${layer.id}`}
+                                        title="Convert to normal layer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            convertBackgroundLayer(layer.id);
+                                        }}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: isActive ? '#fff' : 'hsl(var(--text-muted))', display: 'flex', flexShrink: 0 }}
+                                    >
+                                        <Lock size={12} />
+                                    </button>
+                                ) : (
+                                    <Lock
+                                        size={12}
+                                        style={{ color: isActive ? '#fff' : 'hsl(var(--text-muted))', flexShrink: 0 }}
+                                    />
+                                )
                             )}
                         </div>
                     );
@@ -822,8 +840,8 @@ export function LayersPanel() {
                 <button
                     title="Delete Layer"
                     onClick={() => activeLayerId && removeLayer(activeLayerId)}
-                    disabled={!activeLayerId}
-                    style={{ ...HEAD_BTN, opacity: activeLayerId ? 1 : 0.4 }}
+                    disabled={!activeLayerId || activeIsBackground}
+                    style={{ ...HEAD_BTN, opacity: activeLayerId && !activeIsBackground ? 1 : 0.4 }}
                 ><Trash2 size={14} /></button>
             </div>
 

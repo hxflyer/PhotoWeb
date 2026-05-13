@@ -100,6 +100,7 @@ export interface LayerData {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
     kind: LayerKind;
+    isBackground?: boolean;
 }
 
 const identityTransform = (): LayerTransform => ({
@@ -135,6 +136,7 @@ export class Layer {
     dirtyRect: DirtyRect | null = null;
     parentId: string | null = null;
     expanded: boolean = true;
+    isBackground: boolean = false;
     // Advanced Blending flags (Photoshop's "Layer Style ▸ Blending Options").
     knockout: KnockoutMode = 'none';
     blendInteriorEffectsAsGroup: boolean = false;
@@ -168,7 +170,7 @@ export class Layer {
     }
 
     get lockTransparency(): boolean {
-        return this.locks.transparency || this.locks.all;
+        return this.isBackground || this.locks.transparency || this.locks.all;
     }
 
     get lockImage(): boolean {
@@ -176,7 +178,7 @@ export class Layer {
     }
 
     get lockPosition(): boolean {
-        return this.locks.position || this.locks.all;
+        return this.isBackground || this.locks.position || this.locks.all;
     }
 
     markDirty(rect: DirtyRect | null): void {
@@ -208,6 +210,7 @@ export class Layer {
             canvas: this.canvas,
             ctx: this.ctx,
             kind: this.kind,
+            isBackground: this.isBackground,
         };
     }
 }

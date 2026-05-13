@@ -93,6 +93,7 @@ export interface SerializedDocumentSnapshot {
         dirtyRect: DirtyRect | null;
         parentId: string | null;
         expanded: boolean;
+        isBackground: boolean;
         typeData: unknown;
         shapeData: unknown;
         mask: {

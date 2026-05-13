@@ -312,6 +312,8 @@ export interface LayersSlice {
     setLayerAdjustmentParams: (id: string, params: Record<string, unknown>) => void;
     setLayerFillData: (id: string, data: import('../core/fillLayer').FillLayerData) => void;
     setLayerName: (id: string, name: string) => void;
+    convertBackgroundLayer: (id: string, name?: string) => void;
+    backgroundFromLayer: (id: string) => void;
     duplicateLayer: (id: string) => void;
     rasterizeTypeLayer: (id: string) => void;
     addLayerEffect: (id: string, kind: import('../core/Layer').LayerEffectKind) => void;

@@ -969,6 +969,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         if (opacityCap <= 0 || flow <= 0) return;
         const activeLayer = layers.find(l => l.id === activeLayerId);
         if (!activeLayer) return;
+        if (activeLayer.lockTransparency) return;
 
         if (!strokeBufferRef.current || strokeBufferRef.current.layerId !== activeLayerId) {
             const base = activeLayer.ctx.getImageData(0, 0, width, height);

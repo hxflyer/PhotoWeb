@@ -364,10 +364,12 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         const nextResolution = Number.isFinite(resolution) && resolution !== undefined && resolution > 0 ? resolution : 72;
         let newLayer: LayerClass;
         try {
-            newLayer = new LayerClass(w, h, 'Background');
+            newLayer = new LayerClass(w, h, bg === 'transparent' ? 'Layer 1' : 'Background');
             if (bg !== 'transparent') {
                 newLayer.ctx.fillStyle = bg;
                 newLayer.ctx.fillRect(0, 0, w, h);
+                newLayer.isBackground = true;
+                newLayer.locks = { transparency: true, image: false, position: true, all: false };
             }
             newLayer.markDirty(null);
         } catch (err) {
@@ -428,8 +430,12 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         if (!guardDocumentSize(w, h, get().reportError)) return false;
         let newLayer: LayerClass;
         try {
-            newLayer = new LayerClass(w, h, name);
+            newLayer = new LayerClass(w, h, 'Background');
+            newLayer.ctx.fillStyle = '#ffffff';
+            newLayer.ctx.fillRect(0, 0, w, h);
             newLayer.ctx.drawImage(img, 0, 0, w, h);
+            newLayer.isBackground = true;
+            newLayer.locks = { transparency: true, image: false, position: true, all: false };
             newLayer.markDirty(null);
         } catch (err) {
             get().reportError('save', `Could not open image: ${(err as Error)?.message ?? 'allocation error'}.`, 'error');

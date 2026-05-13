@@ -105,6 +105,7 @@ export const eraserTool: Tool = {
         const layer = store.layers.find(l => l.id === store.activeLayerId);
         if (!layer) return;
         s.target = store.activeLayerEditTarget === 'mask' && layer.mask ? 'mask' : 'layer';
+        if (s.target === 'layer' && layer.lockTransparency) return;
         const tgt = targetCanvas(layer, s.target);
         const click = p(e);
         const useLine = e.shift

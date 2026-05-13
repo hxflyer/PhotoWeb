@@ -351,7 +351,14 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
     Layer: [
       sub('New',
         act('Layer…', () => useEditorStore.getState().openNewLayerDialog(), '⌘⇧N'),
-        act('Layer from Background…', () => {}, undefined, true),
+        act('Layer from Background', () => {
+          const s = useEditorStore.getState();
+          if (s.activeLayerId) s.convertBackgroundLayer(s.activeLayerId);
+        }, undefined, !useEditorStore.getState().layers.find(l => l.id === useEditorStore.getState().activeLayerId)?.isBackground),
+        act('Background from Layer', () => {
+          const s = useEditorStore.getState();
+          if (s.activeLayerId) s.backgroundFromLayer(s.activeLayerId);
+        }, undefined, !useEditorStore.getState().activeLayerId || !!useEditorStore.getState().layers.find(l => l.id === useEditorStore.getState().activeLayerId)?.isBackground),
         sep,
         act('Group…', () => useEditorStore.getState().createLayerGroup()),
         act('Group from Layers…', () => {

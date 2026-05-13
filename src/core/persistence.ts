@@ -26,6 +26,7 @@ export interface LayerManifest {
     kind: string;
     parentId: string | null;
     expanded: boolean;
+    isBackground?: boolean;
     dataUrl: string;
     width: number;
     height: number;
@@ -102,6 +103,7 @@ function layerToManifest(layer: Layer): LayerManifest {
         kind: layer.kind,
         parentId: layer.parentId,
         expanded: layer.expanded,
+        isBackground: layer.isBackground,
         dataUrl: layer.canvas.toDataURL('image/png'),
         width: layer.canvas.width,
         height: layer.canvas.height,
@@ -295,6 +297,7 @@ export async function loadDocument(filename: string, _get: StoreGet, set: StoreS
             (layer as unknown as Record<string, unknown>).kind = lm.kind;
             layer.parentId = lm.parentId ?? null;
             layer.expanded = lm.expanded ?? true;
+            layer.isBackground = !!lm.isBackground;
             layer.typeData = lm.typeData ?? null;
             layer.shapeData = lm.shapeData ?? null;
             if (lm.adjustment) (layer as unknown as Record<string, unknown>).adjustment = lm.adjustment;

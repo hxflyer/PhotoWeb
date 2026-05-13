@@ -347,6 +347,7 @@ function App() {
         const s = useEditorStore.getState();
         const layer = s.layers.find(l => l.id === s.activeLayerId);
         if (!layer) return;
+        if (layer.lockPosition || layer.locks.all) return;
         const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
         setFreeTransform({ layerId: layer.id, snapshot, x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height, rotation: 0, skewX: 0, skewY: 0 });
         return;
@@ -356,6 +357,7 @@ function App() {
         const s = useEditorStore.getState();
         const layer = s.layers.find(l => l.id === s.activeLayerId);
         if (!layer) return;
+        if (layer.lockPosition || layer.locks.all) return;
         const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
         setWarpState({ layerId: layer.id, snapshot });
         return;

@@ -118,6 +118,36 @@ function hasSelectedAncestor(layer: Layer, selectedIds: Set<string>, layers: Lay
     return false;
 }
 
+function makeNormalLayer(layer: Layer, name = 'Layer 0'): void {
+    layer.isBackground = false;
+    layer.name = name;
+    layer.locks = { transparency: false, image: false, position: false, all: false };
+}
+
+function makeBackgroundLayer(layer: Layer, backgroundColor = '#ffffff'): void {
+    if (layer.kind !== 'group') {
+        const base = document.createElement('canvas');
+        base.width = layer.canvas.width;
+        base.height = layer.canvas.height;
+        const ctx = base.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(0, 0, base.width, base.height);
+            ctx.drawImage(layer.canvas, 0, 0);
+            layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+            layer.ctx.drawImage(base, 0, 0);
+            layer.markDirty(null);
+        }
+    }
+    layer.isBackground = true;
+    layer.name = 'Background';
+    layer.opacity = 1;
+    layer.fill = 1;
+    layer.blendMode = 'source-over';
+    layer.parentId = null;
+    layer.locks = { transparency: true, image: false, position: true, all: false };
+}
+
 function applyDefringe(data: Uint8ClampedArray, w: number, h: number, width: number): void {
     // For every semi-transparent pixel within `width` of a fully opaque pixel,
     // blend its RGB toward the nearest opaque neighbor's RGB. The pixel's own
@@ -194,10 +224,14 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
                 if (options.blendMode) newLayer.blendMode = options.blendMode;
                 const nextLayers = [...layers];
                 const activeIndex = activeLayerId ? nextLayers.findIndex(layer => layer.id === activeLayerId) : -1;
+                const backgroundIndex = nextLayers.findIndex(layer => layer.isBackground);
                 if (options.insert === 'top' || activeIndex === -1) {
                     nextLayers.push(newLayer);
                 } else if (options.insert === 'below') {
-                    nextLayers.splice(Math.max(0, activeIndex), 0, newLayer);
+                    const insertAt = backgroundIndex !== -1 && activeIndex <= backgroundIndex
+                        ? backgroundIndex + 1
+                        : Math.max(0, activeIndex);
+                    nextLayers.splice(insertAt, 0, newLayer);
                 } else {
                     nextLayers.splice(activeIndex + 1, 0, newLayer);
                 }
@@ -366,9 +400,10 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
             label: 'Delete Layer',
             affectedIds: [id],
             layerId: id,
-            run: () => {
+        run: () => {
         const { layers } = get();
         const target = layers.find(l => l.id === id);
+        if (target?.isBackground) return;
         const removeIds = target?.kind === 'group' ? descendantLayerIds(layers, id) : new Set<string>();
         removeIds.add(id);
         set((state) => ({
@@ -530,7 +565,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         layerId: id,
         run: () => set((state) => ({
         layers: state.layers.map(l => {
-            if (l.id === id) {
+            if (l.id === id && !l.isBackground) {
                 l.opacity = opacity;
                 return l;
             }
@@ -546,7 +581,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         layerId: id,
         run: () => set((state) => ({
         layers: state.layers.map(l => {
-            if (l.id === id) {
+            if (l.id === id && !l.isBackground) {
                 l.blendMode = mode;
                 return l;
             }
@@ -602,6 +637,9 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
             const newLayers = [...state.layers];
             const dragLayer = newLayers[dragIndex];
             if (!dragLayer) return {};
+            if (dragLayer.isBackground) return {};
+            const backgroundIndex = newLayers.findIndex(layer => layer.isBackground);
+            if (backgroundIndex !== -1 && hoverIndex <= backgroundIndex) return {};
             // Peek at the layer currently at the hover position (or just before if past the end)
             // to inherit its parentId — that's what makes dropping between two rows turn the
             // dragged layer into a sibling of the hover.
@@ -637,6 +675,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => set((state) => {
             const layer = state.layers.find(l => l.id === layerId);
             if (!layer) return {};
+            if (layer.isBackground || (groupId && state.layers.find(l => l.id === groupId)?.isBackground)) return {};
             if (groupId !== null) {
                 const group = state.layers.find(l => l.id === groupId);
                 if (!group || group.kind !== 'group') return {};
@@ -692,7 +731,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         layerId: id,
         run: () => set((state) => ({
         layers: state.layers.map(l => {
-            if (l.id === id) { l.fill = fill; }
+            if (l.id === id && !l.isBackground) { l.fill = fill; }
             return l;
         }),
         })),
@@ -772,7 +811,11 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         layerId: id,
         run: () => set((state) => ({
         layers: state.layers.map(l => {
-            if (l.id === id) l.name = name;
+            if (l.id === id) {
+                const nextName = name.trim() || l.name;
+                if (l.isBackground && nextName !== 'Background') makeNormalLayer(l, nextName);
+                else l.name = nextName;
+            }
             return l;
         }),
         })),
@@ -785,7 +828,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         layerId: id,
         run: () => set((state) => ({
         layers: state.layers.map(l => {
-            if (l.id === id) l.locks = { ...l.locks, [kind]: value };
+            if (l.id === id && !l.isBackground) l.locks = { ...l.locks, [kind]: value };
             return l;
         }),
         })),
@@ -858,6 +901,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
             flat.ctx.restore();
         });
         flat.markDirty(null);
+        makeBackgroundLayer(flat, '#ffffff');
         set({ layers: [flat], activeLayerId: flat.id });
         },
     }),
@@ -1443,8 +1487,45 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
             const { layers } = get();
             const layer = layers.find(l => l.id === id);
             if (!layer) return;
-            layer.name = name;
+            const nextName = name.trim() || layer.name;
+            if (layer.isBackground && nextName !== 'Background') makeNormalLayer(layer, nextName);
+            else layer.name = nextName;
             set({ layers: [...layers] });
+        },
+    }),
+
+    convertBackgroundLayer: (id, name = 'Layer 0') => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Layer From Background',
+        affectedIds: [id],
+        layerId: id,
+        run: () => {
+            const { layers } = get();
+            const layer = layers.find(l => l.id === id && l.isBackground);
+            if (!layer) return;
+            makeNormalLayer(layer, name);
+            set({ layers: [...layers], activeLayerId: layer.id, selectedLayerIds: [layer.id], layerSelectionAnchorId: layer.id });
+        },
+    }),
+
+    backgroundFromLayer: (id) => get().executeDocumentCommand({
+        kind: 'layer-property',
+        label: 'Background from Layer',
+        affectedIds: [id],
+        layerId: id,
+        run: () => {
+            const { layers, secondaryColor } = get();
+            const layer = layers.find(l => l.id === id && l.kind !== 'group');
+            if (!layer) return;
+            makeBackgroundLayer(layer, secondaryColor || '#ffffff');
+            const remaining = layers.filter(l => l.id !== id && !l.isBackground);
+            set({
+                layers: [layer, ...remaining],
+                activeLayerId: layer.id,
+                selectedLayerIds: [layer.id],
+                layerSelectionAnchorId: layer.id,
+                activeLayerEditTarget: 'layer',
+            });
         },
     }),
 
@@ -1455,6 +1536,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         const { layers, activeLayerId } = get();
         const active = layers.find(l => l.id === activeLayerId);
         if (!active) return;
+        if (active.lockTransparency) return;
         const cut = new Layer(active.canvas.width, active.canvas.height, `${active.name} cut`);
         cut.ctx.drawImage(active.canvas, 0, 0);
         active.ctx.clearRect(0, 0, active.canvas.width, active.canvas.height);

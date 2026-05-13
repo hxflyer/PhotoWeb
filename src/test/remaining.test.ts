@@ -372,7 +372,8 @@ describe('4.9 New document', () => {
         expect(state.height).toBe(90);
         expect(state.documentName).toBe('opened.png');
         expect(state.layers).toHaveLength(1);
-        expect(layer.name).toBe('opened.png');
+        expect(layer.name).toBe('Background');
+        expect(layer.isBackground).toBe(true);
         expect(px[1]).toBe(255);
     });
 
