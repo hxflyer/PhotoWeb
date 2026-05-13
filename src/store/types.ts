@@ -1,5 +1,6 @@
 import { Layer } from '../core/Layer';
 import type { LayerColorTag } from '../core/Layer';
+import type { BlendModeId } from '../core/blendModes';
 import type { CompoundHistoryAction, DocumentHistoryCommandOptions, GenericHistoryAction, HistoryAction, HistoryEntry } from '../core/history';
 
 export type SelectionMode = 'rect' | 'circle' | 'lasso' | 'lasso-poly';
@@ -290,7 +291,7 @@ export interface LayersSlice {
         name?: string;
         opacity?: number;
         fill?: number;
-        blendMode?: GlobalCompositeOperation;
+        blendMode?: BlendModeId;
         insert?: 'above' | 'below' | 'top';
     }) => void;
     createLayerGroup: (name?: string) => void;
@@ -304,7 +305,9 @@ export interface LayersSlice {
     moveLayerToGroup: (layerId: string, groupId: string | null, position?: 'top' | 'bottom') => void;
     setLayerOpacity: (id: string, opacity: number) => void;
     setLayerFill: (id: string, fill: number) => void;
-    setLayerBlendMode: (id: string, mode: GlobalCompositeOperation) => void;
+    setLayerBlendMode: (id: string, mode: BlendModeId) => void;
+    previewLayerBlendMode: (id: string, mode: BlendModeId) => void;
+    cycleLayerBlendMode: (direction: 1 | -1) => void;
     setLayerKnockout: (id: string, mode: import('../core/Layer').KnockoutMode) => void;
     setLayerBlendingFlag: (id: string, flag: 'blendInteriorEffectsAsGroup' | 'blendClippedLayersAsGroup' | 'transparencyShapesLayer' | 'layerMaskHidesEffects' | 'vectorMaskHidesEffects', value: boolean) => void;
     setLayerBlendIfRanges: (id: string, channel: 'gray' | 'r' | 'g' | 'b', side: 'thisLayer' | 'underlyingLayer', range: import('../core/Layer').BlendIfChannelRange) => void;

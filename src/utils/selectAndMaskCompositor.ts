@@ -4,6 +4,7 @@
  * components-only module.
  */
 import type { Layer } from '../core/Layer';
+import { drawCanvasWithBlendMode } from '../core/blendModes';
 
 export type SelectAndMaskViewMode =
     | 'onion-skin'
@@ -97,9 +98,7 @@ export function compositeLayersBelow(
         if (layer.id === activeLayerId) { reachedActive = true; continue; }
         if (reachedActive) break;
         if (!layer.visible || layer.kind === 'group') continue;
-        ctx.globalAlpha = layer.opacity * layer.fill;
-        ctx.globalCompositeOperation = layer.blendMode;
-        ctx.drawImage(layer.canvas, 0, 0);
+        drawCanvasWithBlendMode(ctx, layer.canvas, layer.blendMode, layer.opacity * layer.fill);
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';

@@ -10,6 +10,7 @@ import {
 } from '../core/imageTransforms';
 import { getAdjustment } from '../adjustments';
 import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
+import { drawCanvasWithBlendMode, normalizeBlendMode, PHOTOSHOP_BLEND_MODE_OPTIONS } from '../core/blendModes';
 import type { EditorStore, LayersSlice } from './types';
 
 interface LayerWithMeta extends Layer {
@@ -184,7 +185,7 @@ function makeBackgroundLayer(layer: Layer, backgroundColor = '#ffffff'): void {
     layer.name = 'Background';
     layer.opacity = 1;
     layer.fill = 1;
-    layer.blendMode = 'source-over';
+    layer.blendMode = 'normal';
     layer.parentId = null;
     layer.locks = { transparency: true, image: false, position: true, all: false };
 }
@@ -262,7 +263,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
                 const newLayer = new Layer(width, height, options.name?.trim() || `Layer ${layers.length + 1}`);
                 if (typeof options.opacity === 'number') newLayer.opacity = Math.max(0, Math.min(1, options.opacity));
                 if (typeof options.fill === 'number') newLayer.fill = Math.max(0, Math.min(1, options.fill));
-                if (options.blendMode) newLayer.blendMode = options.blendMode;
+                if (options.blendMode) newLayer.blendMode = normalizeBlendMode(options.blendMode);
                 const nextLayers = [...layers];
                 const activeIndex = activeLayerId ? nextLayers.findIndex(layer => layer.id === activeLayerId) : -1;
                 const backgroundIndex = nextLayers.findIndex(layer => layer.isBackground);
@@ -701,13 +702,34 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         run: () => set((state) => ({
         layers: state.layers.map(l => {
             if (l.id === id && !l.isBackground) {
-                l.blendMode = mode;
+                l.blendMode = normalizeBlendMode(mode);
+                l.markDirty(null);
                 return l;
             }
             return l;
         }),
         })),
     }),
+
+    previewLayerBlendMode: (id, mode) => set((state) => ({
+        layers: state.layers.map(l => {
+            if (l.id === id && !l.isBackground) {
+                l.blendMode = normalizeBlendMode(mode);
+                l.markDirty(null);
+            }
+            return l;
+        }),
+    })),
+
+    cycleLayerBlendMode: (direction) => {
+        const state = get();
+        const layer = state.layers.find(l => l.id === state.activeLayerId);
+        if (!layer || layer.isBackground) return;
+        const modes = PHOTOSHOP_BLEND_MODE_OPTIONS.map(item => item.id);
+        const index = modes.indexOf(normalizeBlendMode(layer.blendMode));
+        const next = modes[((index === -1 ? 0 : index) + direction + modes.length) % modes.length];
+        state.setLayerBlendMode(layer.id, next);
+    },
 
     mergeLayerDown: (id) => {
         get().executeDocumentCommand({
@@ -730,11 +752,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         if (!ctx) return;
 
         ctx.drawImage(bottomLayer.canvas, 0, 0);
-        ctx.save();
-        ctx.globalAlpha = topLayer.opacity;
-        ctx.globalCompositeOperation = topLayer.blendMode;
-        if (topLayer.visible) ctx.drawImage(topLayer.canvas, 0, 0);
-        ctx.restore();
+        if (topLayer.visible) drawCanvasWithBlendMode(ctx, topLayer.canvas, topLayer.blendMode, topLayer.opacity);
 
         bottomLayer.canvas = canvas;
         bottomLayer.ctx = ctx;
@@ -974,11 +992,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         const merged = new Layer(width, height, 'Merged');
         layers.forEach(l => {
             if (!l.visible) return;
-            merged.ctx.save();
-            merged.ctx.globalAlpha = l.opacity;
-            merged.ctx.globalCompositeOperation = l.blendMode;
-            merged.ctx.drawImage(l.canvas, 0, 0);
-            merged.ctx.restore();
+            drawCanvasWithBlendMode(merged.ctx, l.canvas, l.blendMode, l.opacity);
         });
         merged.markDirty(null);
         const remaining = layers.filter(l => !l.visible);
@@ -994,11 +1008,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         const stamped = new Layer(width, height, 'Merged Visible');
         layers.forEach(l => {
             if (!l.visible) return;
-            stamped.ctx.save();
-            stamped.ctx.globalAlpha = l.opacity;
-            stamped.ctx.globalCompositeOperation = l.blendMode;
-            stamped.ctx.drawImage(l.canvas, 0, 0);
-            stamped.ctx.restore();
+            drawCanvasWithBlendMode(stamped.ctx, l.canvas, l.blendMode, l.opacity);
         });
         stamped.markDirty(null);
         set({ layers: [...layers, stamped], activeLayerId: stamped.id });
@@ -1013,11 +1023,7 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
         const flat = new Layer(width, height, 'Background');
         layers.forEach(l => {
             if (!l.visible) return;
-            flat.ctx.save();
-            flat.ctx.globalAlpha = l.opacity;
-            flat.ctx.globalCompositeOperation = l.blendMode;
-            flat.ctx.drawImage(l.canvas, 0, 0);
-            flat.ctx.restore();
+            drawCanvasWithBlendMode(flat.ctx, l.canvas, l.blendMode, l.opacity);
         });
         flat.markDirty(null);
         makeBackgroundLayer(flat, '#ffffff');

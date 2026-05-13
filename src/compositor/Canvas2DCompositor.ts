@@ -2,6 +2,7 @@ import type { CompositeRequest, Compositor, DirtyRect } from './Compositor';
 import { getAdjustment } from '../adjustments';
 import { getEffect } from '../effects';
 import type { Layer, BlendIf, BlendIfChannelRange } from '../core/Layer';
+import { drawCanvasWithBlendMode } from '../core/blendModes';
 
 interface LayerWithAdjustment {
     adjustment?: { id: string; params: Record<string, unknown> };
@@ -198,9 +199,7 @@ export class Canvas2DCompositor implements Compositor {
 
         const enabledEffects = layer.effects?.filter(e => e.enabled) ?? [];
         if (enabledEffects.length === 0) {
-            ctx.globalAlpha = layer.opacity * layer.fill;
-            ctx.globalCompositeOperation = layer.blendMode;
-            ctx.drawImage(sourceCanvas, 0, 0);
+            drawCanvasWithBlendMode(ctx, sourceCanvas, layer.blendMode, layer.opacity * layer.fill);
             return;
         }
 
@@ -216,9 +215,7 @@ export class Canvas2DCompositor implements Compositor {
         scratch.height = ctx.canvas.height;
         const sctx = scratch.getContext('2d');
         if (!sctx) {
-            ctx.globalAlpha = layer.opacity * layer.fill;
-            ctx.globalCompositeOperation = layer.blendMode;
-            ctx.drawImage(sourceCanvas, 0, 0);
+            drawCanvasWithBlendMode(ctx, sourceCanvas, layer.blendMode, layer.opacity * layer.fill);
             return;
         }
 
@@ -250,9 +247,7 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        ctx.globalAlpha = layer.opacity;
-        ctx.globalCompositeOperation = layer.blendMode;
-        ctx.drawImage(scratch, 0, 0);
+        drawCanvasWithBlendMode(ctx, scratch, layer.blendMode, layer.opacity);
     }
 
     private renderGroup(
@@ -275,9 +270,7 @@ export class Canvas2DCompositor implements Compositor {
 
         const enabledEffects = group.effects?.filter(e => e.enabled) ?? [];
         if (enabledEffects.length === 0) {
-            ctx.globalAlpha = group.opacity * group.fill;
-            ctx.globalCompositeOperation = group.blendMode;
-            ctx.drawImage(sourceCanvas, 0, 0);
+            drawCanvasWithBlendMode(ctx, sourceCanvas, group.blendMode, group.opacity * group.fill);
             return;
         }
 
@@ -290,9 +283,7 @@ export class Canvas2DCompositor implements Compositor {
         scratch.height = ctx.canvas.height;
         const sctx = scratch.getContext('2d');
         if (!sctx) {
-            ctx.globalAlpha = group.opacity * group.fill;
-            ctx.globalCompositeOperation = group.blendMode;
-            ctx.drawImage(sourceCanvas, 0, 0);
+            drawCanvasWithBlendMode(ctx, sourceCanvas, group.blendMode, group.opacity * group.fill);
             return;
         }
 
@@ -320,9 +311,7 @@ export class Canvas2DCompositor implements Compositor {
             sctx.drawImage(result.canvas, 0, 0);
         }
 
-        ctx.globalAlpha = group.opacity * group.fill;
-        ctx.globalCompositeOperation = group.blendMode;
-        ctx.drawImage(scratch, 0, 0);
+        drawCanvasWithBlendMode(ctx, scratch, group.blendMode, group.opacity * group.fill);
     }
 
     private applyChannelFilter(frame: HTMLCanvasElement, channel: 'r' | 'g' | 'b'): void {

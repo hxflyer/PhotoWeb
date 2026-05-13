@@ -5,7 +5,7 @@ import {
     captureLayerRegion, createPixelHistoryAction, cropImageData,
     expandStrokeBounds, makeStrokeBounds, strokeBoundsToRect, type StrokeBounds,
 } from '../core/history';
-import { applyBlendModeToImageData, blendModeToCompositeOp, type BlendModeId } from '../core/blendModes';
+import { applyBlendModeToImageData, blendModeToCompositeOp, drawCanvasWithBlendMode, type BlendModeId } from '../core/blendModes';
 
 export type HealingBrushSource = 'sampled' | 'pattern';
 
@@ -51,7 +51,7 @@ interface CompositedSource {
 }
 
 function sampleAllVisibleLayers(
-    layers: { visible: boolean; canvas: HTMLCanvasElement; opacity: number; blendMode: GlobalCompositeOperation }[],
+    layers: { visible: boolean; canvas: HTMLCanvasElement; opacity: number; blendMode: BlendModeId }[],
     width: number,
     height: number,
 ): CompositedSource {
@@ -61,11 +61,7 @@ function sampleAllVisibleLayers(
     const cx = c.getContext('2d')!;
     layers.forEach(l => {
         if (!l.visible) return;
-        cx.save();
-        cx.globalAlpha = l.opacity ?? 1;
-        cx.globalCompositeOperation = l.blendMode;
-        cx.drawImage(l.canvas, 0, 0);
-        cx.restore();
+        drawCanvasWithBlendMode(cx, l.canvas, l.blendMode, l.opacity ?? 1);
     });
     cx.globalAlpha = 1;
     cx.globalCompositeOperation = 'source-over';

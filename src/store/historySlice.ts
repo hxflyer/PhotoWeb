@@ -10,6 +10,7 @@ import {
     type HistoryEntry,
     type SerializedDocumentSnapshot,
 } from '../core/history';
+import { normalizeBlendMode } from '../core/blendModes';
 import type { EditorStore, HistorySlice } from './types';
 
 interface LayerSnapshotExtras extends Layer {
@@ -75,7 +76,7 @@ function restoreDocumentSnapshot(snapshot: SerializedDocumentSnapshot): Partial<
         layer.visible = data.visible;
         layer.opacity = data.opacity;
         layer.fill = data.fill;
-        layer.blendMode = data.blendMode;
+        layer.blendMode = normalizeBlendMode(data.blendMode);
         layer.transform = cloneValue(data.transform);
         layer.effects = cloneValue(data.effects);
         layer.locks = cloneValue(data.locks);

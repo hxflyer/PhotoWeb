@@ -5,6 +5,7 @@
  */
 
 import { Layer } from './Layer';
+import { normalizeBlendMode, type BlendModeId } from './blendModes';
 import { useEditorStore } from '../store/editorStore';
 import type { ToastErrorChannel } from '../store/types';
 import {
@@ -22,7 +23,7 @@ export interface LayerManifest {
     visible: boolean;
     opacity: number;
     fill: number;
-    blendMode: GlobalCompositeOperation;
+    blendMode: BlendModeId | GlobalCompositeOperation;
     kind: string;
     parentId: string | null;
     expanded: boolean;
@@ -293,7 +294,7 @@ export async function loadDocument(filename: string, _get: StoreGet, set: StoreS
             layer.visible = lm.visible;
             layer.opacity = lm.opacity;
             layer.fill = lm.fill;
-            layer.blendMode = lm.blendMode;
+            layer.blendMode = normalizeBlendMode(lm.blendMode);
             (layer as unknown as Record<string, unknown>).kind = lm.kind;
             layer.parentId = lm.parentId ?? null;
             layer.expanded = lm.expanded ?? true;

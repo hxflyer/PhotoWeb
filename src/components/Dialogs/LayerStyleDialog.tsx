@@ -3,6 +3,7 @@ import { useEditorStore } from '../../store/editorStore';
 import type { Layer, LayerEffect, LayerEffectKind, BlendIfChannelRange, KnockoutMode } from '../../core/Layer';
 import { EffectEntry } from '../Panels/PropertiesPanel';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { PHOTOSHOP_BLEND_MODE_OPTIONS, type BlendModeId } from '../../core/blendModes';
 
 const TABS: { id: string; kind: LayerEffectKind | 'blending'; label: string }[] = [
     { id: 'blending', kind: 'blending', label: 'Blending Options' },
@@ -147,11 +148,11 @@ function BlendingOptionsTab({ layer }: { layer: Layer }) {
                 <select
                     data-testid="layer-style-blend-mode"
                     value={layer.blendMode}
-                    onChange={e => setLayerBlendMode(layer.id, e.target.value as GlobalCompositeOperation)}
+                    onChange={e => setLayerBlendMode(layer.id, e.target.value as BlendModeId)}
                     style={{ ...inputStyle, flex: 1 }}
                 >
-                    {['source-over', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'].map(mode => (
-                        <option key={mode} value={mode}>{mode}</option>
+                    {PHOTOSHOP_BLEND_MODE_OPTIONS.map(mode => (
+                        <option key={mode.id} value={mode.id}>{mode.label}</option>
                     ))}
                 </select>
             </div>

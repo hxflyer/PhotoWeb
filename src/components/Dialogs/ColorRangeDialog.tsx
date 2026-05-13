@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
+import { drawCanvasWithBlendMode } from '../../core/blendModes';
 import {
     applyColorRangeSelectionWithMode,
     buildColorRangeMask,
@@ -64,9 +65,7 @@ function compositeForPreview(): ImageData | null {
     if (!ctx) return null;
     for (const layer of layers) {
         if (!layer.visible || layer.kind === 'group') continue;
-        ctx.globalAlpha = layer.opacity * layer.fill;
-        ctx.globalCompositeOperation = layer.blendMode;
-        ctx.drawImage(layer.canvas, 0, 0);
+        drawCanvasWithBlendMode(ctx, layer.canvas, layer.blendMode, layer.opacity * layer.fill);
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';

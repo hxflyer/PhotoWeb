@@ -3,7 +3,7 @@ import { useEditorStore } from '../../store/editorStore';
 import { useState, useEffect, useRef } from 'react';
 import type { LayerColorTag } from '../../core/Layer';
 import type { Layer } from '../../core/Layer';
-import { blendModes as v1BlendModes } from '../../core/blendModes';
+import { blendModeLabel, PHOTOSHOP_BLEND_MODE_OPTIONS, type BlendModeId } from '../../core/blendModes';
 import { PanelFlyout, type PanelFlyoutItem } from './PanelFlyout';
 import { LayerStyleDialog } from '../Dialogs/LayerStyleDialog';
 
@@ -17,13 +17,6 @@ const COLOR_TAGS: { id: LayerColorTag; color: string }[] = [
     { id: 'violet', color: '#a855f7' },
     { id: 'gray', color: '#6b7280' },
 ];
-
-const BLEND_MODE_OPTIONS: { value: GlobalCompositeOperation; label: string }[] =
-    (Object.keys(v1BlendModes) as Array<keyof typeof v1BlendModes>).map(key => {
-        const mapping = v1BlendModes[key];
-        const op = mapping.kind === 'native' ? mapping.op : 'source-over';
-        return { value: op as GlobalCompositeOperation, label: key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) };
-    });
 
 type LayerThumbnailPreference = 'none' | 'small' | 'medium' | 'large';
 
@@ -273,12 +266,139 @@ function LayersPanelOptionsDialog({
     );
 }
 
+function BlendModeMenu({
+    activeLayer,
+    disabled,
+    onPreview,
+    onCommit,
+}: {
+    activeLayer: Layer | undefined;
+    disabled: boolean;
+    onPreview: (id: string, mode: BlendModeId) => void;
+    onCommit: (id: string, mode: BlendModeId) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const originalModeRef = useRef<BlendModeId | null>(null);
+    const activeId = activeLayer?.id ?? null;
+    const currentMode = activeLayer?.blendMode ?? 'normal';
+
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape' || !activeId || !originalModeRef.current) return;
+            event.preventDefault();
+            onPreview(activeId, originalModeRef.current);
+            setOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [activeId, onPreview, open]);
+
+    const startPreview = () => {
+        if (!activeLayer || disabled) return;
+        originalModeRef.current = activeLayer.blendMode;
+        setOpen(true);
+    };
+
+    const closeAndRevert = () => {
+        if (activeId && originalModeRef.current) onPreview(activeId, originalModeRef.current);
+        setOpen(false);
+    };
+
+    const commit = (mode: BlendModeId) => {
+        if (!activeId) return;
+        const original = originalModeRef.current;
+        if (original) onPreview(activeId, original);
+        onCommit(activeId, mode);
+        setOpen(false);
+    };
+
+    return (
+        <div style={{ position: 'relative', flex: 1, minWidth: 96 }}>
+            <button
+                type="button"
+                data-testid="layers-blend-mode-button"
+                disabled={disabled || !activeLayer}
+                onClick={() => (open ? closeAndRevert() : startPreview())}
+                style={{
+                    width: '100%',
+                    height: 22,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 6,
+                    background: 'hsl(var(--bg-input))',
+                    color: 'hsl(var(--text-main))',
+                    border: '1px solid hsl(var(--border-light))',
+                    borderRadius: 2,
+                    fontSize: 11,
+                    padding: '2px 6px',
+                    cursor: disabled || !activeLayer ? 'default' : 'pointer',
+                    opacity: disabled || !activeLayer ? 0.55 : 1,
+                }}
+            >
+                <span>{blendModeLabel(currentMode)}</span>
+                <ChevronDown size={12} />
+            </button>
+            {open && activeLayer && (
+                <div
+                    data-testid="layers-blend-mode-menu"
+                    onMouseLeave={closeAndRevert}
+                    style={{
+                        position: 'absolute',
+                        top: 24,
+                        left: 0,
+                        width: 188,
+                        maxHeight: 360,
+                        overflowY: 'auto',
+                        background: 'hsl(var(--bg-panel))',
+                        border: '1px solid hsl(var(--border-light))',
+                        boxShadow: 'var(--shadow-lg)',
+                        zIndex: 50,
+                        padding: '4px 0',
+                    }}
+                >
+                    {PHOTOSHOP_BLEND_MODE_OPTIONS.map((mode, index) => {
+                        const prev = PHOTOSHOP_BLEND_MODE_OPTIONS[index - 1];
+                        const separator = prev && prev.group !== mode.group;
+                        return (
+                            <div key={mode.id}>
+                                {separator && <div style={{ height: 1, margin: '4px 0', background: 'hsl(var(--border-light))' }} />}
+                                <button
+                                    type="button"
+                                    data-testid={`layers-blend-mode-${mode.id}`}
+                                    onMouseEnter={() => onPreview(activeLayer.id, mode.id)}
+                                    onFocus={() => onPreview(activeLayer.id, mode.id)}
+                                    onClick={() => commit(mode.id)}
+                                    style={{
+                                        width: '100%',
+                                        display: 'block',
+                                        textAlign: 'left',
+                                        background: currentMode === mode.id ? 'hsl(var(--accent-primary) / 0.22)' : 'transparent',
+                                        color: 'hsl(var(--text-main))',
+                                        border: 0,
+                                        fontSize: 12,
+                                        padding: '3px 14px',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    {mode.label}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function LayersPanel() {
     const {
         layers, activeLayerId, selectedLayerIds,
         addLayer, createLayerGroup, groupLayers, removeLayer, setActiveLayer, toggleLayerVisibility, soloLayer,
         renameLayer, setLayerLock, setLayerColorTag, setLayerFill,
-        reorderLayers, moveLayerToGroup, setLayerOpacity, setLayerBlendMode,
+        reorderLayers, moveLayerToGroup, setLayerOpacity, setLayerBlendMode, previewLayerBlendMode,
         mergeLayerDown, mergeVisible, stampVisible, flattenImage, layerViaCopy, layerViaCut,
         ungroupLayerGroup, toggleLayerGroupExpanded, selectLayer, setSelectedLayerIds,
         addLayerMask, removeLayerMask, applyLayerMask, setLayerMaskEnabled, setLayerMaskLinked,
@@ -498,22 +618,12 @@ export function LayersPanel() {
                 borderBottom: '1px solid hsl(var(--border-light))',
                 opacity: active ? 1 : 0.5,
             }}>
-                <select
-                    value={active?.blendMode ?? 'source-over'}
-                    onChange={(e) => active && setLayerBlendMode(active.id, e.target.value as GlobalCompositeOperation)}
+                <BlendModeMenu
+                    activeLayer={active}
                     disabled={!active || activeIsBackground}
-                    style={{
-                        flex: 1, minWidth: 80,
-                        background: 'hsl(var(--bg-input))',
-                        color: 'hsl(var(--text-main))',
-                        border: '1px solid hsl(var(--border-light))',
-                        borderRadius: 2,
-                        fontSize: 11,
-                        padding: '2px 4px',
-                    }}
-                >
-                    {BLEND_MODE_OPTIONS.map(m => <option key={m.label} value={m.value}>{m.label}</option>)}
-                </select>
+                    onPreview={previewLayerBlendMode}
+                    onCommit={setLayerBlendMode}
+                />
                 <span style={{ fontSize: 11, color: 'hsl(var(--text-muted))', whiteSpace: 'nowrap' }}>Opacity:</span>
                 <input
                     type="number" min={0} max={100}

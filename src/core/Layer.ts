@@ -1,3 +1,5 @@
+import type { BlendModeId } from './blendModes';
+
 export type LayerKind = 'raster' | 'type' | 'shape' | 'adjustment' | 'fill' | 'group';
 
 export interface LayerMask {
@@ -124,7 +126,7 @@ export class Layer {
     visible: boolean = true;
     opacity: number = 1.0;
     fill: number = 1.0;
-    blendMode: GlobalCompositeOperation = 'source-over';
+    blendMode: BlendModeId = 'normal';
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
     kind: LayerKind = 'raster';

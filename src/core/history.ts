@@ -1,4 +1,5 @@
 import type { DirtyRect, Layer, LayerColorTag, LayerEffect, LayerKind, LayerLocks, LayerTransform } from './Layer';
+import type { BlendModeId } from './blendModes';
 
 export type HistoryActionKind =
     | 'pixel'
@@ -84,7 +85,7 @@ export interface SerializedDocumentSnapshot {
         visible: boolean;
         opacity: number;
         fill: number;
-        blendMode: GlobalCompositeOperation;
+        blendMode: BlendModeId;
         kind: LayerKind;
         transform: LayerTransform;
         effects: LayerEffect[];

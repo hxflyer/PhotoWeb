@@ -55,7 +55,7 @@ describe('07b Background layer', () => {
 
         expect((getByTestId(`layer-row-${id}`).querySelector('span[style*="italic"]'))).toBeTruthy();
         expect((getByTitle('Convert to normal layer') as HTMLButtonElement)).toBeTruthy();
-        expect((document.querySelector('select') as HTMLSelectElement).disabled).toBe(true);
+        expect((document.querySelector('[data-testid="layers-blend-mode-button"]') as HTMLButtonElement).disabled).toBe(true);
         expect((document.querySelector('input[type="number"]') as HTMLInputElement).disabled).toBe(true);
 
         fireEvent.click(getByTitle('Convert to normal layer'));
@@ -91,7 +91,7 @@ describe('07b Background layer', () => {
         useEditorStore.getState().setLayerBlendMode(layer.id, 'multiply');
         expect(layer.opacity).toBe(1);
         expect(layer.fill).toBe(1);
-        expect(layer.blendMode).toBe('source-over');
+        expect(layer.blendMode).toBe('normal');
 
         getTool('magic-eraser')!.onPointerDown!(makeToolPointerEvent({ canvasX: 4, canvasY: 4 }), ctx());
         expect(layerPixelAt(layer, 4, 4).a).toBe(255);

@@ -1,6 +1,7 @@
 import type { OverlayRenderContext, Tool, ToolContext, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { getBrushTip } from './brush';
+import { drawCanvasWithBlendMode, type BlendModeId } from '../core/blendModes';
 
 export type CloneStampSampleMode = 'current' | 'current-below' | 'all';
 
@@ -61,7 +62,7 @@ function sampleSourceCanvas(
         visible: boolean;
         opacity: number;
         fill: number;
-        blendMode: GlobalCompositeOperation;
+        blendMode: BlendModeId;
         canvas: HTMLCanvasElement;
     }>,
     activeLayerId: string,
@@ -83,11 +84,7 @@ function sampleSourceCanvas(
 
     sourceLayers.forEach(layer => {
         if (!layer.visible) return;
-        ctx.save();
-        ctx.globalAlpha = layer.opacity * layer.fill;
-        ctx.globalCompositeOperation = layer.blendMode;
-        ctx.drawImage(layer.canvas, 0, 0);
-        ctx.restore();
+        drawCanvasWithBlendMode(ctx, layer.canvas, layer.blendMode, layer.opacity * layer.fill);
     });
     return merged;
 }

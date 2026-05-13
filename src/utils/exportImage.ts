@@ -1,4 +1,5 @@
 import type { Layer } from '../core/Layer';
+import { drawCanvasWithBlendMode } from '../core/blendModes';
 
 export type JpegBaseline = 'standard' | 'optimized' | 'progressive';
 
@@ -11,9 +12,7 @@ function flattenLayers(layers: Layer[], width: number, height: number): HTMLCanv
     if (!ctx) return null;
     layers.forEach(l => {
         if (!l.visible) return;
-        ctx.globalAlpha = l.opacity;
-        ctx.globalCompositeOperation = l.blendMode;
-        ctx.drawImage(l.canvas, 0, 0);
+        drawCanvasWithBlendMode(ctx, l.canvas, l.blendMode, l.opacity);
     });
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';

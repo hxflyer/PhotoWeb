@@ -1,4 +1,5 @@
 import type { Layer } from '../core/Layer';
+import { drawCanvasWithBlendMode } from '../core/blendModes';
 import type { EditorStore, SelectionMaskData, SelectionOperation } from '../store/types';
 import { rasterizeSelectionOperations } from '../utils/selectionUtils';
 import {
@@ -61,9 +62,7 @@ function compositeVisibleLayers(layers: Layer[], width: number, height: number):
     if (!ctx) return new ImageData(width, height);
     for (const layer of layers) {
         if (!layer.visible || layer.kind === 'group') continue;
-        ctx.globalAlpha = layer.opacity * layer.fill;
-        ctx.globalCompositeOperation = layer.blendMode;
-        ctx.drawImage(layer.canvas, 0, 0);
+        drawCanvasWithBlendMode(ctx, layer.canvas, layer.blendMode, layer.opacity * layer.fill);
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';

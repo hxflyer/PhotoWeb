@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { PHOTOSHOP_BLEND_MODE_OPTIONS, type BlendModeId } from '../../core/blendModes';
 
 interface NewLayerDialogProps {
     isOpen: boolean;
@@ -8,29 +9,10 @@ interface NewLayerDialogProps {
         name: string;
         opacity: number;
         fill: number;
-        blendMode: GlobalCompositeOperation;
+        blendMode: BlendModeId;
     }) => void;
     onClose: () => void;
 }
-
-const BLEND_MODES: { value: GlobalCompositeOperation; label: string }[] = [
-    { value: 'source-over', label: 'Normal' },
-    { value: 'multiply', label: 'Multiply' },
-    { value: 'screen', label: 'Screen' },
-    { value: 'overlay', label: 'Overlay' },
-    { value: 'darken', label: 'Darken' },
-    { value: 'lighten', label: 'Lighten' },
-    { value: 'color-dodge', label: 'Color Dodge' },
-    { value: 'color-burn', label: 'Color Burn' },
-    { value: 'hard-light', label: 'Hard Light' },
-    { value: 'soft-light', label: 'Soft Light' },
-    { value: 'difference', label: 'Difference' },
-    { value: 'exclusion', label: 'Exclusion' },
-    { value: 'hue', label: 'Hue' },
-    { value: 'saturation', label: 'Saturation' },
-    { value: 'color', label: 'Color' },
-    { value: 'luminosity', label: 'Luminosity' },
-];
 
 function clampPercent(text: string): number {
     const value = Number.parseFloat(text);
@@ -40,7 +22,7 @@ function clampPercent(text: string): number {
 
 function NewLayerDialogBody({ onConfirm, onClose }: Omit<NewLayerDialogProps, 'isOpen'>) {
     const [name, setName] = useState('Layer');
-    const [blendMode, setBlendMode] = useState<GlobalCompositeOperation>('source-over');
+    const [blendMode, setBlendMode] = useState<BlendModeId>('normal');
     const [opacityText, setOpacityText] = useState('100');
     const [fillText, setFillText] = useState('100');
     const dialogRef = useDialogA11y(true, onClose);
@@ -91,10 +73,10 @@ function NewLayerDialogBody({ onConfirm, onClose }: Omit<NewLayerDialogProps, 'i
                         <select
                             data-testid="new-layer-mode"
                             value={blendMode}
-                            onChange={e => setBlendMode(e.target.value as GlobalCompositeOperation)}
+                            onChange={e => setBlendMode(e.target.value as BlendModeId)}
                             style={{ background: 'hsl(var(--bg-input))', color: 'hsl(var(--text-main))', border: '1px solid hsl(var(--border-light))', borderRadius: 2, padding: '4px 6px', fontSize: 12 }}
                         >
-                            {BLEND_MODES.map(mode => <option key={mode.value} value={mode.value}>{mode.label}</option>)}
+                            {PHOTOSHOP_BLEND_MODE_OPTIONS.map(mode => <option key={mode.id} value={mode.id}>{mode.label}</option>)}
                         </select>
                     </label>
                     <label style={{ display: 'grid', gridTemplateColumns: '72px 72px auto', alignItems: 'center', gap: 8 }}>

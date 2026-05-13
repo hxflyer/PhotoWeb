@@ -8,6 +8,7 @@ import { applyAdjustmentToLayer } from '../../adjustments';
 import { createWorkPathFromLayer } from '../../tools/textToPath';
 import { convertActiveLayerToShape } from '../../tools/typeCommands';
 import { getActivePath } from '../../tools/pen';
+import { drawCanvasWithBlendMode } from '../../core/blendModes';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MI =
@@ -173,7 +174,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         const s = useEditorStore.getState();
         const c = document.createElement('canvas'); c.width = s.width; c.height = s.height;
         const ctx = c.getContext('2d')!;
-        s.layers.forEach(l => { if (l.visible) { ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blendMode; ctx.drawImage(l.canvas, 0, 0); } });
+        s.layers.forEach(l => { if (l.visible) drawCanvasWithBlendMode(ctx, l.canvas, l.blendMode, l.opacity); });
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
         c.toBlob(b => { if (!b) return; const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'export.png'; a.click(); URL.revokeObjectURL(u); }, 'image/png');
         s.addToast('PNG exported', 'success');
