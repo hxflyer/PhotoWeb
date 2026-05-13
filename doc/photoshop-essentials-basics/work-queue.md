@@ -15,7 +15,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 04b-file-new               (2) — File > New dialog  commit: 137edb3
 - [x] 04c-file-save-close        (2) — Save As to protect original, Close / Close All  commit: 5b015f4
 - [ ] 05a-image-size             (9) — Image Size dialog: pixels, resolution, resampling
-- [ ] 05b-canvas-size            (1) — Canvas Size dialog, Crop Tool expand
+- [x] 05b-canvas-size            (1) — Canvas Size dialog, Crop Tool expand  commit: 361c45c
 - [ ] 05c-rotate-straighten      (1) — Image Rotation, Straighten button, Ruler Tool
 - [ ] 06-crop                    (7) — Crop Tool, Perspective Crop, single-layer / circular
 - [ ] 07a-layers-panel           (8) — Layers panel structure, rows, shortcuts
