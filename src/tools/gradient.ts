@@ -3,9 +3,11 @@ import { registerTool } from './registry';
 import { buildSelectionMask } from '../filters/selectionMask';
 import { blendModeToCompositeOp, applyBlendModeToImageData, type BlendModeId } from '../core/blendModes';
 import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
+import type { GradientFill } from '../core/fillLayer';
 
 export type GradientType = 'linear' | 'radial' | 'angle' | 'reflected' | 'diamond';
 export type GradientMethod = 'smooth' | 'classic';
+export type GradientMode = 'classic' | 'gradient';
 
 export interface GradientStop {
     position: number;
@@ -71,6 +73,7 @@ const defaultPresets: GradientPreset[] = [
 ];
 
 export interface GradientOptions {
+    gradientMode: GradientMode;
     type: GradientType;
     presetId: string;
     reverse: boolean;
@@ -85,6 +88,7 @@ export interface GradientOptions {
 }
 
 const defaultOptions: GradientOptions = {
+    gradientMode: 'classic',
     type: 'linear',
     presetId: 'foreground-to-background',
     reverse: false,
@@ -130,8 +134,10 @@ interface DragState {
     live: boolean;
     /** Which endpoint is being dragged in live-edit mode. */
     activeEnd: 'start' | 'end' | null;
+    /** True when live editing a non-destructive Gradient Fill layer. */
+    fillLayer: boolean;
 }
-const drag: DragState = { start: null, end: null, layerId: null, shift: false, live: false, activeEnd: null };
+const drag: DragState = { start: null, end: null, layerId: null, shift: false, live: false, activeEnd: null, fillLayer: false };
 
 const LIVE_HANDLE_RADIUS = 8;
 
@@ -144,6 +150,7 @@ function clearLiveState(): void {
     drag.layerId = null;
     drag.live = false;
     drag.activeEnd = null;
+    drag.fillLayer = false;
 }
 
 function resolveStops(primaryColor: string, secondaryColor: string): GradientStop[] {
@@ -451,6 +458,52 @@ function compositeGradient(
     }
 }
 
+function gradientAngle(start: { x: number; y: number }, end: { x: number; y: number }): number {
+    return (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI;
+}
+
+function buildGradientFillData(
+    store: import('../store/types').EditorStore,
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+): GradientFill {
+    return {
+        kind: 'gradient',
+        type: options.type,
+        angle: gradientAngle(start, end),
+        start: { ...start },
+        end: { ...end },
+        stops: resolveStops(store.primaryColor, store.secondaryColor),
+        dither: options.dither,
+        method: options.method,
+        smoothness: options.smoothness,
+    };
+}
+
+function paintGradientFillLayer(
+    layer: import('../core/Layer').Layer,
+    fillData: GradientFill,
+    width: number,
+    height: number,
+): void {
+    const layerWithFill = layer as import('../core/Layer').Layer & { fillData?: GradientFill };
+    layerWithFill.fillData = fillData;
+    layer.ctx.clearRect(0, 0, width, height);
+    const gradientCanvas = renderGradientCanvas(
+        width,
+        height,
+        fillData.type,
+        fillData.start ?? { x: 0, y: height / 2 },
+        fillData.end ?? { x: width, y: height / 2 },
+        fillData.stops,
+        fillData.dither ?? false,
+        fillData.method ?? 'classic',
+        fillData.smoothness ?? 0,
+    );
+    layer.ctx.drawImage(gradientCanvas, 0, 0);
+    layer.markDirty(null);
+}
+
 // Last-committed snapshot for live preview: when the user repositions a
 // gradient handle in live mode, we revert the layer to this snapshot before
 // recompositing so successive drags don't stack on each other.
@@ -480,13 +533,18 @@ function commitLive(ctx: { getStore: () => import('../store/types').EditorStore 
 }
 
 function repaintLive(ctx: { getStore: () => import('../store/types').EditorStore }): void {
-    if (!drag.start || !drag.end || !drag.layerId || !liveSnapshot) return;
+    if (!drag.start || !drag.end || !drag.layerId) return;
     const store = ctx.getStore();
     const layer = store.layers.find(l => l.id === drag.layerId);
     if (!layer) return;
     const w = layer.canvas.width;
     const h = layer.canvas.height;
     const endPt = drag.shift ? constrainAngle(drag.start, drag.end) : drag.end;
+    if (drag.fillLayer) {
+        paintGradientFillLayer(layer, buildGradientFillData(store, drag.start, endPt), w, h);
+        return;
+    }
+    if (!liveSnapshot) return;
     // Revert to the pre-stroke snapshot, then composite the new gradient.
     layer.ctx.putImageData(liveSnapshot, 0, 0);
     const stops = resolveStops(store.primaryColor, store.secondaryColor);
@@ -535,7 +593,8 @@ export const gradientTool: Tool = {
         drag.shift = e.shift;
         drag.live = false;
         drag.activeEnd = null;
-        liveSnapshot = captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
+        drag.fillLayer = options.gradientMode === 'gradient';
+        liveSnapshot = drag.fillLayer ? null : captureLayerRegion(layer, { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height });
     },
     onPointerMove: (e, ctx) => {
         if (!drag.start) return;
@@ -561,6 +620,17 @@ export const gradientTool: Tool = {
         // Enter, tool switch, or click-off).
         if (!drag.live) {
             const store = ctx.getStore();
+            if (options.gradientMode === 'gradient') {
+                const endPt = drag.shift ? constrainAngle(drag.start, drag.end) : drag.end;
+                store.addFillLayer(buildGradientFillData(store, drag.start, endPt), 'Gradient Fill');
+                drag.layerId = ctx.getStore().activeLayerId;
+                drag.end = endPt;
+                drag.live = true;
+                drag.fillLayer = true;
+                drag.activeEnd = null;
+                liveSnapshot = null;
+                return;
+            }
             const layer = store.layers.find(l => l.id === drag.layerId);
             if (!layer) { clearLiveState(); liveSnapshot = null; return; }
             void store;

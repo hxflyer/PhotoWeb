@@ -19,7 +19,7 @@ import { getQuickSelectionOptions, setQuickSelectionOptions } from '../../tools/
 import { getObjectSelectionOptions, setObjectSelectionOptions, type ObjectSelectionOptions as ObjectSelectionToolOptions } from '../../tools/objectSelection';
 import {
     getGradientOptions, setGradientOptions, getGradientPresets,
-    type GradientType, type GradientMethod, type GradientStop,
+    type GradientType, type GradientMethod, type GradientMode, type GradientStop,
 } from '../../tools/gradient';
 import { GradientEditorDialog, type GradientEditorResult } from '../Dialogs/GradientEditorDialog';
 import { getPaintBucketOptions, setPaintBucketOptions, type FillSource } from '../../tools/paintBucket';
@@ -1389,6 +1389,21 @@ function GradientOptions() {
 
     return (
         <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {S.label('Gradient Mode:')}
+                <select
+                    className="opts-input"
+                    data-testid="gradient-mode-select"
+                    style={{ width: 104 }}
+                    value={opts.gradientMode}
+                    onChange={e => update({ gradientMode: e.target.value as GradientMode })}
+                    title="Gradient Mode"
+                >
+                    <option value="gradient">Gradient</option>
+                    <option value="classic">Classic Gradient</option>
+                </select>
+            </div>
+            {S.sep()}
             <select
                 className="opts-input"
                 data-testid="gradient-preset-select"

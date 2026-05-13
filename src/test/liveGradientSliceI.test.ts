@@ -3,6 +3,7 @@ import { Layer } from '../core/Layer';
 import { useEditorStore } from '../store/editorStore';
 import { ensureStubsRegistered } from '../tools/stubs';
 import { getTool } from '../tools/registry';
+import { setGradientOptions } from '../tools/gradient';
 import type { ToolPointerEvent } from '../tools/Tool';
 import { layerPixelAt } from './simulator';
 
@@ -59,6 +60,20 @@ describe('Slice I — Live Gradient handles', () => {
             primaryColor: '#ff0000',
             secondaryColor: '#0000ff',
         }));
+        setGradientOptions({
+            gradientMode: 'classic',
+            type: 'linear',
+            presetId: 'foreground-to-background',
+            reverse: false,
+            dither: false,
+            method: 'classic',
+            transparency: true,
+            opacity: 1,
+            mode: 'normal',
+            stops: undefined,
+            opacityStops: undefined,
+            smoothness: undefined,
+        });
     });
 
     it('pointer-up paints a live preview but does NOT yet commit to history', () => {
@@ -174,5 +189,50 @@ describe('Slice I — Live Gradient handles', () => {
         // History should have grown by one (the previous gradient committed).
         expect(useEditorStore.getState().historyEntries.length).toBe(histAfterFirst + 1);
         tool.onPointerUp!(pointer(10, 10), ctx);
+    });
+
+    it('Gradient mode creates a separate non-destructive Gradient Fill layer', () => {
+        setGradientOptions({ gradientMode: 'gradient' });
+        const initialHist = useEditorStore.getState().historyEntries.length;
+        const tool = getTool('gradient')!;
+        const ctx = toolCtx();
+
+        tool.onPointerDown!(pointer(0, 20), ctx);
+        tool.onPointerMove!(pointer(40, 20), ctx);
+        tool.onPointerUp!(pointer(40, 20), ctx);
+
+        const store = useEditorStore.getState();
+        expect(store.historyEntries.length).toBe(initialHist + 1);
+        expect(store.layers).toHaveLength(2);
+        expect(layerPixelAt(layer, 5, 20).a).toBe(0);
+
+        const fillLayer = store.layers.find(l => l.id === store.activeLayerId)! as typeof layer & {
+            fillData?: { kind: string; start?: { x: number; y: number }; end?: { x: number; y: number } };
+        };
+        expect(fillLayer.kind).toBe('fill');
+        expect(fillLayer.name).toBe('Gradient Fill');
+        expect(fillLayer.fillData?.kind).toBe('gradient');
+        expect(fillLayer.fillData?.start).toEqual({ x: 0, y: 20 });
+        expect(fillLayer.fillData?.end).toEqual({ x: 40, y: 20 });
+        expect(layerPixelAt(fillLayer, 5, 20).r).toBeGreaterThan(layerPixelAt(fillLayer, 35, 20).r);
+    });
+
+    it('Gradient Fill layer handles remain editable after creation', () => {
+        setGradientOptions({ gradientMode: 'gradient' });
+        const tool = getTool('gradient')!;
+        const ctx = toolCtx();
+
+        tool.onPointerDown!(pointer(0, 20), ctx);
+        tool.onPointerMove!(pointer(40, 20), ctx);
+        tool.onPointerUp!(pointer(40, 20), ctx);
+        const fillLayer = useEditorStore.getState().layers.find(l => l.id === useEditorStore.getState().activeLayerId)! as typeof layer & {
+            fillData?: { end?: { x: number; y: number } };
+        };
+
+        tool.onPointerDown!(pointer(40, 20), ctx);
+        tool.onPointerMove!(pointer(40, 5), ctx);
+        tool.onPointerUp!(pointer(40, 5), ctx);
+
+        expect(fillLayer.fillData?.end).toEqual({ x: 40, y: 5 });
     });
 });

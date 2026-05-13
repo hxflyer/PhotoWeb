@@ -241,4 +241,15 @@ describe('GradientEditorDialog', () => {
         fireEvent.change(getByTestId('gradient-preset-select'), { target: { value: 'black-to-white' } });
         expect(getGradientOptions().stops).toBeUndefined();
     });
+
+    it('OptionsBar: Gradient Mode switches between live Gradient and Classic Gradient', () => {
+        useEditorStore.getState().setTool('gradient');
+        const { getByTestId } = render(<OptionsBar />);
+
+        fireEvent.change(getByTestId('gradient-mode-select'), { target: { value: 'gradient' } });
+        expect(getGradientOptions().gradientMode).toBe('gradient');
+
+        fireEvent.change(getByTestId('gradient-mode-select'), { target: { value: 'classic' } });
+        expect(getGradientOptions().gradientMode).toBe('classic');
+    });
 });

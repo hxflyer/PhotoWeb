@@ -1,4 +1,5 @@
 import { Layer } from './Layer';
+import { renderGradientCanvas, type GradientMethod, type GradientStop, type GradientType } from '../tools/gradient';
 
 export type FillLayerKind = 'solid-color' | 'gradient';
 
@@ -9,9 +10,14 @@ export interface SolidColorFill {
 
 export interface GradientFill {
     kind: 'gradient';
-    type: 'linear' | 'radial' | 'angle' | 'reflected' | 'diamond';
+    type: GradientType;
     angle: number;
-    stops: { position: number; color: string; opacity: number }[];
+    stops: GradientStop[];
+    start?: { x: number; y: number };
+    end?: { x: number; y: number };
+    dither?: boolean;
+    method?: GradientMethod;
+    smoothness?: number;
 }
 
 export type FillLayerData = SolidColorFill | GradientFill;
@@ -24,6 +30,23 @@ export function paintFillLayer(layer: Layer, data: FillLayerData, width: number,
         ctx.fillStyle = data.color;
         ctx.fillRect(0, 0, width, height);
     } else {
+        if (data.start && data.end) {
+            const gradientCanvas = renderGradientCanvas(
+                width,
+                height,
+                data.type,
+                data.start,
+                data.end,
+                data.stops,
+                data.dither ?? false,
+                data.method ?? 'classic',
+                data.smoothness ?? 0,
+            );
+            ctx.drawImage(gradientCanvas, 0, 0);
+            ctx.restore();
+            layer.markDirty(null);
+            return;
+        }
         let grad: CanvasGradient;
         if (data.type === 'linear') {
             const rad = (data.angle * Math.PI) / 180;
