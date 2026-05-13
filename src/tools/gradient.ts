@@ -19,6 +19,12 @@ export interface GradientStop {
     midpointToNext?: number;
 }
 
+export interface GradientOpacityStop {
+    position: number;
+    opacity: number;
+    midpointToNext?: number;
+}
+
 export interface GradientPreset {
     id: string;
     name: string;
@@ -50,6 +56,18 @@ const defaultPresets: GradientPreset[] = [
             { position: 1, color: '#ffffff', opacity: 1 },
         ],
     },
+    {
+        id: 'rainbow',
+        name: 'Rainbow',
+        stops: [
+            { position: 0, color: '#ff0000', opacity: 1 },
+            { position: 0.2, color: '#ffff00', opacity: 1 },
+            { position: 0.4, color: '#00ff00', opacity: 1 },
+            { position: 0.6, color: '#00ffff', opacity: 1 },
+            { position: 0.8, color: '#0000ff', opacity: 1 },
+            { position: 1, color: '#ff00ff', opacity: 1 },
+        ],
+    },
 ];
 
 export interface GradientOptions {
@@ -62,19 +80,22 @@ export interface GradientOptions {
     opacity: number;            // 0-1
     mode: BlendModeId;
     stops?: GradientStop[];
+    opacityStops?: GradientOpacityStop[];
     smoothness?: number;
 }
 
-let options: GradientOptions = {
+const defaultOptions: GradientOptions = {
     type: 'linear',
     presetId: 'foreground-to-background',
     reverse: false,
-    dither: false,
+    dither: true,
     method: 'smooth',
     transparency: true,
     opacity: 1,
     mode: 'normal',
 };
+
+let options: GradientOptions = { ...defaultOptions };
 
 export function setGradientOptions(next: Partial<GradientOptions>): void {
     options = { ...options, ...next };
@@ -82,6 +103,10 @@ export function setGradientOptions(next: Partial<GradientOptions>): void {
 
 export function getGradientOptions(): GradientOptions {
     return { ...options };
+}
+
+export function resetGradientOptions(): void {
+    options = { ...defaultOptions };
 }
 
 export function getGradientPresets(): GradientPreset[] {
@@ -122,10 +147,18 @@ function clearLiveState(): void {
 }
 
 function resolveStops(primaryColor: string, secondaryColor: string): GradientStop[] {
+    const customStops = options.stops && options.stops.length > 0 ? options.stops : null;
     const preset = defaultPresets.find(p => p.id === options.presetId) ?? defaultPresets[0];
-    const stops = preset.stops.map((stop, i, arr) => ({
+    const baseStops = customStops ? mergeCustomStops(customStops, options.opacityStops) : preset.stops;
+    const usesForegroundBackground = !customStops && preset.id === 'foreground-to-background';
+    const usesForegroundTransparent = !customStops && preset.id === 'foreground-to-transparent';
+    const stops = baseStops.map((stop, i, arr) => ({
         ...stop,
-        color: i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : stop.color,
+        color: usesForegroundBackground
+            ? (i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : stop.color)
+            : usesForegroundTransparent
+                ? primaryColor
+                : stop.color,
         opacity: options.transparency ? stop.opacity : 1,
     }));
     if (options.reverse) {
@@ -150,6 +183,10 @@ function withAlpha(color: string, alpha: number): string {
     const g = parseInt(color.slice(3, 5), 16);
     const b = parseInt(color.slice(5, 7), 16);
     return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function toHex(r: number, g: number, b: number): string {
+    return `#${[r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 }
 
 function constrainAngle(start: { x: number; y: number }, end: { x: number; y: number }): { x: number; y: number } {
@@ -213,6 +250,50 @@ function sampleStops(stops: GradientStop[], t: number, method: GradientMethod, s
         b1 + (b2 - b1) * k,
         a,
     ];
+}
+
+function sampleOpacityStops(stops: GradientOpacityStop[], t: number, smoothness = 0): number {
+    if (stops.length === 0) return 1;
+    const sorted = [...stops].sort((a, b) => a.position - b.position);
+    if (t <= sorted[0].position) return sorted[0].opacity;
+    if (t >= sorted[sorted.length - 1].position) return sorted[sorted.length - 1].opacity;
+    let lo = sorted[0];
+    let hi = sorted[sorted.length - 1];
+    for (let i = 0; i < sorted.length - 1; i++) {
+        if (t >= sorted[i].position && t <= sorted[i + 1].position) {
+            lo = sorted[i];
+            hi = sorted[i + 1];
+            break;
+        }
+    }
+    const span = hi.position - lo.position || 1;
+    const kRaw = (t - lo.position) / span;
+    const m = Math.max(0.05, Math.min(0.95, lo.midpointToNext ?? 0.5));
+    const kMid = Math.abs(m - 0.5) < 1e-4
+        ? kRaw
+        : (kRaw <= m ? (kRaw / m) * 0.5 : 0.5 + ((kRaw - m) / (1 - m)) * 0.5);
+    const sm = Math.max(0, Math.min(100, smoothness)) / 100;
+    const k = sm <= 0
+        ? kMid
+        : kMid * (1 - sm) + (kMid * kMid * (3 - 2 * kMid)) * sm;
+    return lo.opacity + (hi.opacity - lo.opacity) * k;
+}
+
+function mergeCustomStops(colorStops: GradientStop[], opacityStops: GradientOpacityStop[] | undefined): GradientStop[] {
+    if (!opacityStops || opacityStops.length === 0) return colorStops.map(s => ({ ...s }));
+    const positions = [...colorStops.map(s => s.position), ...opacityStops.map(s => s.position)]
+        .filter((position, index, all) => all.findIndex(p => Math.abs(p - position) < 0.0001) === index)
+        .sort((a, b) => a - b);
+    return positions.map(position => {
+        const [r, g, b] = sampleStops(colorStops, position, options.method, options.smoothness);
+        const sourceColorStop = colorStops.find(s => Math.abs(s.position - position) < 0.0001);
+        return {
+            position,
+            color: toHex(r, g, b),
+            opacity: sampleOpacityStops(opacityStops, position, options.smoothness),
+            midpointToNext: sourceColorStop?.midpointToNext,
+        };
+    });
 }
 
 /**

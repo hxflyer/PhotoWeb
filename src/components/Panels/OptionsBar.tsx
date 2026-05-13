@@ -1322,14 +1322,20 @@ function GradientOptions() {
     const initialEditorStops = (() => {
         if (opts.stops && opts.stops.length > 0) {
             return {
-                colors: opts.stops.map(s => ({ position: s.position, color: s.color })),
-                opacities: opts.stops.map(s => ({ position: s.position, opacity: s.opacity })),
+                colors: opts.stops.map(s => ({ position: s.position, color: s.color, midpointToNext: s.midpointToNext })),
+                opacities: opts.opacityStops && opts.opacityStops.length > 0
+                    ? opts.opacityStops.map(s => ({ ...s }))
+                    : opts.stops.map(s => ({ position: s.position, opacity: s.opacity, midpointToNext: s.midpointToNext })),
             };
         }
         return {
             colors: preset.stops.map((s, i, arr) => ({
                 position: s.position,
-                color: i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : s.color,
+                color: preset.id === 'foreground-to-background'
+                    ? (i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : s.color)
+                    : preset.id === 'foreground-to-transparent'
+                        ? primaryColor
+                        : s.color,
             })),
             opacities: preset.stops.map(s => ({ position: s.position, opacity: s.opacity })),
         };
@@ -1344,15 +1350,32 @@ function GradientOptions() {
                 : 1,
             midpointToNext: cs.midpointToNext,
         }));
-        setGradientOptions({ stops: merged, smoothness: result.smoothness });
+        setGradientOptions({
+            stops: merged,
+            opacityStops: result.opacityStops.map(stop => ({ ...stop })),
+            smoothness: result.smoothness,
+        });
         force(t => t + 1);
     };
     // Build a CSS preview of the current gradient using FG/BG-substituted stops.
-    const previewStops = preset.stops.map((s, i, arr) => {
-        const c = i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : s.color;
+    const rawPreviewStops = opts.stops && opts.stops.length > 0
+        ? opts.stops
+        : preset.stops.map((s, i, arr) => ({
+            ...s,
+            color: preset.id === 'foreground-to-background'
+                ? (i === 0 ? primaryColor : i === arr.length - 1 ? secondaryColor : s.color)
+                : preset.id === 'foreground-to-transparent'
+                    ? primaryColor
+                    : s.color,
+        }));
+    const previewStops = rawPreviewStops.map((s) => {
+        const c = s.color;
         const r = parseInt(c.slice(1, 3), 16); const g = parseInt(c.slice(3, 5), 16); const b = parseInt(c.slice(5, 7), 16);
         const pos = opts.reverse ? 1 - s.position : s.position;
-        return { pos: pos * 100, css: `rgba(${r},${g},${b},${s.opacity})` };
+        const alpha = opts.opacityStops && opts.opacityStops.length > 0
+            ? interpolateOpacityAt(opts.opacityStops, s.position)
+            : s.opacity;
+        return { pos: pos * 100, css: `rgba(${r},${g},${b},${alpha})` };
     }).sort((a, b) => a.pos - b.pos);
     const previewCss = `linear-gradient(to right, ${previewStops.map(s => `${s.css} ${s.pos}%`).join(', ')})`;
 
@@ -1368,14 +1391,15 @@ function GradientOptions() {
         <>
             <select
                 className="opts-input"
+                data-testid="gradient-preset-select"
                 style={{ width: 90 }}
                 title="Gradient preset"
                 value={opts.presetId}
-                onChange={e => update({ presetId: e.target.value })}
+                onChange={e => update({ presetId: e.target.value, stops: undefined, opacityStops: undefined, smoothness: undefined })}
             >
                 {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <div style={{ width: 120, height: 20, background: previewCss, border: '1px solid hsl(var(--border-light))', borderRadius: 2 }} title="Gradient preview" />
+            <div data-testid="gradient-preview" style={{ width: 120, height: 20, background: previewCss, border: '1px solid hsl(var(--border-light))', borderRadius: 2 }} title="Gradient preview" />
             <button
                 className="opts-btn"
                 title="Click to Edit Gradient"

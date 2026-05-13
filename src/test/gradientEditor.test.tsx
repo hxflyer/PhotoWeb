@@ -223,4 +223,22 @@ describe('GradientEditorDialog', () => {
         expect(stops).toBeTruthy();
         expect(stops!.length).toBeGreaterThanOrEqual(3);
     });
+
+    it('OptionsBar: preview reflects custom stops and preset selection clears them', () => {
+        useEditorStore.getState().setTool('gradient');
+        setGradientOptions({
+            presetId: 'black-to-white',
+            stops: [
+                { position: 0, color: '#ff0000', opacity: 1 },
+                { position: 0.5, color: '#00ff00', opacity: 1 },
+                { position: 1, color: '#0000ff', opacity: 1 },
+            ],
+        });
+        const { getByTestId } = render(<OptionsBar />);
+
+        expect((getByTestId('gradient-preview') as HTMLDivElement).style.background).toContain('0, 255, 0');
+
+        fireEvent.change(getByTestId('gradient-preset-select'), { target: { value: 'black-to-white' } });
+        expect(getGradientOptions().stops).toBeUndefined();
+    });
 });
