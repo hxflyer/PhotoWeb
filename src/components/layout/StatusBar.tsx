@@ -60,6 +60,105 @@ const INFO_MODES: { id: StatusBarInfoMode; label: string }[] = [
 const HOLD_DELAY_MS = 150;
 const HOLD_CANCEL_PX = 4;
 
+/**
+ * Editable zoom-percent readout with Ctrl/Cmd-hover scrubby slider.
+ * Click to type a new value (Enter commits, Esc reverts); Ctrl/Cmd-drag
+ * scrubs the zoom exponentially.
+ */
+function ZoomDisplay({ zoom, pct }: { zoom: number; pct: number }) {
+    const [editing, setEditing] = useState(false);
+    const [inputValue, setInputValue] = useState('');
+    const dragRef = useRef<{ startX: number; startZoom: number } | null>(null);
+
+    function commit(raw: string) {
+        const cleaned = raw.replace(/%/g, '').trim();
+        const n = Number(cleaned);
+        if (!Number.isFinite(n) || n <= 0) {
+            setEditing(false);
+            return;
+        }
+        const z = Math.max(0.05, Math.min(32, n / 100));
+        useEditorStore.getState().setZoom(z);
+        setEditing(false);
+    }
+
+    function onMouseMove(e: React.MouseEvent) {
+        if (!dragRef.current) return;
+        const dx = e.clientX - dragRef.current.startX;
+        const next = Math.max(0.05, Math.min(32, dragRef.current.startZoom * Math.exp(dx * 0.005)));
+        useEditorStore.getState().setZoom(next);
+    }
+    function onMouseUp() {
+        dragRef.current = null;
+        document.removeEventListener('mousemove', onMouseMoveDoc);
+        document.removeEventListener('mouseup', onMouseUp);
+    }
+    function onMouseMoveDoc(e: MouseEvent) {
+        if (!dragRef.current) return;
+        const dx = e.clientX - dragRef.current.startX;
+        const next = Math.max(0.05, Math.min(32, dragRef.current.startZoom * Math.exp(dx * 0.005)));
+        useEditorStore.getState().setZoom(next);
+    }
+
+    function onMouseDown(e: React.MouseEvent) {
+        if (e.button !== 0) return;
+        if (!(e.metaKey || e.ctrlKey)) return;
+        e.preventDefault();
+        dragRef.current = { startX: e.clientX, startZoom: zoom };
+        document.addEventListener('mousemove', onMouseMoveDoc);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    return (
+        <div
+            data-testid="statusbar-zoom"
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                cursor: 'default',
+            }}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+        >
+            {editing ? (
+                <input
+                    data-testid="statusbar-zoom-input"
+                    autoFocus
+                    defaultValue={inputValue}
+                    onBlur={(e) => commit(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); commit((e.target as HTMLInputElement).value); }
+                        else if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+                    }}
+                    style={{
+                        background: 'hsl(var(--bg-input))',
+                        border: '1px solid hsl(var(--accent-primary))',
+                        color: 'hsl(var(--text-main))',
+                        width: 44,
+                        fontSize: 11,
+                        padding: '1px 4px',
+                        borderRadius: 2,
+                    }}
+                />
+            ) : (
+                <span
+                    data-testid="statusbar-zoom-pct"
+                    onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey) return; // Ctrl-click reserved for scrubby
+                        setInputValue(String(pct));
+                        setEditing(true);
+                    }}
+                    style={{ color: 'hsl(var(--text-main))', cursor: 'text' }}
+                    title="Click to set zoom · Cmd/Ctrl-drag to scrub"
+                >
+                    {pct}%
+                </span>
+            )}
+        </div>
+    );
+}
+
 export function StatusBar() {
   const zoom = useEditorStore(s => s.zoom);
   const width = useEditorStore(s => s.width);
@@ -203,9 +302,7 @@ export function StatusBar() {
       color: 'hsl(var(--text-muted))',
       userSelect: 'none',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <span style={{ color: 'hsl(var(--text-main))' }}>{pct}%</span>
-      </div>
+      <ZoomDisplay zoom={zoom} pct={pct} />
 
       <div style={{ width: 1, height: 12, background: 'hsl(var(--border-mid))' }} />
 

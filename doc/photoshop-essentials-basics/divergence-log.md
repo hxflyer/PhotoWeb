@@ -155,3 +155,33 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Tools > Show Tool Tips toggle controls whether hover tooltips appear; Interface > Highlight Color picks Default Gray vs Blue for the selected layer in the Layers panel.
 **Photoweb behavior:** Neither is implemented this tick.
 **Rationale:** Show Tool Tips requires app-wide gating of HTML `title` attrs (browsers render them natively, can't be CSS-suppressed); deep refactor deferred. Highlight Color is a small Layers-panel CSS change deferred to the layers-panel cluster.
+
+## 2026-05-13 — 03-navigation — Ctrl+wheel keeps zooming (in addition to new Alt+wheel)
+
+**Photoshop behavior:** Alt/Option + mouse-wheel zooms (anchored at cursor); plain wheel pans; Ctrl/Cmd + wheel pans horizontally.
+**Photoweb behavior:** Alt+wheel zooms (Photoshop habit), AND Ctrl+wheel also zooms (legacy photoweb shortcut kept for backward compatibility). Plain wheel still pans. Ctrl+wheel-as-horizontal-pan is not implemented.
+**Rationale:** The existing Ctrl+wheel = zoom binding is in users' muscle memory and conflicts with the browser's native Ctrl+wheel page-zoom. Reclaiming Ctrl+wheel for horizontal pan would either fight the browser (preventDefault works inside the canvas only) or break the muscle memory. Both bindings work, so the Alt+wheel Photoshop habit is bridged without breaking the legacy one.
+
+## 2026-05-13 — 03-navigation — No Bird's Eye View, Rotate View Tool, Overscroll, Navigator panel
+
+**Photoshop behavior:** Hold H + click on canvas opens Bird's Eye View; Rotate View Tool (R) rotates the canvas display; Overscroll preference allows scrolling past image bounds; Navigator panel shows the current viewport rectangle on a thumbnail.
+**Photoweb behavior:** None of these.
+**Rationale:** All four are listed under `nav_extras` in CLAUDE.md §4. Permanent exclusion.
+
+## 2026-05-13 — 03-navigation — No Flick Panning, Continuous Zoom, drag-rect zoom
+
+**Photoshop behavior:** Releasing Hand Tool mid-drag flicks the image with inertia; press-and-hold Zoom Tool button to keep zooming continuously; with Scrubby Zoom off, dragging a rect with Zoom Tool zooms to fit the rect.
+**Photoweb behavior:** Hand Tool stops on release; Zoom Tool click is discrete; no drag-rect.
+**Rationale:** All three are convenience polish; the core Zoom Tool / Hand Tool interactions cover the common cases. Defer.
+
+## 2026-05-13 — 03-navigation — No zoom-preset snapping on Cmd+/-
+
+**Photoshop behavior:** Cmd+/- snaps zoom to a preset ladder (25 / 33.3 / 50 / 66.7 / 100 / 200 / 400 / 800 …) for the sharpest possible view at each step.
+**Photoweb behavior:** Cmd+/- multiplies / divides by a constant factor (1.25).
+**Rationale:** Small follow-up. Deferred.
+
+## 2026-05-13 — 03-navigation — No Pixel Grid auto-show beyond ~500%
+
+**Photoshop behavior:** Past ~500% zoom, View > Show > Pixel Grid auto-appears.
+**Photoweb behavior:** Pixel grid not implemented.
+**Rationale:** Visual debugging aid; defer.

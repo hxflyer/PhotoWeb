@@ -750,11 +750,30 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
     }, []); // runs once — overlay loop is self-contained, reads state imperatively
 
     const handleWheel = (e: React.WheelEvent) => {
-        if (e.ctrlKey) {
+        // Photoshop convention: Alt+wheel zooms (anchored at cursor); plain
+        // wheel pans. Ctrl+wheel also zooms (legacy photoweb shortcut) to
+        // avoid breaking existing muscle memory; both behave identically.
+        if (e.altKey || e.ctrlKey) {
             e.preventDefault();
-            const delta = -e.deltaY * 0.001;
-            const newZoom = Math.min(Math.max(0.1, zoom + delta), 5);
-            setZoom(newZoom);
+            // Convert cursor screen position to canvas-space coords so the
+            // anchor stays under the cursor through the zoom change.
+            const docEl = (e.currentTarget as HTMLElement).querySelector('[data-photoweb-document]') as HTMLElement | null;
+            let anchorCanvasX = 0;
+            let anchorCanvasY = 0;
+            if (docEl) {
+                const rect = docEl.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    anchorCanvasX = ((e.clientX - rect.left) / rect.width) * width;
+                    anchorCanvasY = ((e.clientY - rect.top) / rect.height) * height;
+                }
+            }
+            // Exponential mapping keeps the wheel feel smooth at any zoom.
+            const factor = Math.exp(-e.deltaY * 0.001);
+            const clamped = Math.max(0.05, Math.min(32, zoom * factor));
+            const newPanX = pan.x + anchorCanvasX * (zoom - clamped);
+            const newPanY = pan.y + anchorCanvasY * (zoom - clamped);
+            setZoom(clamped);
+            setPan(newPanX, newPanY);
             requestRender();
         } else {
             setPan(pan.x - e.deltaX, pan.y - e.deltaY);

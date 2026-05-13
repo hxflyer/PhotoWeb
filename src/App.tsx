@@ -587,27 +587,56 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [freeTransform]); // stable: store values read via gs(); transform mode blocks tool shortcuts
 
-  // Spacebar = temporary Hand tool (Photoshop). Press-and-hold switches to
-  // 'hand'; release restores the prior tool. Suppressed inside editable
-  // elements so a literal space keeps typing.
+  // Photoshop temporary navigation:
+  //   Space        → temp Hand Tool
+  //   Space + Cmd  → temp Zoom Tool (zoom in on click)
+  //   Space + Cmd + Alt → temp Zoom Tool (zoom out on click; Alt routes
+  //                       through the zoom tool's own click handler)
+  // Releasing ANY of Space / Cmd restores the prior tool. Suppressed in
+  // editable elements so a literal space keeps typing.
   useEffect(() => {
     let priorTool: import('./store/types').ToolId | null = null;
-    const onDown = (e: KeyboardEvent) => {
-      if (e.code !== 'Space' || e.repeat) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
-      const s = gs();
-      if (s.activeTool === 'hand') return;
-      e.preventDefault();
-      priorTool = s.activeTool;
-      s.setTool('hand');
+    let active: 'hand' | 'zoom' | null = null;
+    const isEditable = (t: EventTarget | null): boolean => {
+      const el = t as HTMLElement | null;
+      return !!(el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'));
     };
-    const onUp = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
-      if (priorTool && gs().activeTool === 'hand') {
+    const restore = () => {
+      if (priorTool && (gs().activeTool === 'hand' || gs().activeTool === 'zoom')) {
         gs().setTool(priorTool);
       }
       priorTool = null;
+      active = null;
+    };
+    const onDown = (e: KeyboardEvent) => {
+      if (isEditable(e.target)) return;
+      const s = gs();
+      // Promote Hand → Zoom when Cmd/Ctrl pressed while Space is held.
+      if ((e.key === 'Meta' || e.key === 'Control') && active === 'hand' && !e.repeat) {
+        s.setTool('zoom');
+        active = 'zoom';
+        return;
+      }
+      // Demote Zoom → Hand when Space is the first press but Cmd was
+      // already held — handled in the Space branch below.
+      if (e.code !== 'Space' || e.repeat) return;
+      e.preventDefault();
+      if (active !== null) return;
+      const useZoom = e.metaKey || e.ctrlKey;
+      priorTool = s.activeTool;
+      active = useZoom ? 'zoom' : 'hand';
+      s.setTool(useZoom ? 'zoom' : 'hand');
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && active !== null) {
+        restore();
+        return;
+      }
+      if ((e.key === 'Meta' || e.key === 'Control') && active === 'zoom') {
+        // Cmd released but Space may still be held: drop back to Hand.
+        gs().setTool('hand');
+        active = 'hand';
+      }
     };
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);

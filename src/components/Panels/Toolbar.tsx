@@ -402,6 +402,17 @@ export function Toolbar() {
                                 onMouseUp={endHold}
                                 onMouseLeave={endHold}
                                 onClick={(e) => handleGroupClick(gi, e)}
+                                onDoubleClick={(e) => {
+                                    // Photoshop: double-click Hand Tool → Fit on Screen;
+                                    // double-click Zoom Tool → 100% Actual Pixels.
+                                    if (display.id === 'hand') {
+                                        e.stopPropagation();
+                                        window.dispatchEvent(new Event('photoweb:fit-document'));
+                                    } else if (display.id === 'zoom') {
+                                        e.stopPropagation();
+                                        useEditorStore.getState().setZoom(1);
+                                    }
+                                }}
                                 onContextMenu={(e) => {
                                     e.preventDefault();
                                     if (hasSubs) {
