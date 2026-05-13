@@ -156,6 +156,43 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Window-menu F-keys (F5 Brush Presets, F6 Color, F7 Layers, F8 Info) +
+  // Tab / Shift+Tab to hide chrome. Suppressed inside inputs and when a
+  // dialog is open (don't fight focus traps / Tab cycling).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
+      const s = useEditorStore.getState();
+      const anyDialog = s.dialogs.isImageSizeOpen || s.dialogs.isCanvasSizeOpen
+        || s.dialogs.isExportDialogOpen || s.dialogs.isNewDocumentDialogOpen
+        || s.dialogs.isColorPickerOpen || s.dialogs.isRefineEdgeDialogOpen
+        || s.dialogs.isSaveSelectionDialogOpen || s.dialogs.isLoadSelectionDialogOpen
+        || s.dialogs.isColorRangeDialogOpen || s.dialogs.isDefringeDialogOpen
+        || s.dialogs.isTrimOpen || s.dialogs.isFeatherDialogOpen
+        || s.dialogs.filterDialog.isOpen || s.dialogs.adjustmentDialog.isOpen;
+      if (anyDialog) return;
+
+      if (!e.shiftKey && e.key === 'F5') { e.preventDefault(); s.togglePanelVisibility('brush-presets'); return; }
+      if (!e.shiftKey && e.key === 'F6') { e.preventDefault(); s.togglePanelVisibility('color'); return; }
+      if (!e.shiftKey && e.key === 'F7') { e.preventDefault(); s.togglePanelVisibility('layers'); return; }
+      if (!e.shiftKey && e.key === 'F8') { e.preventDefault(); s.togglePanelVisibility('info'); return; }
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          s.setChromeHidden(s.chromeHidden === 'right' ? 'none' : 'right');
+        } else {
+          s.setChromeHidden(s.chromeHidden === 'none' ? 'all' : 'none');
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   useEffect(() => {
     const openPrefs = () => setPreferencesOpen(true);
     const openStorage = () => setStorageOpen(true);

@@ -1,8 +1,12 @@
 import type { StateCreator } from 'zustand';
 import { createCommandAction } from '../core/history';
 import type {
+    ChromeHidden,
     ColorTheme,
     EditorStore,
+    PanelGroupCollapsed,
+    PanelGroupId,
+    PanelTabOrder,
     PasteboardColor,
     StatusBarInfoMode,
     ToolbarColumns,
@@ -26,6 +30,8 @@ interface StoredChromePrefs {
     colorTheme?: ColorTheme;
     toolbarColumns?: ToolbarColumns;
     toolbarGroupActive?: Record<number, ToolId>;
+    panelTabOrder?: PanelTabOrder;
+    panelGroupCollapsed?: PanelGroupCollapsed;
 }
 
 // Photoshop's color-theme cycle: Shift+F2 forward (darker -> lighter).
@@ -103,6 +109,9 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
             colorTheme: chrome.colorTheme ?? 'dark',
             toolbarColumns: (chrome.toolbarColumns === 2 ? 2 : 1) as ToolbarColumns,
             toolbarGroupActive: chrome.toolbarGroupActive ?? {},
+            panelTabOrder: chrome.panelTabOrder ?? {},
+            panelGroupCollapsed: chrome.panelGroupCollapsed ?? {},
+            chromeHidden: 'none' as ChromeHidden,
         };
     })(),
     zoom: 1,
@@ -304,5 +313,19 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
         const next = { ...get().toolbarGroupActive, [groupIdx]: toolId };
         persistStoredChromePrefs({ toolbarGroupActive: next });
         set({ toolbarGroupActive: next });
+    },
+    setPanelTabOrder: (groupId: PanelGroupId, order: string[]) => {
+        const next: PanelTabOrder = { ...get().panelTabOrder, [groupId]: order };
+        persistStoredChromePrefs({ panelTabOrder: next });
+        set({ panelTabOrder: next });
+    },
+    setPanelGroupCollapsed: (groupId: PanelGroupId, collapsed: boolean) => {
+        const next: PanelGroupCollapsed = { ...get().panelGroupCollapsed, [groupId]: collapsed };
+        persistStoredChromePrefs({ panelGroupCollapsed: next });
+        set({ panelGroupCollapsed: next });
+    },
+    setChromeHidden: (mode) => {
+        // Session-only — Photoshop resets to none on next launch.
+        set({ chromeHidden: mode });
     },
 });

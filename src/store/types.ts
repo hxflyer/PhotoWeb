@@ -542,7 +542,20 @@ export interface ViewSlice {
     setToolbarColumns: (cols: ToolbarColumns) => void;
     toolbarGroupActive: Record<number, ToolId>;
     setToolbarGroupActive: (groupIdx: number, toolId: ToolId) => void;
+    // Panel groups: per-group tab order, per-group collapse state, and
+    // session-only chrome-hide state. All persist except chromeHidden.
+    panelTabOrder: PanelTabOrder;
+    setPanelTabOrder: (groupId: PanelGroupId, order: string[]) => void;
+    panelGroupCollapsed: PanelGroupCollapsed;
+    setPanelGroupCollapsed: (groupId: PanelGroupId, collapsed: boolean) => void;
+    chromeHidden: ChromeHidden;
+    setChromeHidden: (mode: ChromeHidden) => void;
 }
+
+export type PanelGroupId = 'top' | 'middle' | 'bottom';
+export type PanelTabOrder = Partial<Record<PanelGroupId, string[]>>;
+export type PanelGroupCollapsed = Partial<Record<PanelGroupId, boolean>>;
+export type ChromeHidden = 'none' | 'all' | 'right';
 
 export type StatusBarInfoMode = 'documentSizes' | 'documentProfile' | 'documentDimensions' | 'currentTool' | 'layerCount';
 export type PasteboardColor = 'default' | 'black' | 'darkGray' | 'mediumGray' | 'lightGray' | 'custom';

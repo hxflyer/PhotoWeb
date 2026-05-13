@@ -71,3 +71,39 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoweb behavior:** Press-and-hold opens the flyout; user clicks the desired sub-tool in a separate gesture.
 **Rationale:** Slide-and-release needs document-level mouseup capture with target-detection. Convenient polish but not load-bearing for the Photoshop muscle-memory contract — the flyout still opens on the press-and-hold gesture; the second click is a small ergonomic delta. Deferred polish.
 
+
+## 2026-05-13 — 01c-panels — No floating panel windows
+
+**Photoshop behavior:** Drag a panel's tab out of the right column and it becomes a free-floating OS-level window.
+**Photoweb behavior:** Panels stay docked in the right column; no float / detach.
+**Rationale:** Browsers cannot OS-float arbitrary subtrees. Floating is out forever.
+
+## 2026-05-13 — 01c-panels — Drag-between-groups deferred (drag-within only this tick)
+
+**Photoshop behavior:** Drag a tab into another group's tab row to join it; drop between groups for a horizontal blue bar that creates a new group.
+**Photoweb behavior:** Drag-to-reorder works within a group; cross-group drag and drag-to-create-new-group are deferred.
+**Rationale:** Drop-target detection across multiple group chrome instances plus the blue-bar-vs-blue-box visual machinery is a substantial subsystem. Shipping it alongside the four other features here would trip the 40-file stop bar. Will land in a follow-up `01c-panels-dnd` cluster.
+
+## 2026-05-13 — 01c-panels — No secondary icon-only panel column
+
+**Photoshop behavior:** A narrow column LEFT of the main panel column shows panels as icon-only; clicking an icon expands the panel temporarily.
+**Photoweb behavior:** Single right column for all panels.
+**Rationale:** The icon-only column is a space-saver for Photoshop's dense panel ecology. photoweb's panel inventory is smaller and the main column is wide enough for tab labels. Re-evaluate if panel count grows substantially.
+
+## 2026-05-13 — 01c-panels — No "Reset Essentials" / workspace-reset command
+
+**Photoshop behavior:** A "Reset Essentials" menu entry restores the default workspace's panel layout.
+**Photoweb behavior:** No reset command.
+**Rationale:** Workspaces are scope-excluded per CLAUDE.md §4. A workspace-free "Reset Panels" could exist but adds a Preferences entry; deferred for the same reasons as the Preferences IA pass.
+
+## 2026-05-13 — 01c-panels — Tab/Shift+Tab does not auto-reveal on edge hover
+
+**Photoshop behavior:** While panels are Tab-hidden, hovering the cursor at the screen edge temporarily reveals the panels.
+**Photoweb behavior:** Hidden chrome stays hidden until the user presses Tab again.
+**Rationale:** Convenience polish; users can press Tab to restore. Deferred.
+
+## 2026-05-13 — 01c-panels — F-key shortcuts limited to existing photoweb panels
+
+**Photoshop behavior:** Window menu has F-key shortcuts for ~10 panels (F5 Brush, F6 Color, F7 Layers, F8 Info, F9 Actions, etc.).
+**Photoweb behavior:** Wired F5 Brush Presets, F6 Color, F7 Layers, F8 Info. F9 Actions, F10/F11/F12 etc. not wired because the underlying panels don't exist in photoweb (Actions excluded per scope; others not yet built).
+**Rationale:** Bind F-keys only when the destination panel exists. New panels will pick up their own F-keys in their per-panel clusters.

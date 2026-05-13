@@ -23,13 +23,24 @@ export function MainLayout({
   onPasteboardContextMenu,
 }: MainLayoutProps) {
   const toolbarColumns = useEditorStore(s => s.toolbarColumns);
+  const chromeHidden = useEditorStore(s => s.chromeHidden);
   // 48px = single column (one 36px button + padding). 84px = double column.
-  const toolbarWidth = toolbarColumns === 2 ? 84 : 48;
+  const baseToolbar = toolbarColumns === 2 ? 84 : 48;
+  // Tab hides every chrome surface except the menu bar; Shift+Tab hides
+  // only the right panel column. The grid tracks for hidden surfaces zero
+  // out so the canvas fills the freed space.
+  const hideAll = chromeHidden === 'all';
+  const hideRight = chromeHidden === 'right' || hideAll;
+  const toolbarWidth = hideAll ? 0 : baseToolbar;
+  const rightWidth = hideRight ? 0 : 260;
+  const optionsRow = hideAll ? '0px' : '30px';
+  const docTabRow = hideAll ? '0px' : '26px';
+  const statusRow = hideAll ? '0px' : '22px';
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: `${toolbarWidth}px 1fr 260px`,
-      gridTemplateRows: '24px 30px 26px 1fr 22px',
+      gridTemplateColumns: `${toolbarWidth}px 1fr ${rightWidth}px`,
+      gridTemplateRows: `24px ${optionsRow} ${docTabRow} 1fr ${statusRow}`,
       width: '100vw',
       height: '100vh',
       backgroundColor: 'hsl(var(--bg-dark))',

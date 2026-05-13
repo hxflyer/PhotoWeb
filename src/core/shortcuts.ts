@@ -76,6 +76,12 @@ export const SHORTCUTS: ShortcutEntry[] = [
     { group: 'View', label: 'Keyboard Shortcuts…', keys: '⌘/', action: 'view.shortcuts' },
     { group: 'View', label: 'Cycle interface theme (lighter)', keys: '⇧F2', action: 'view.cycleThemeForward' },
     { group: 'View', label: 'Cycle interface theme (darker)',  keys: '⇧F1', action: 'view.cycleThemeBackward' },
+    { group: 'View', label: 'Toggle Brush Presets panel',      keys: 'F5',  action: 'view.togglePanel.brushPresets' },
+    { group: 'View', label: 'Toggle Color panel',              keys: 'F6',  action: 'view.togglePanel.color' },
+    { group: 'View', label: 'Toggle Layers panel',             keys: 'F7',  action: 'view.togglePanel.layers' },
+    { group: 'View', label: 'Toggle Info panel',               keys: 'F8',  action: 'view.togglePanel.info' },
+    { group: 'View', label: 'Hide / show all chrome',          keys: 'Tab',  action: 'view.hideChrome.all' },
+    { group: 'View', label: 'Hide / show right panels',        keys: '⇧Tab', action: 'view.hideChrome.right' },
 
     // Tools
     { group: 'Tools', label: 'Move',                            keys: 'V',           action: 'tool.move' },

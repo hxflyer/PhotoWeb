@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Menu, ChevronUp, ChevronDown } from 'lucide-react';
 import { LayersPanel } from './LayersPanel';
 import { ChannelsPanel } from './ChannelsPanel';
 import { PathsPanel } from './PathsPanel';
@@ -13,6 +14,7 @@ import { PatternPresetsPanel } from './PatternPresetsPanel';
 import { NavigatorPanel } from './NavigatorPanel';
 import { InfoPanel } from './InfoPanel';
 import { useEditorStore } from '../../store/editorStore';
+import type { PanelGroupId, PanelId } from '../../store/types';
 
 const ADJUSTMENTS: { id: string; label: string; short: string }[] = [
     { id: 'brightness-contrast', label: 'Brightness/Contrast', short: 'B/C' },
@@ -67,7 +69,24 @@ function AdjustmentsPanel() {
     );
 }
 
-const tabStyle = (active: boolean): React.CSSProperties => ({
+const TAB_LABELS: Record<string, string> = {
+    navigator: 'Navigator',
+    info: 'Info',
+    color: 'Color',
+    swatches: 'Swatches',
+    adjustments: 'Adjustments',
+    character: 'Character',
+    paragraph: 'Paragraph',
+    layers: 'Layers',
+    channels: 'Channels',
+    paths: 'Paths',
+    history: 'History',
+    properties: 'Properties',
+    'brush-presets': 'Brush Presets',
+    'pattern-presets': 'Pattern Presets',
+};
+
+const tabStyle = (active: boolean, dragging: boolean): React.CSSProperties => ({
     padding: '4px 10px',
     fontSize: 11,
     cursor: 'default',
@@ -79,155 +98,322 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
     backgroundColor: 'transparent',
     whiteSpace: 'nowrap',
     userSelect: 'none',
+    opacity: dragging ? 0.4 : 1,
 });
+
+interface PanelGroupChromeProps {
+    groupId: PanelGroupId;
+    tabs: readonly string[];
+    activeTab: string;
+    onPickTab: (tab: string) => void;
+    /** Renders the body when not collapsed. */
+    children: React.ReactNode;
+}
+
+/**
+ * Tabs row + collapse chevron + menu icon, with drag-to-reorder, right-click
+ * → Close / Close Tab Group, and Esc-dismissed menu. Owns the small menu
+ * state itself so the parent doesn't have to thread three copies.
+ */
+function PanelGroupChrome({ groupId, tabs, activeTab, onPickTab, children }: PanelGroupChromeProps) {
+    const tabOrder = useEditorStore(s => s.panelTabOrder[groupId]);
+    const setPanelTabOrder = useEditorStore(s => s.setPanelTabOrder);
+    const collapsed = useEditorStore(s => !!s.panelGroupCollapsed[groupId]);
+    const setPanelGroupCollapsed = useEditorStore(s => s.setPanelGroupCollapsed);
+    const togglePanelVisibility = useEditorStore(s => s.togglePanelVisibility);
+
+    // Apply the stored order if any; new tabs (toggled on later) drift to the
+    // end, matching Photoshop's sticky-but-append-new behavior.
+    const orderedTabs = (() => {
+        if (!tabOrder) return [...tabs];
+        const known = tabOrder.filter(t => tabs.includes(t));
+        const fresh = tabs.filter(t => !tabOrder.includes(t));
+        return [...known, ...fresh];
+    })();
+
+    const [dragId, setDragId] = useState<string | null>(null);
+    const [dropIndex, setDropIndex] = useState<number | null>(null);
+    const [menu, setMenu] = useState<{ x: number; y: number; tab: string } | null>(null);
+    const menuRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!menu) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { e.preventDefault(); setMenu(null); }
+        };
+        const onDown = (e: MouseEvent) => {
+            if (!menuRef.current) return;
+            if (menuRef.current.contains(e.target as Node)) return;
+            setMenu(null);
+        };
+        document.addEventListener('keydown', onKey, true);
+        document.addEventListener('mousedown', onDown, true);
+        return () => {
+            document.removeEventListener('keydown', onKey, true);
+            document.removeEventListener('mousedown', onDown, true);
+        };
+    }, [menu]);
+
+    function handleDragStart(e: React.DragEvent<HTMLButtonElement>, tabId: string) {
+        setDragId(tabId);
+        e.dataTransfer.effectAllowed = 'move';
+        // Required for Firefox to fire drag events.
+        e.dataTransfer.setData('text/plain', tabId);
+    }
+
+    function handleDragOver(e: React.DragEvent<HTMLButtonElement>, idx: number) {
+        if (!dragId) return;
+        // Only allow within-group reorder; cross-group drag is out of scope.
+        const fromIdx = orderedTabs.indexOf(dragId);
+        if (fromIdx < 0) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        // Insertion bar position: before idx (or after if hovering right half).
+        const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+        const midX = rect.left + rect.width / 2;
+        const target = e.clientX > midX ? idx + 1 : idx;
+        setDropIndex(target);
+    }
+
+    function handleDrop() {
+        if (!dragId || dropIndex == null) {
+            setDragId(null);
+            setDropIndex(null);
+            return;
+        }
+        const fromIdx = orderedTabs.indexOf(dragId);
+        if (fromIdx < 0) { setDragId(null); setDropIndex(null); return; }
+        const next = [...orderedTabs];
+        next.splice(fromIdx, 1);
+        const insertAt = dropIndex > fromIdx ? dropIndex - 1 : dropIndex;
+        next.splice(insertAt, 0, dragId);
+        if (next.join() !== orderedTabs.join()) {
+            setPanelTabOrder(groupId, next);
+        }
+        setDragId(null);
+        setDropIndex(null);
+    }
+
+    function handleDragEnd() {
+        setDragId(null);
+        setDropIndex(null);
+    }
+
+    function openTabContextMenu(e: React.MouseEvent, tabId: string) {
+        e.preventDefault();
+        setMenu({ x: e.clientX, y: e.clientY, tab: tabId });
+    }
+
+    function openHeaderMenu(e: React.MouseEvent) {
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setMenu({ x: rect.right, y: rect.bottom, tab: activeTab });
+    }
+
+    function closePanel(tab: string) {
+        togglePanelVisibility(tab as PanelId);
+        setMenu(null);
+    }
+
+    function closeTabGroup() {
+        for (const t of orderedTabs) {
+            togglePanelVisibility(t as PanelId);
+        }
+        setMenu(null);
+    }
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', flex: collapsed ? '0 0 28px' : '1 1 auto', minHeight: 28, overflow: 'hidden' }}>
+            <div
+                data-testid={`panel-group-tabs-${groupId}`}
+                style={{
+                    display: 'flex', alignItems: 'center',
+                    backgroundColor: 'hsl(var(--bg-header))',
+                    borderBottom: '1px solid hsl(var(--border-light))',
+                    height: 28,
+                    flexShrink: 0,
+                    position: 'relative',
+                }}
+            >
+                {orderedTabs.map((t, idx) => (
+                    <button
+                        key={t}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, t)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDrop={handleDrop}
+                        onDragEnd={handleDragEnd}
+                        onContextMenu={(e) => openTabContextMenu(e, t)}
+                        onClick={() => { if (!collapsed) onPickTab(t); else { onPickTab(t); setPanelGroupCollapsed(groupId, false); } }}
+                        data-testid={`panel-tab-${t}`}
+                        style={tabStyle(activeTab === t && !collapsed, dragId === t)}
+                    >
+                        {TAB_LABELS[t] ?? t}
+                    </button>
+                ))}
+                {/* Insertion bar shown during drag-to-reorder. */}
+                {dragId && dropIndex != null && (
+                    <DropIndicator orderedTabs={orderedTabs} dropIndex={dropIndex} />
+                )}
+                <div style={{ flex: 1 }} />
+                <button
+                    data-testid={`panel-group-collapse-${groupId}`}
+                    aria-label={collapsed ? 'Expand panel group' : 'Collapse panel group'}
+                    onClick={() => setPanelGroupCollapsed(groupId, !collapsed)}
+                    style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 4px', display: 'flex', alignItems: 'center' }}
+                >
+                    {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                </button>
+                <button
+                    data-testid={`panel-group-menu-${groupId}`}
+                    aria-label="Panel group menu"
+                    onClick={openHeaderMenu}
+                    style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 8px 0 4px', display: 'flex', alignItems: 'center' }}
+                >
+                    <Menu size={13} />
+                </button>
+            </div>
+            {!collapsed && (
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                    {children}
+                </div>
+            )}
+            {menu && (
+                <div
+                    ref={menuRef}
+                    data-testid={`panel-group-context-menu-${groupId}`}
+                    role="menu"
+                    style={{
+                        position: 'fixed',
+                        left: menu.x, top: menu.y,
+                        background: 'hsl(var(--bg-header))',
+                        border: '1px solid hsl(var(--border-light))',
+                        boxShadow: 'var(--shadow-menu)',
+                        minWidth: 160,
+                        padding: '3px 0',
+                        zIndex: 9100,
+                        fontSize: 12,
+                        color: 'hsl(var(--text-main))',
+                    }}
+                >
+                    <div role="menuitem"
+                        data-testid={`panel-menu-close-${groupId}`}
+                        onMouseDown={(e) => { e.stopPropagation(); closePanel(menu.tab); }}
+                        style={menuItemStyle}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--accent-primary))'; (e.currentTarget as HTMLDivElement).style.color = 'white'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = 'hsl(var(--text-main))'; }}
+                    >
+                        Close
+                    </div>
+                    <div role="menuitem"
+                        data-testid={`panel-menu-close-tab-group-${groupId}`}
+                        onMouseDown={(e) => { e.stopPropagation(); closeTabGroup(); }}
+                        style={menuItemStyle}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--accent-primary))'; (e.currentTarget as HTMLDivElement).style.color = 'white'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.color = 'hsl(var(--text-main))'; }}
+                    >
+                        Close Tab Group
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const menuItemStyle: React.CSSProperties = {
+    padding: '4px 16px',
+    cursor: 'default',
+    whiteSpace: 'nowrap',
+};
+
+function DropIndicator({ orderedTabs, dropIndex }: { orderedTabs: readonly string[]; dropIndex: number }) {
+    // Use measurement on the rendered tab buttons so the bar lands on the
+    // actual layout, regardless of label widths.
+    const ref = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const parent = el.parentElement;
+        if (!parent) return;
+        const tabEls = Array.from(parent.querySelectorAll<HTMLButtonElement>('[data-testid^="panel-tab-"]'));
+        if (!tabEls.length) return;
+        let x: number;
+        if (dropIndex <= 0) {
+            x = tabEls[0].offsetLeft - 1;
+        } else if (dropIndex >= tabEls.length) {
+            const last = tabEls[tabEls.length - 1];
+            x = last.offsetLeft + last.offsetWidth - 1;
+        } else {
+            x = tabEls[dropIndex].offsetLeft - 1;
+        }
+        el.style.left = `${x}px`;
+    }, [orderedTabs, dropIndex]);
+    return (
+        <div
+            ref={ref}
+            data-testid="panel-tab-drop-indicator"
+            style={{ position: 'absolute', top: 0, bottom: 0, width: 2, background: 'hsl(var(--accent-primary))', pointerEvents: 'none' }}
+        />
+    );
+}
 
 export function RightPanelDock() {
     const panelVisibility = useEditorStore(s => s.panelVisibility);
-    const [topTab, setTopTab] = useState<'navigator' | 'info' | 'color' | 'swatches' | 'adjustments'>('navigator');
-    const [showTop, setShowTop] = useState(true);
-    const [textTab, setTextTab] = useState<'character' | 'paragraph'>('character');
-    const [showText, setShowText] = useState(true);
-    const [bottomTab, setBottomTab] = useState<'layers' | 'channels' | 'paths' | 'history' | 'properties' | 'brush-presets' | 'pattern-presets'>('layers');
+    const [topTab, setTopTab] = useState<string>('navigator');
+    const [textTab, setTextTab] = useState<string>('character');
+    const [bottomTab, setBottomTab] = useState<string>('layers');
 
     const topVisibleTabs = (['navigator', 'info', 'color', 'swatches', 'adjustments'] as const).filter(t => panelVisibility[t]);
     const textVisibleTabs = (['character', 'paragraph'] as const).filter(t => panelVisibility[t]);
     const bottomVisibleTabs = (['layers', 'channels', 'paths', 'history', 'properties', 'brush-presets', 'pattern-presets'] as const).filter(t => panelVisibility[t]);
-    const activeTopTab = topVisibleTabs.includes(topTab) ? topTab : topVisibleTabs[0];
-    const activeTextTab = textVisibleTabs.includes(textTab) ? textTab : textVisibleTabs[0];
-    const activeBottomTab = bottomVisibleTabs.includes(bottomTab) ? bottomTab : bottomVisibleTabs[0];
+    const activeTopTab = topVisibleTabs.includes(topTab as never) ? topTab : topVisibleTabs[0];
+    const activeTextTab = textVisibleTabs.includes(textTab as never) ? textTab : textVisibleTabs[0];
+    const activeBottomTab = bottomVisibleTabs.includes(bottomTab as never) ? bottomTab : bottomVisibleTabs[0];
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-
-            {/* ── Top panel group: Color / Swatches / Adjustments ── */}
             {topVisibleTabs.length > 0 && (
-                <div style={{
-                    flex: '0 0 auto',
-                    borderBottom: '1px solid hsl(var(--border-light))',
-                    display: 'flex', flexDirection: 'column',
-                    maxHeight: showTop ? 220 : 28,
-                    overflow: 'hidden',
-                    transition: 'max-height 0.15s',
-                }}>
-                    <div style={{
-                        display: 'flex', alignItems: 'center',
-                        backgroundColor: 'hsl(var(--bg-header))',
-                        borderBottom: '1px solid hsl(var(--border-light))',
-                        height: 28,
-                        flexShrink: 0,
-                    }}>
-                        {topVisibleTabs.map(t => (
-                            <button key={t} style={tabStyle(activeTopTab === t && showTop)} onClick={() => { setTopTab(t); setShowTop(true); }}>
-                                {t.charAt(0).toUpperCase() + t.slice(1)}
-                            </button>
-                        ))}
-                        <div style={{ flex: 1 }} />
-                        <button
-                            onClick={() => setShowTop(o => !o)}
-                            style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 8px', fontSize: 12 }}
-                        >
-                            {showTop ? '▴' : '▾'}
-                        </button>
-                    </div>
-                    {showTop && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            {activeTopTab === 'navigator' && <NavigatorPanel />}
-                            {activeTopTab === 'info' && <InfoPanel />}
-                            {activeTopTab === 'color' && <ColorPanel />}
-                            {activeTopTab === 'swatches' && <SwatchesPanel />}
-                            {activeTopTab === 'adjustments' && <AdjustmentsPanel />}
-                        </div>
-                    )}
-                </div>
+                <PanelGroupChrome
+                    groupId="top"
+                    tabs={topVisibleTabs}
+                    activeTab={activeTopTab ?? topVisibleTabs[0]}
+                    onPickTab={setTopTab}
+                >
+                    {activeTopTab === 'navigator' && <NavigatorPanel />}
+                    {activeTopTab === 'info' && <InfoPanel />}
+                    {activeTopTab === 'color' && <ColorPanel />}
+                    {activeTopTab === 'swatches' && <SwatchesPanel />}
+                    {activeTopTab === 'adjustments' && <AdjustmentsPanel />}
+                </PanelGroupChrome>
             )}
 
-            {/* ── Middle panel group: Character / Paragraph ── */}
             {textVisibleTabs.length > 0 && (
-                <div style={{
-                    flex: '0 0 auto',
-                    borderBottom: '1px solid hsl(var(--border-light))',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: showText ? 330 : 28,
-                    overflow: 'hidden',
-                    transition: 'max-height 0.15s',
-                }}>
-                    <div style={{
-                        display: 'flex', alignItems: 'center',
-                        backgroundColor: 'hsl(var(--bg-header))',
-                        borderBottom: '1px solid hsl(var(--border-light))',
-                        height: 28,
-                        flexShrink: 0,
-                    }}>
-                        {textVisibleTabs.map(t => (
-                            <button key={t} style={tabStyle(activeTextTab === t && showText)} onClick={() => { setTextTab(t); setShowText(true); }}>
-                                {t.charAt(0).toUpperCase() + t.slice(1)}
-                            </button>
-                        ))}
-                        <div style={{ flex: 1 }} />
-                        <button
-                            onClick={() => setShowText(o => !o)}
-                            style={{ background: 'none', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', padding: '0 8px', fontSize: 12 }}
-                        >
-                            {showText ? '▴' : '▾'}
-                        </button>
-                    </div>
-                    {showText && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            {activeTextTab === 'character' && <CharacterPanel />}
-                            {activeTextTab === 'paragraph' && <ParagraphPanel />}
-                        </div>
-                    )}
-                </div>
+                <PanelGroupChrome
+                    groupId="middle"
+                    tabs={textVisibleTabs}
+                    activeTab={activeTextTab ?? textVisibleTabs[0]}
+                    onPickTab={setTextTab}
+                >
+                    {activeTextTab === 'character' && <CharacterPanel />}
+                    {activeTextTab === 'paragraph' && <ParagraphPanel />}
+                </PanelGroupChrome>
             )}
 
-            {/* ── Bottom panel group: Layers / Channels / Paths / History ── */}
             {bottomVisibleTabs.length > 0 && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <div style={{
-                        display: 'flex', alignItems: 'center',
-                        backgroundColor: 'hsl(var(--bg-header))',
-                        borderBottom: '1px solid hsl(var(--border-light))',
-                        height: 28,
-                        flexShrink: 0,
-                    }}>
-                        {bottomVisibleTabs.map(t => (
-                            <button key={t} style={tabStyle(activeBottomTab === t)} onClick={() => setBottomTab(t)}>
-                                {t === 'brush-presets'
-                                    ? 'Brush Presets'
-                                    : t === 'pattern-presets'
-                                        ? 'Pattern Presets'
-                                        : t.charAt(0).toUpperCase() + t.slice(1)}
-                            </button>
-                        ))}
-                        <div style={{ flex: 1 }} />
-                    </div>
-                    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                        {activeBottomTab === 'layers' && <LayersPanel />}
-                        {activeBottomTab === 'channels' && <ChannelsPanel />}
-                        {activeBottomTab === 'paths' && <PathsPanel />}
-                        {activeBottomTab === 'history' && (
-                            <div style={{ flex: 1, overflowY: 'auto' }}>
-                                <HistoryPanel />
-                            </div>
-                        )}
-                        {activeBottomTab === 'properties' && (
-                            <div style={{ flex: 1, overflowY: 'auto' }}>
-                                <PropertiesPanel />
-                            </div>
-                        )}
-                        {activeBottomTab === 'brush-presets' && (
-                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                <BrushPresetsPanel />
-                            </div>
-                        )}
-                        {activeBottomTab === 'pattern-presets' && (
-                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                <PatternPresetsPanel />
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <PanelGroupChrome
+                    groupId="bottom"
+                    tabs={bottomVisibleTabs}
+                    activeTab={activeBottomTab ?? bottomVisibleTabs[0]}
+                    onPickTab={setBottomTab}
+                >
+                    {activeBottomTab === 'layers' && <LayersPanel />}
+                    {activeBottomTab === 'channels' && <ChannelsPanel />}
+                    {activeBottomTab === 'paths' && <PathsPanel />}
+                    {activeBottomTab === 'history' && <HistoryPanel />}
+                    {activeBottomTab === 'properties' && <PropertiesPanel />}
+                    {activeBottomTab === 'brush-presets' && <BrushPresetsPanel />}
+                    {activeBottomTab === 'pattern-presets' && <PatternPresetsPanel />}
+                </PanelGroupChrome>
             )}
         </div>
     );
