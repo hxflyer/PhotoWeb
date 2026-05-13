@@ -371,3 +371,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Object Selection uses Adobe object-recognition technology, Object Finder, and advanced Object Subtract analysis to wrap rough rectangles/lassos around detected subjects.
 **Photoweb behavior:** Object Selection is local and deterministic: it selects visible pixels inside the user's rectangle/lasso when possible, and falls back to the drawn rectangle/lasso when no visible object is detected. Object Finder/cloud detection is omitted.
 **Rationale:** Photoweb has no AI/object-recognition service. The deterministic mask preserves the manual Rectangle/Lasso habit, Sample All Layers behavior, and Shift/Add or Alt/Subtract refinement without pretending to run Photoshop's cloud or Sensei models.
+
+## 2026-05-14 — 14b-color-range — Color Range setting Load/Save buttons deferred
+
+**Photoshop behavior:** The Color Range dialog includes Load and Save buttons for storing and reusing Color Range settings.
+**Photoweb behavior:** This tick persists the last-used dialog controls in local app preferences, but does not expose external Color Range setting files.
+**Rationale:** Browser-local preference restore covers the repeated-use workflow without introducing a new file format and import/export path for a single selection command.

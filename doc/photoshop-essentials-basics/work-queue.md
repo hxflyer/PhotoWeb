@@ -30,7 +30,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 12-marquee                 (3) — Rectangular / Elliptical Marquee  commit: 3289086
 - [x] 13-lasso                   (3) — Lasso / Polygonal / Magnetic  commit: 7e9e42b
 - [x] 14a-content-selection-tools(3) — Magic Wand, Quick Selection, Object Selection (non-AI)  commit: ccb03c1
-- [ ] 14b-color-range            (1) — Color Range dialog
+- [x] 14b-color-range            (1) — Color Range dialog  commit: 6b622b6
 - [ ] 15-pen-paths               (2) — Pen Tool, Curvature Pen Tool
 - [ ] 16a-edge-refinement        (2) — Quick Mask + Feather, classic Refine Edge dialog
 - [ ] 16b-focus-area             (2) — Focus Area auto-selection
