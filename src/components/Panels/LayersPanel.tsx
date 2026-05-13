@@ -25,6 +25,35 @@ const BLEND_MODE_OPTIONS: { value: GlobalCompositeOperation; label: string }[] =
         return { value: op as GlobalCompositeOperation, label: key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) };
     });
 
+type LayerThumbnailPreference = 'none' | 'small' | 'medium' | 'large';
+
+const THUMBNAIL_STORAGE_KEY = 'photoweb.layers.thumbnailSize';
+const THUMBNAIL_SIZES: Record<Exclude<LayerThumbnailPreference, 'none'>, number> = {
+    small: 24,
+    medium: 36,
+    large: 52,
+};
+
+function loadThumbnailPreference(): LayerThumbnailPreference {
+    if (typeof localStorage === 'undefined') return 'medium';
+    try {
+        const value = localStorage.getItem(THUMBNAIL_STORAGE_KEY);
+        if (value === 'none' || value === 'small' || value === 'medium' || value === 'large') return value;
+    } catch {
+        // Storage is optional.
+    }
+    return 'medium';
+}
+
+function persistThumbnailPreference(value: LayerThumbnailPreference): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        localStorage.setItem(THUMBNAIL_STORAGE_KEY, value);
+    } catch {
+        // Storage is optional.
+    }
+}
+
 // ── Layer thumbnail with checker pattern + scaled content ───────────────────
 function LayerThumbnail({ layer, size = 36, tick }: { layer: Layer; size?: number; tick: number }) {
     const ref = useRef<HTMLCanvasElement>(null);
@@ -159,6 +188,91 @@ const headBtnStyle = (active: boolean): React.CSSProperties => ({
     boxShadow: active ? 'inset 0 0 0 1px hsl(var(--border-light))' : 'none',
 });
 
+function LayersPanelOptionsDialog({
+    isOpen,
+    value,
+    onChange,
+    onClose,
+}: {
+    isOpen: boolean;
+    value: LayerThumbnailPreference;
+    onChange: (value: LayerThumbnailPreference) => void;
+    onClose: () => void;
+}) {
+    if (!isOpen) return null;
+    const choices: { value: LayerThumbnailPreference; label: string; box: number }[] = [
+        { value: 'small', label: 'Small', box: 24 },
+        { value: 'medium', label: 'Medium', box: 34 },
+        { value: 'large', label: 'Large', box: 46 },
+        { value: 'none', label: 'None', box: 0 },
+    ];
+    return (
+        <div
+            data-testid="layers-panel-options-dialog"
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}
+            onClick={onClose}
+        >
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="layers-panel-options-title"
+                style={{ width: 330, background: 'hsl(var(--bg-panel))', color: 'hsl(var(--text-main))', border: '1px solid hsl(var(--border-light))', borderRadius: 8, boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}
+                onClick={e => e.stopPropagation()}
+            >
+                <div style={{ padding: '12px 16px', background: 'hsl(var(--bg-header))', borderBottom: '1px solid hsl(var(--border-light))' }}>
+                    <h3 id="layers-panel-options-title" style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Layers Panel Options</h3>
+                </div>
+                <div style={{ padding: 16 }}>
+                    <div style={{ fontSize: 12, marginBottom: 10, color: 'hsl(var(--text-muted))' }}>Thumbnail Size</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                        {choices.map(choice => (
+                            <label key={choice.value} style={{ display: 'grid', justifyItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
+                                <span
+                                    style={{
+                                        width: 52,
+                                        height: 52,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: value === choice.value ? '2px solid hsl(var(--accent-primary))' : '1px solid hsl(var(--border-light))',
+                                        background: 'hsl(var(--bg-input))',
+                                    }}
+                                >
+                                    {choice.value !== 'none' && (
+                                        <span
+                                            style={{
+                                                width: choice.box,
+                                                height: choice.box,
+                                                border: '1px solid hsl(var(--border-light))',
+                                                background: 'linear-gradient(45deg, #fff 25%, #bbb 25% 50%, #fff 50% 75%, #bbb 75%)',
+                                                backgroundSize: '10px 10px',
+                                            }}
+                                        />
+                                    )}
+                                </span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <input
+                                        data-testid={`layers-panel-thumbnail-${choice.value}`}
+                                        type="radio"
+                                        name="layers-thumbnail-size"
+                                        checked={value === choice.value}
+                                        onChange={() => onChange(choice.value)}
+                                    />
+                                    {choice.label}
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+                <div style={{ padding: '12px 16px', background: 'hsl(var(--bg-header))', borderTop: '1px solid hsl(var(--border-light))', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <button onClick={onClose} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid hsl(var(--border-light))', color: 'hsl(var(--text-main))', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                    <button data-testid="layers-panel-options-ok" onClick={onClose} style={{ padding: '6px 12px', background: 'hsl(var(--accent-primary))', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>OK</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function LayersPanel() {
     const {
         layers, activeLayerId, selectedLayerIds,
@@ -170,6 +284,7 @@ export function LayersPanel() {
         addLayerMask, removeLayerMask, applyLayerMask, setLayerMaskEnabled, setLayerMaskLinked,
         addLayerEffect,
         activeLayerEditTarget, setActiveLayerEditTarget,
+        openNewLayerDialog,
     } = useEditorStore();
     const editTarget = activeLayerEditTarget;
 
@@ -178,6 +293,8 @@ export function LayersPanel() {
     const [dropHint, setDropHint] = useState<{ targetId: string; zone: 'above' | 'inside' | 'below' } | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string; submenu: 'main' | 'fx' } | null>(null);
     const [layerStyleDialog, setLayerStyleDialog] = useState<{ layerId: string; tab: string } | null>(null);
+    const [thumbnailPreference, setThumbnailPreference] = useState<LayerThumbnailPreference>(() => loadThumbnailPreference());
+    const [panelOptionsOpen, setPanelOptionsOpen] = useState(false);
 
     // Tick periodically so thumbnails reflect canvas content updates from painting.
     const [thumbTick, setThumbTick] = useState(0);
@@ -193,6 +310,7 @@ export function LayersPanel() {
     }, []);
 
     const active = layers.find(l => l.id === activeLayerId);
+    const thumbnailSize = thumbnailPreference === 'none' ? 0 : THUMBNAIL_SIZES[thumbnailPreference];
     const visibleLayerRows = layers
         .map(layer => {
             let depth = 0;
@@ -304,13 +422,29 @@ export function LayersPanel() {
         setDropHint(null);
     };
 
+    const setThumbs = (value: LayerThumbnailPreference) => {
+        setThumbnailPreference(value);
+        persistThumbnailPreference(value);
+    };
+
     const flyoutItems: PanelFlyoutItem[] = [
-        { label: 'New Layer', onClick: () => addLayer() },
+        { label: 'New Layer…', onClick: () => openNewLayerDialog() },
         { label: 'Duplicate Layer', onClick: () => activeLayerId && layerViaCopy(), disabled: !activeLayerId },
         { label: 'Delete Layer', onClick: () => activeLayerId && removeLayer(activeLayerId), disabled: !activeLayerId },
         { separator: true, label: '' },
         { label: 'New Group', onClick: () => (selectedLayerIds.length > 1 ? groupLayers(selectedLayerIds) : createLayerGroup()) },
         { label: 'Ungroup Layers', onClick: () => activeLayerId && ungroupLayerGroup(activeLayerId), disabled: !activeLayerId || layers.find(l => l.id === activeLayerId)?.kind !== 'group' },
+        { separator: true, label: '' },
+        {
+            label: 'Thumbnail Size',
+            submenuItems: [
+                { label: 'Small', checked: thumbnailPreference === 'small', onClick: () => setThumbs('small') },
+                { label: 'Medium', checked: thumbnailPreference === 'medium', onClick: () => setThumbs('medium') },
+                { label: 'Large', checked: thumbnailPreference === 'large', onClick: () => setThumbs('large') },
+                { label: 'No Thumbnails', checked: thumbnailPreference === 'none', onClick: () => setThumbs('none') },
+            ],
+        },
+        { label: 'Panel Options…', onClick: () => setPanelOptionsOpen(true) },
         { separator: true, label: '' },
         { label: 'Merge Down', onClick: () => activeLayerId && mergeLayerDown(activeLayerId), disabled: !activeLayerId },
         { label: 'Merge Visible', onClick: () => mergeVisible() },
@@ -353,7 +487,7 @@ export function LayersPanel() {
                         padding: '2px 4px',
                     }}
                 >
-                    {BLEND_MODE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    {BLEND_MODE_OPTIONS.map(m => <option key={m.label} value={m.value}>{m.label}</option>)}
                 </select>
                 <span style={{ fontSize: 11, color: 'hsl(var(--text-muted))', whiteSpace: 'nowrap' }}>Opacity:</span>
                 <input
@@ -471,7 +605,7 @@ export function LayersPanel() {
                                 cursor: 'pointer',
                                 userSelect: 'none',
                                 opacity: draggedLayerId === layer.id ? 0.5 : 1,
-                                minHeight: 44,
+                                minHeight: thumbnailPreference === 'none' ? 28 : Math.max(32, thumbnailSize + 8),
                                 borderBottom: '1px solid hsl(var(--border-mid))',
                                 boxShadow: isSelected && !isActive ? 'inset 3px 0 0 hsl(var(--accent-primary))' : 'none',
                                 outline: dropHint && dropHint.targetId === layer.id && dropHint.zone === 'inside'
@@ -521,19 +655,20 @@ export function LayersPanel() {
                                 {layer.visible ? <Eye size={16} /> : <EyeOff size={16} />}
                             </button>
 
-                            {/* Thumbnail (double-click opens Layer Style dialog) */}
-                            <div
-                                data-testid={`layer-thumb-${layer.id}`}
-                                onDoubleClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveLayer(layer.id);
-                                    setLayerStyleDialog({ layerId: layer.id, tab: 'blending' });
-                                }}
-                                style={{ flexShrink: 0, lineHeight: 0, cursor: 'pointer' }}
-                                title="Double-click to open Layer Style"
-                            >
-                                <LayerThumbnail layer={layer} tick={thumbTick} />
-                            </div>
+                            {thumbnailPreference !== 'none' && (
+                                <div
+                                    data-testid={`layer-thumb-${layer.id}`}
+                                    onDoubleClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveLayer(layer.id);
+                                        setLayerStyleDialog({ layerId: layer.id, tab: 'blending' });
+                                    }}
+                                    style={{ flexShrink: 0, lineHeight: 0, cursor: 'pointer' }}
+                                    title="Double-click to open Layer Style"
+                                >
+                                    <LayerThumbnail layer={layer} size={thumbnailSize} tick={thumbTick} />
+                                </div>
+                            )}
 
                             {layer.mask && (
                                 <>
@@ -678,7 +813,10 @@ export function LayersPanel() {
                 ><FolderPlus size={14} /></button>
                 <button
                     title="New Layer"
-                    onClick={() => addLayer()}
+                    onClick={(e) => {
+                        if (e.altKey) openNewLayerDialog();
+                        else addLayer({ insert: e.metaKey || e.ctrlKey ? 'below' : 'above' });
+                    }}
                     style={HEAD_BTN}
                 ><Plus size={14} /></button>
                 <button
@@ -853,6 +991,12 @@ export function LayersPanel() {
                 layerId={layerStyleDialog?.layerId ?? null}
                 initialTab={layerStyleDialog?.tab}
                 onClose={() => setLayerStyleDialog(null)}
+            />
+            <LayersPanelOptionsDialog
+                isOpen={panelOptionsOpen}
+                value={thumbnailPreference}
+                onChange={setThumbs}
+                onClose={() => setPanelOptionsOpen(false)}
             />
         </div>
     );

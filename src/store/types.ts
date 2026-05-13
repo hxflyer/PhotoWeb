@@ -146,6 +146,7 @@ export interface DialogState {
     isCanvasSizeOpen: boolean;
     isArbitraryRotationOpen: boolean;
     isTrimOpen: boolean;
+    isNewLayerDialogOpen: boolean;
     isColorPickerOpen: boolean;
     colorPickerTarget: 'primary' | 'secondary' | 'type';
     isExportDialogOpen: boolean;
@@ -262,7 +263,13 @@ export interface LayersSlice {
     layerSelectionAnchorId: string | null;
     activeLayerEditTarget: LayerEditTarget;
     setActiveLayerEditTarget: (target: LayerEditTarget) => void;
-    addLayer: () => void;
+    addLayer: (options?: {
+        name?: string;
+        opacity?: number;
+        fill?: number;
+        blendMode?: GlobalCompositeOperation;
+        insert?: 'above' | 'below' | 'top';
+    }) => void;
     createLayerGroup: (name?: string) => void;
     groupLayers: (layerIds: string[], name?: string) => void;
     ungroupLayerGroup: (groupId: string) => void;
@@ -676,10 +683,12 @@ export interface PanelsSlice {
     openCanvasSizeDialog: () => void;
     openArbitraryRotationDialog: () => void;
     openTrimDialog: () => void;
+    openNewLayerDialog: () => void;
     closeImageSizeDialog: () => void;
     closeCanvasSizeDialog: () => void;
     closeArbitraryRotationDialog: () => void;
     closeTrimDialog: () => void;
+    closeNewLayerDialog: () => void;
     openColorPicker: (target: 'primary' | 'secondary' | 'type') => void;
     closeColorPicker: () => void;
     openExportDialog: () => void;

@@ -350,7 +350,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
 
     Layer: [
       sub('New',
-        act('Layer…', () => useEditorStore.getState().addLayer(), '⌘⇧N'),
+        act('Layer…', () => useEditorStore.getState().openNewLayerDialog(), '⌘⇧N'),
         act('Layer from Background…', () => {}, undefined, true),
         sep,
         act('Group…', () => useEditorStore.getState().createLayerGroup()),

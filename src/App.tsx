@@ -23,6 +23,7 @@ import { TrimDialog } from './components/Dialogs/TrimDialog';
 import { ColorPickerDialog } from './components/Dialogs/ColorPickerDialog';
 import { ExportDialog } from './components/Dialogs/ExportDialog';
 import { NewDocumentDialog } from './components/Dialogs/NewDocumentDialog';
+import { NewLayerDialog } from './components/Dialogs/NewLayerDialog';
 import { RefineEdgeDialog } from './components/Dialogs/RefineEdgeDialog';
 import { DefringeDialog } from './components/Dialogs/DefringeDialog';
 import { ScaleEffectsDialog } from './components/Dialogs/ScaleEffectsDialog';
@@ -186,6 +187,7 @@ function App() {
       const s = useEditorStore.getState();
       const anyDialog = s.dialogs.isImageSizeOpen || s.dialogs.isCanvasSizeOpen
         || s.dialogs.isExportDialogOpen || s.dialogs.isNewDocumentDialogOpen
+        || s.dialogs.isNewLayerDialogOpen
         || s.dialogs.isColorPickerOpen || s.dialogs.isRefineEdgeDialogOpen
         || s.dialogs.isSaveSelectionDialogOpen || s.dialogs.isLoadSelectionDialogOpen
         || s.dialogs.isColorRangeDialogOpen || s.dialogs.isDefringeDialogOpen
@@ -448,6 +450,24 @@ function App() {
         }
         return;
       }
+      if (meta && key === ']' && !e.altKey) {
+        e.preventDefault();
+        const s = gs();
+        if (!s.activeLayerId) return;
+        const idx = s.layers.findIndex(layer => layer.id === s.activeLayerId);
+        if (idx === -1 || idx >= s.layers.length - 1) return;
+        s.reorderLayers(idx, e.shiftKey ? s.layers.length - 1 : idx + 1);
+        return;
+      }
+      if (meta && key === '[' && !e.altKey) {
+        e.preventDefault();
+        const s = gs();
+        if (!s.activeLayerId) return;
+        const idx = s.layers.findIndex(layer => layer.id === s.activeLayerId);
+        if (idx <= 0) return;
+        s.reorderLayers(idx, e.shiftKey ? 0 : idx - 1);
+        return;
+      }
       if (meta && key === 'g' && !e.altKey) {
         e.preventDefault();
         const s = gs();
@@ -490,6 +510,13 @@ function App() {
             return;
           }
         }
+      }
+
+      if (!meta && !e.shiftKey && !e.altKey && key === ';') {
+        e.preventDefault();
+        const s = gs();
+        if (s.activeLayerId) s.toggleLayerVisibility(s.activeLayerId);
+        return;
       }
 
       if (!meta && !e.shiftKey && !e.altKey && key === 'x') { e.preventDefault(); gs().swapColors(); return; }
@@ -596,7 +623,12 @@ function App() {
         return;
       }
 
-      if (meta && e.shiftKey && key === 'n') { e.preventDefault(); gs().addLayer(); return; }
+      if (meta && e.shiftKey && key === 'n') {
+        e.preventDefault();
+        if (e.altKey) gs().addLayer();
+        else gs().openNewLayerDialog();
+        return;
+      }
       if ((meta && key === 'delete') || (meta && key === 'backspace')) {
         e.preventDefault();
         const s = gs();
@@ -1025,6 +1057,11 @@ function App() {
 
       <ExportDialog isOpen={dialogs.isExportDialogOpen} onClose={() => gs().closeExportDialog()} />
       <NewDocumentDialog isOpen={dialogs.isNewDocumentDialogOpen} onClose={() => gs().closeNewDocumentDialog()} />
+      <NewLayerDialog
+        isOpen={dialogs.isNewLayerDialogOpen}
+        onConfirm={(options) => gs().addLayer(options)}
+        onClose={() => gs().closeNewLayerDialog()}
+      />
       <RefineEdgeDialog isOpen={dialogs.isRefineEdgeDialogOpen} onClose={() => gs().closeRefineEdgeDialog()} />
       <DefringeDialog isOpen={dialogs.isDefringeDialogOpen} onClose={() => gs().closeDefringeDialog()}
         onConfirm={(width) => gs().defringeLayer(width)} />

@@ -311,3 +311,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Classic Mode changes Crop Tool dragging so the crop border moves instead of the image moving under a fixed border.
 **Photoweb behavior:** Classic Mode is toggleable in the Options Bar and via `P`; crop-border movement stays on photoweb's existing crop rectangle model.
 **Rationale:** The existing browser crop surface already moves the crop border. Implementing the alternate image-under-border choreography would overlap with future viewport/crop interaction polish.
+
+## 2026-05-13 — 07a-layers-panel — Some Layers Panel preferences deferred
+
+**Photoshop behavior:** Layers Panel Options also controls default masks on fill/adjustment layers and whether copied layer/group names receive "copy".
+**Photoweb behavior:** 07a implements the thumbnail size / no-thumbnail contract and defers default-mask and copied-name preferences.
+**Rationale:** This cluster is scoped to panel rows, thumbnails, visibility, locking, opacity/blend mode, add/delete/duplicate, and shortcuts; fill/adjustment defaults and naming preferences are separate application preference contracts.

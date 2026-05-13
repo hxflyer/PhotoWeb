@@ -182,20 +182,32 @@ export const createLayersSlice: StateCreator<EditorStore, [], [], LayersSlice> =
     activeLayerEditTarget: 'layer',
     setActiveLayerEditTarget: (target) => set({ activeLayerEditTarget: target }),
 
-    addLayer: () => {
+    addLayer: (options = {}) => {
         get().executeDocumentCommand({
             kind: 'layer-add',
             label: 'New Layer',
             run: () => {
-        const { width, height, layers } = get();
-        const newLayer = new Layer(width, height, `Layer ${layers.length + 1}`);
-        set({
-            layers: [...layers, newLayer],
-            activeLayerId: newLayer.id,
-            selectedLayerIds: [newLayer.id],
-            layerSelectionAnchorId: newLayer.id,
-            activeLayerEditTarget: 'layer',
-        });
+                const { width, height, layers, activeLayerId } = get();
+                const newLayer = new Layer(width, height, options.name?.trim() || `Layer ${layers.length + 1}`);
+                if (typeof options.opacity === 'number') newLayer.opacity = Math.max(0, Math.min(1, options.opacity));
+                if (typeof options.fill === 'number') newLayer.fill = Math.max(0, Math.min(1, options.fill));
+                if (options.blendMode) newLayer.blendMode = options.blendMode;
+                const nextLayers = [...layers];
+                const activeIndex = activeLayerId ? nextLayers.findIndex(layer => layer.id === activeLayerId) : -1;
+                if (options.insert === 'top' || activeIndex === -1) {
+                    nextLayers.push(newLayer);
+                } else if (options.insert === 'below') {
+                    nextLayers.splice(Math.max(0, activeIndex), 0, newLayer);
+                } else {
+                    nextLayers.splice(activeIndex + 1, 0, newLayer);
+                }
+                set({
+                    layers: nextLayers,
+                    activeLayerId: newLayer.id,
+                    selectedLayerIds: [newLayer.id],
+                    layerSelectionAnchorId: newLayer.id,
+                    activeLayerEditTarget: 'layer',
+                });
             },
         });
     },

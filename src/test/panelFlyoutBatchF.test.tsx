@@ -77,13 +77,11 @@ describe('LayersPanel hamburger flyout (Batch F)', () => {
         expect(afterGroups).toBe(beforeGroups + 1);
     });
 
-    it('selecting "New Layer" via the flyout adds a new layer', () => {
-        const before = useEditorStore.getState().layers.length;
+    it('selecting "New Layer" via the flyout opens the Photoshop New Layer dialog', () => {
         const { getByTestId } = render(<LayersPanel />);
         fireEvent.click(getByTestId('layers-panel-flyout'));
         fireEvent.click(getByTestId('panel-flyout-item-new-layer'));
-        const after = useEditorStore.getState().layers.length;
-        expect(after).toBe(before + 1);
+        expect(useEditorStore.getState().dialogs.isNewLayerDialogOpen).toBe(true);
     });
 
     it('selecting "Flatten Image" collapses all layers into one', () => {
