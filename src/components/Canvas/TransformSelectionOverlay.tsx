@@ -9,7 +9,7 @@
  * via setSelectionOperations (history-wrapped through executeDocumentCommand).
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Check, X as XIcon } from 'lucide-react';
+import { Check, Link2, Unlink, X as XIcon } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { rasterizeSelectionOperations, getSelectionBounds } from '../../utils/selectionUtils';
 
@@ -21,6 +21,13 @@ interface Props {
 }
 
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'move' | 'rotate';
+
+interface Box {
+    tx: number;
+    ty: number;
+    tw: number;
+    th: number;
+}
 
 export function TransformSelectionOverlay({ zoom, onClose }: Props) {
     const selection = useEditorStore(s => s.selection);
@@ -39,6 +46,7 @@ export function TransformSelectionOverlay({ zoom, onClose }: Props) {
     const [tw, setTw] = useState(initialBounds.w);
     const [th, setTh] = useState(initialBounds.h);
     const [rot, setRot] = useState(0);
+    const [linked, setLinked] = useState(true);
     const baseBounds = useRef(initialBounds);
     const baseMask = useRef<Uint8ClampedArray | null>(null);
 
@@ -89,6 +97,60 @@ export function TransformSelectionOverlay({ zoom, onClose }: Props) {
         dragRef.current = { handle, startX: e.clientX, startY: e.clientY, origTx: tx, origTy: ty, origTw: tw, origTh: th, origRot: rot };
     }, [tx, ty, tw, th, rot]);
 
+    const applyResize = useCallback((d: NonNullable<typeof dragRef.current>, dx: number, dy: number, freeAspect: boolean, fromCenter: boolean): Box => {
+        const minSize = 1;
+        const freeBox = (): Box => {
+            let nextTx = d.origTx;
+            let nextTy = d.origTy;
+            let nextTw = d.origTw;
+            let nextTh = d.origTh;
+            if (d.handle.includes('e')) nextTw = d.origTw + (fromCenter ? dx * 2 : dx);
+            if (d.handle.includes('w')) {
+                nextTx = fromCenter ? d.origTx + dx : d.origTx + dx;
+                nextTw = d.origTw - (fromCenter ? dx * 2 : dx);
+            }
+            if (d.handle.includes('s')) nextTh = d.origTh + (fromCenter ? dy * 2 : dy);
+            if (d.handle.includes('n')) {
+                nextTy = fromCenter ? d.origTy + dy : d.origTy + dy;
+                nextTh = d.origTh - (fromCenter ? dy * 2 : dy);
+            }
+            if (fromCenter) {
+                if (d.handle.includes('e')) nextTx = d.origTx - dx;
+                if (d.handle.includes('s')) nextTy = d.origTy - dy;
+            }
+            nextTw = Math.max(minSize, nextTw);
+            nextTh = Math.max(minSize, nextTh);
+            return { tx: nextTx, ty: nextTy, tw: nextTw, th: nextTh };
+        };
+
+        if (freeAspect) return freeBox();
+
+        const proposed = freeBox();
+        const scaleX = proposed.tw / Math.max(minSize, d.origTw);
+        const scaleY = proposed.th / Math.max(minSize, d.origTh);
+        const scale = d.handle === 'e' || d.handle === 'w'
+            ? scaleX
+            : d.handle === 'n' || d.handle === 's'
+                ? scaleY
+                : Math.max(scaleX, scaleY);
+        const nextTw = Math.max(minSize, d.origTw * scale);
+        const nextTh = Math.max(minSize, d.origTh * scale);
+        const centerX = d.origTx + d.origTw / 2;
+        const centerY = d.origTy + d.origTh / 2;
+        if (fromCenter) {
+            return { tx: centerX - nextTw / 2, ty: centerY - nextTh / 2, tw: nextTw, th: nextTh };
+        }
+        if (d.handle === 'se') return { tx: d.origTx, ty: d.origTy, tw: nextTw, th: nextTh };
+        if (d.handle === 'ne') return { tx: d.origTx, ty: d.origTy + d.origTh - nextTh, tw: nextTw, th: nextTh };
+        if (d.handle === 'sw') return { tx: d.origTx + d.origTw - nextTw, ty: d.origTy, tw: nextTw, th: nextTh };
+        if (d.handle === 'nw') return { tx: d.origTx + d.origTw - nextTw, ty: d.origTy + d.origTh - nextTh, tw: nextTw, th: nextTh };
+        if (d.handle === 'e') return { tx: d.origTx, ty: centerY - nextTh / 2, tw: nextTw, th: nextTh };
+        if (d.handle === 'w') return { tx: d.origTx + d.origTw - nextTw, ty: centerY - nextTh / 2, tw: nextTw, th: nextTh };
+        if (d.handle === 's') return { tx: centerX - nextTw / 2, ty: d.origTy, tw: nextTw, th: nextTh };
+        if (d.handle === 'n') return { tx: centerX - nextTw / 2, ty: d.origTy + d.origTh - nextTh, tw: nextTw, th: nextTh };
+        return proposed;
+    }, []);
+
     useEffect(() => {
         const onMove = (e: MouseEvent) => {
             if (!dragRef.current) return;
@@ -101,43 +163,28 @@ export function TransformSelectionOverlay({ zoom, onClose }: Props) {
                     setTy(d.origTy + dy);
                     break;
                 case 'nw':
-                    setTx(d.origTx + dx);
-                    setTy(d.origTy + dy);
-                    setTw(Math.max(1, d.origTw - dx));
-                    setTh(Math.max(1, d.origTh - dy));
-                    break;
                 case 'n':
-                    setTy(d.origTy + dy);
-                    setTh(Math.max(1, d.origTh - dy));
-                    break;
                 case 'ne':
-                    setTy(d.origTy + dy);
-                    setTw(Math.max(1, d.origTw + dx));
-                    setTh(Math.max(1, d.origTh - dy));
-                    break;
                 case 'e':
-                    setTw(Math.max(1, d.origTw + dx));
-                    break;
                 case 'se':
-                    setTw(Math.max(1, d.origTw + dx));
-                    setTh(Math.max(1, d.origTh + dy));
-                    break;
                 case 's':
-                    setTh(Math.max(1, d.origTh + dy));
-                    break;
                 case 'sw':
-                    setTx(d.origTx + dx);
-                    setTw(Math.max(1, d.origTw - dx));
-                    setTh(Math.max(1, d.origTh + dy));
+                case 'w': {
+                    const next = applyResize(d, dx, dy, e.shiftKey || !linked, e.altKey);
+                    setTx(next.tx);
+                    setTy(next.ty);
+                    setTw(next.tw);
+                    setTh(next.th);
                     break;
-                case 'w':
-                    setTx(d.origTx + dx);
-                    setTw(Math.max(1, d.origTw - dx));
-                    break;
+                }
                 case 'rotate': {
                     const centerX = (documentRect?.left ?? 0) + (d.origTx + d.origTw / 2) * zoom;
                     const centerY = (documentRect?.top ?? 0) + (d.origTy + d.origTh / 2) * zoom;
-                    const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) + Math.PI / 2;
+                    let angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) + Math.PI / 2;
+                    if (e.shiftKey) {
+                        const snap = Math.PI / 12;
+                        angle = Math.round(angle / snap) * snap;
+                    }
                     setRot(angle);
                     break;
                 }
@@ -150,7 +197,7 @@ export function TransformSelectionOverlay({ zoom, onClose }: Props) {
             window.removeEventListener('mousemove', onMove);
             window.removeEventListener('mouseup', onUp);
         };
-    }, [zoom, documentRect]);
+    }, [zoom, documentRect, applyResize, linked]);
 
     const commit = useCallback(() => {
         const store = useEditorStore.getState();
@@ -218,6 +265,22 @@ export function TransformSelectionOverlay({ zoom, onClose }: Props) {
 
     const cancel = useCallback(() => { onClose(); }, [onClose]);
 
+    const setNumericBox = (key: 'x' | 'y' | 'w' | 'h', value: number) => {
+        const next = Number.isFinite(value) ? value : 0;
+        if (key === 'x') setTx(next);
+        if (key === 'y') setTy(next);
+        if (key === 'w') {
+            const nextW = Math.max(1, next);
+            if (linked) setTh(Math.max(1, th * (nextW / Math.max(1, tw))));
+            setTw(nextW);
+        }
+        if (key === 'h') {
+            const nextH = Math.max(1, next);
+            if (linked) setTw(Math.max(1, tw * (nextH / Math.max(1, th))));
+            setTh(nextH);
+        }
+    };
+
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') { e.preventDefault(); cancel(); }
@@ -284,34 +347,58 @@ export function TransformSelectionOverlay({ zoom, onClose }: Props) {
             <div
                 style={{
                     position: 'fixed',
-                    top: 12,
-                    right: 12,
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 32,
                     background: '#2a2a2a',
-                    border: '1px solid #444',
-                    borderRadius: 4,
-                    padding: '6px 10px',
+                    borderBottom: '1px solid #444',
+                    padding: '4px 10px',
                     color: 'white',
                     fontSize: 11,
                     display: 'flex',
-                    gap: 8,
+                    gap: 6,
                     alignItems: 'center',
                     zIndex: 9001,
                 }}
             >
                 <span>Transform Selection</span>
+                {(['x', 'y', 'w', 'h'] as const).map(key => (
+                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#cfcfcf' }}>
+                        {key.toUpperCase()}:
+                        <input
+                            data-testid={`transform-selection-${key}`}
+                            type="number"
+                            value={Math.round(key === 'x' ? tx : key === 'y' ? ty : key === 'w' ? tw : th)}
+                            onChange={e => setNumericBox(key, Number(e.target.value))}
+                            style={{ width: 54, height: 20, background: '#1d1d1d', border: '1px solid #555', color: 'white', borderRadius: 2, fontSize: 11 }}
+                        />
+                    </label>
+                ))}
+                <button
+                    data-testid="transform-selection-link"
+                    onClick={() => setLinked(v => !v)}
+                    title={linked ? 'Unlink Width and Height' : 'Link Width and Height'}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 22, background: linked ? '#3b3b3b' : 'transparent', border: '1px solid #555', color: 'white', borderRadius: 3, cursor: 'pointer' }}
+                >
+                    {linked ? <Link2 size={13} /> : <Unlink size={13} />}
+                </button>
+                <div style={{ flex: 1 }} />
                 <button
                     onClick={commit}
                     data-testid="transform-selection-commit"
-                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#0090ff', border: 'none', color: 'white', borderRadius: 3, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+                    title="Commit Transform Selection"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 22, background: '#0090ff', border: 'none', color: 'white', borderRadius: 3, cursor: 'pointer' }}
                 >
-                    <Check size={12} /> Commit
+                    <Check size={13} />
                 </button>
                 <button
                     onClick={cancel}
                     data-testid="transform-selection-cancel"
-                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid #555', color: 'white', borderRadius: 3, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+                    title="Cancel Transform Selection"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 22, background: 'transparent', border: '1px solid #555', color: 'white', borderRadius: 3, cursor: 'pointer' }}
                 >
-                    <XIcon size={12} /> Cancel
+                    <XIcon size={13} />
                 </button>
             </div>
         </>

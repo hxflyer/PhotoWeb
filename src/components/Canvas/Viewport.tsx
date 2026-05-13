@@ -1561,6 +1561,12 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                     {selection.hasSelection && (
                         <>
                             <button style={menuItemStyle} onClick={() => {
+                                useEditorStore.getState().openTransformSelection();
+                                setContextMenu(null);
+                            }}>
+                                Transform Selection
+                            </button>
+                            <button style={menuItemStyle} onClick={() => {
                                 if (selection.isFreeEditMode) {
                                     // Already in mode
                                 } else {
@@ -1568,7 +1574,7 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
                                 }
                                 setContextMenu(null);
                             }}>
-                                Free Edit Selection
+                                Free Transform
                             </button>
                             <button style={menuItemStyle} onClick={() => {
                                 if (floatingPixelsRef.current) commitFloatingPixels();

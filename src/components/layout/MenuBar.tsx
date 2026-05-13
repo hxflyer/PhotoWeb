@@ -556,7 +556,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       act('Grow', () => useEditorStore.getState().growSelection()),
       act('Similar', () => useEditorStore.getState().similarSelection()),
       sep,
-      act('Transform Selection', () => useEditorStore.getState().openTransformSelection()),
+      act('Transform Selection', () => useEditorStore.getState().openTransformSelection(), undefined, !useEditorStore.getState().selection.hasSelection),
       chk('Edit in Quick Mask Mode', () => useEditorStore.getState().quickMaskMode, () => {
         const s = useEditorStore.getState(); s.setQuickMaskMode(!s.quickMaskMode);
       }, 'Q'),
