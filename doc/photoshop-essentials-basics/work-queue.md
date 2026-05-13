@@ -4,7 +4,7 @@ The /loop processes the first unchecked `[ ]` item. Read [RUN-CONTRACT.md](RUN-C
 
 When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the same line.
 
-- [ ] 01a-interface-shell        (4) — Doc window, tab, status bar, pasteboard, color theme
+- [x] 01a-interface-shell        (4) — Doc window, tab, status bar, pasteboard, color theme  commit: 826c293
 - [ ] 01b-toolbar                (1) — Toolbar UI: column, flyout, default-tool, keyboard cycle
 - [ ] 01c-panels                 (2) — Panel groups, Window menu, panel menu icon
 - [ ] 01d-screen-modes           (2) — F / Shift+F cycle, Tab hide panels
