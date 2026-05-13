@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { evaluateNumericExpression } from '../../utils/numericExpression';
+import { fromPixels, LENGTH_UNIT_LABELS, toPixels, type LengthUnit } from '../../utils/units';
 
 interface CanvasSizeDialogProps {
     isOpen: boolean;
@@ -16,6 +17,8 @@ const ANCHORS: [number, number][] = [
     [0, 0.5], [0.5, 0.5], [1, 0.5],
     [0, 1], [0.5, 1], [1, 1],
 ];
+
+const UNIT_OPTIONS: LengthUnit[] = ['px', 'percent', 'in', 'cm', 'mm'];
 
 // Compass-style arrow used in the anchor grid: rotation is computed from the
 // signed (dx, dy) offset between the cell and the anchor, so cells "around"
@@ -46,12 +49,18 @@ function formatSize(w: number, h: number): string {
     return `${bytes} B`;
 }
 
+function formatUnitValue(value: number, unit: LengthUnit): string {
+    if (unit === 'px') return String(Math.round(value));
+    return String(Number(value.toFixed(4)));
+}
+
 export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfirm, onClose }: CanvasSizeDialogProps) {
     const [w, setW] = useState(currentWidth);
     const [h, setH] = useState(currentHeight);
     const [wText, setWText] = useState(String(currentWidth));
     const [hText, setHText] = useState(String(currentHeight));
     const [relative, setRelative] = useState(false);
+    const [unit, setUnit] = useState<LengthUnit>('px');
     const [anchorIdx, setAnchorIdx] = useState(4); // center
     const [extensionColor, setExtensionColor] = useState('transparent');
     const dialogRef = useDialogA11y(isOpen, onClose);
@@ -64,6 +73,7 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
             setWText(String(currentWidth));
             setHText(String(currentHeight));
             setRelative(false);
+            setUnit('px');
             /* eslint-enable react-hooks/set-state-in-effect */
         }
     }, [isOpen, currentWidth, currentHeight]);
@@ -71,10 +81,11 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
     function commitField(text: string, setter: (n: number) => void, textSetter: (s: string) => void, current: number) {
         const v = evaluateNumericExpression(text);
         if (v !== null) {
-            setter(Math.round(v));
-            textSetter(String(Math.round(v)));
+            const next = unit === 'px' ? Math.round(v) : v;
+            setter(next);
+            textSetter(formatUnitValue(next, unit));
         } else {
-            textSetter(String(current));
+            textSetter(formatUnitValue(current, unit));
         }
     }
 
@@ -82,8 +93,10 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
 
     const [anchorX, anchorY] = ANCHORS[anchorIdx];
 
-    const newW = relative ? Math.max(1, currentWidth + w) : Math.max(1, w);
-    const newH = relative ? Math.max(1, currentHeight + h) : Math.max(1, h);
+    const widthPixels = Math.round(toPixels(w, unit, { base: currentWidth }));
+    const heightPixels = Math.round(toPixels(h, unit, { base: currentHeight }));
+    const newW = relative ? Math.max(1, currentWidth + widthPixels) : Math.max(1, widthPixels);
+    const newH = relative ? Math.max(1, currentHeight + heightPixels) : Math.max(1, heightPixels);
 
     const inputStyle: React.CSSProperties = {
         background: 'hsl(var(--bg-input))',
@@ -103,12 +116,26 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
             setHText('0');
         } else {
             // Switching OFF: re-populate with computed absolute values.
-            setW(newW);
-            setH(newH);
-            setWText(String(newW));
-            setHText(String(newH));
+            const nextW = fromPixels(newW, unit, { base: currentWidth });
+            const nextH = fromPixels(newH, unit, { base: currentHeight });
+            setW(nextW);
+            setH(nextH);
+            setWText(formatUnitValue(nextW, unit));
+            setHText(formatUnitValue(nextH, unit));
         }
         setRelative(next);
+    }
+
+    function changeUnit(nextUnit: LengthUnit) {
+        const wPixelsForField = relative ? widthPixels : newW;
+        const hPixelsForField = relative ? heightPixels : newH;
+        const nextW = fromPixels(wPixelsForField, nextUnit, { base: currentWidth });
+        const nextH = fromPixels(hPixelsForField, nextUnit, { base: currentHeight });
+        setUnit(nextUnit);
+        setW(nextW);
+        setH(nextH);
+        setWText(formatUnitValue(nextW, nextUnit));
+        setHText(formatUnitValue(nextH, nextUnit));
     }
 
     return (
@@ -125,7 +152,7 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
                         <div data-testid="canvas-size-new">New Size: <span style={{ color: 'hsl(var(--text-main))' }}>{formatSize(newW, newH)}</span> — {newW} × {newH} px</div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', alignItems: 'flex-end' }}>
                         <div>
                             <div style={{ fontSize: '12px', color: 'hsl(var(--text-muted))', marginBottom: '4px' }}>Width</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -133,12 +160,11 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
                                     data-testid="canvas-size-w"
                                     type="text"
                                     value={wText}
-                                    onChange={e => { setWText(e.target.value); const v = evaluateNumericExpression(e.target.value); if (v !== null) setW(Math.round(v)); }}
+                                    onChange={e => { setWText(e.target.value); const v = evaluateNumericExpression(e.target.value); if (v !== null) setW(unit === 'px' ? Math.round(v) : v); }}
                                     onBlur={e => commitField(e.target.value, setW, setWText, w)}
                                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitField((e.target as HTMLInputElement).value, setW, setWText, w); } }}
                                     style={inputStyle}
                                 />
-                                <span style={{ fontSize: '12px', color: 'hsl(var(--text-muted))' }}>px</span>
                             </div>
                         </div>
                         <div>
@@ -148,13 +174,25 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
                                     data-testid="canvas-size-h"
                                     type="text"
                                     value={hText}
-                                    onChange={e => { setHText(e.target.value); const v = evaluateNumericExpression(e.target.value); if (v !== null) setH(Math.round(v)); }}
+                                    onChange={e => { setHText(e.target.value); const v = evaluateNumericExpression(e.target.value); if (v !== null) setH(unit === 'px' ? Math.round(v) : v); }}
                                     onBlur={e => commitField(e.target.value, setH, setHText, h)}
                                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitField((e.target as HTMLInputElement).value, setH, setHText, h); } }}
                                     style={inputStyle}
                                 />
-                                <span style={{ fontSize: '12px', color: 'hsl(var(--text-muted))' }}>px</span>
                             </div>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '12px', color: 'hsl(var(--text-muted))', marginBottom: '4px' }}>Units</div>
+                            <select
+                                data-testid="canvas-size-unit"
+                                value={unit}
+                                onChange={e => changeUnit(e.target.value as LengthUnit)}
+                                style={{ padding: '6px', background: 'hsl(var(--bg-input))', color: 'hsl(var(--text-main))', border: '1px solid hsl(var(--border-light))', borderRadius: '4px', fontSize: '12px', width: '110px' }}
+                            >
+                                {UNIT_OPTIONS.map(option => (
+                                    <option key={option} value={option}>{LENGTH_UNIT_LABELS[option]}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
@@ -216,6 +254,7 @@ export function CanvasSizeDialog({ isOpen, currentWidth, currentHeight, onConfir
                             <option value="transparent">Transparent</option>
                             <option value="white">White</option>
                             <option value="black">Black</option>
+                            <option value="#808080">Gray</option>
                         </select>
                     </div>
                 </div>
