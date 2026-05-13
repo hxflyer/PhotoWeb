@@ -23,12 +23,24 @@ export interface MarqueeDragState {
 export interface MarqueeOptions {
     feather: number;
     antiAlias: boolean;
+    style: 'normal' | 'fixed-ratio' | 'fixed-size';
+    width: number;
+    height: number;
 }
 
-const options: MarqueeOptions = { feather: 0, antiAlias: true };
+const options: MarqueeOptions = {
+    feather: 0,
+    antiAlias: true,
+    style: 'normal',
+    width: 1,
+    height: 1,
+};
 
 export function setMarqueeOptions(next: Partial<MarqueeOptions>): void {
     Object.assign(options, next);
+    options.feather = Math.max(0, Number.isFinite(options.feather) ? options.feather : 0);
+    options.width = Math.max(1, Number.isFinite(options.width) ? options.width : 1);
+    options.height = Math.max(1, Number.isFinite(options.height) ? options.height : 1);
 }
 
 export function getMarqueeOptions(): MarqueeOptions {
@@ -39,12 +51,39 @@ export function computeMarqueeRect(
     drag: MarqueeDragState,
     shift: boolean,
     alt: boolean,
+    marqueeOptions: MarqueeOptions = options,
 ): MarqueeRect {
     const { anchor, current } = drag;
+    const optWidth = Math.max(1, marqueeOptions.width || 1);
+    const optHeight = Math.max(1, marqueeOptions.height || 1);
+
+    if (marqueeOptions.style === 'fixed-size') {
+        return {
+            x: alt ? current.x - optWidth / 2 : current.x,
+            y: alt ? current.y - optHeight / 2 : current.y,
+            width: optWidth,
+            height: optHeight,
+        };
+    }
+
     let dx = current.x - anchor.x;
     let dy = current.y - anchor.y;
 
-    if (shift) {
+    if (marqueeOptions.style === 'fixed-ratio') {
+        const ratio = optWidth / optHeight;
+        let nextW = Math.abs(dx);
+        let nextH = Math.abs(dy);
+        if (nextW === 0 && nextH === 0) {
+            nextW = 0;
+            nextH = 0;
+        } else if (nextH === 0 || nextW / nextH > ratio) {
+            nextH = nextW / ratio;
+        } else {
+            nextW = nextH * ratio;
+        }
+        dx = Math.sign(dx || 1) * nextW;
+        dy = Math.sign(dy || 1) * nextH;
+    } else if (shift) {
         const m = Math.max(Math.abs(dx), Math.abs(dy));
         dx = Math.sign(dx || 1) * m;
         dy = Math.sign(dy || 1) * m;
@@ -141,6 +180,8 @@ interface InternalState {
     shape: 'rect' | 'circle';
     shift: boolean;
     alt: boolean;
+    space: boolean;
+    lastPoint: { x: number; y: number } | null;
     // Selection-op resolved at pointer-down time. Photoshop convention: the
     // modifier state at the START of the gesture decides add/sub/intersect/new;
     // alt held *mid-drag* re-purposes to "draw from center", so we capture this
@@ -148,9 +189,13 @@ interface InternalState {
     pendingOp: import('./selectionModifiers').SelectionOp;
 }
 
-const stateRect: InternalState = { drag: null, pendingNew: null, move: null, clearedSelection: null, shape: 'rect', shift: false, alt: false, pendingOp: 'new' };
-const stateEllipse: InternalState = { drag: null, pendingNew: null, move: null, clearedSelection: null, shape: 'circle', shift: false, alt: false, pendingOp: 'new' };
+const stateRect: InternalState = { drag: null, pendingNew: null, move: null, clearedSelection: null, shape: 'rect', shift: false, alt: false, space: false, lastPoint: null, pendingOp: 'new' };
+const stateEllipse: InternalState = { drag: null, pendingNew: null, move: null, clearedSelection: null, shape: 'circle', shift: false, alt: false, space: false, lastPoint: null, pendingOp: 'new' };
 const DRAG_THRESHOLD = 3;
+
+export function isMarqueeGestureActive(): boolean {
+    return !!(stateRect.drag || stateEllipse.drag);
+}
 
 function pointerToRect(e: ToolPointerEvent) {
     return { x: e.canvasX, y: e.canvasY };
@@ -171,6 +216,8 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
             state.pendingNew = null;
             state.move = null;
             state.clearedSelection = null;
+            state.space = false;
+            state.lastPoint = point;
             if (op === 'new' && store.selection.hasSelection) {
                 if (selectionContainsPoint(store.selection, point.x, point.y)) {
                     // Mouse-down inside the selection: do not dismiss. The user is
@@ -188,7 +235,7 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
             }
             state.drag = { anchor: point, current: point };
         },
-        onPointerMove: (e) => {
+        onPointerMove: (e, ctx) => {
             const point = pointerToRect(e);
             if (state.move) {
                 if (e.shift || e.meta || e.ctrl) {
@@ -210,9 +257,19 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
                 state.pendingNew = null;
             }
             if (!state.drag) return;
-            state.drag.current = point;
+            if (state.space) {
+                const previous = state.lastPoint ?? state.drag.current;
+                const dx = point.x - previous.x;
+                const dy = point.y - previous.y;
+                state.drag.anchor = { x: state.drag.anchor.x + dx, y: state.drag.anchor.y + dy };
+                state.drag.current = { x: state.drag.current.x + dx, y: state.drag.current.y + dy };
+            } else {
+                state.drag.current = point;
+            }
+            state.lastPoint = point;
             state.shift = e.shift;
             state.alt = e.alt;
+            ctx.requestRender();
             // Overlay RAF loop draws from state.drag each frame — no store mutation during drag
         },
         onPointerUp: (e) => {
@@ -231,7 +288,16 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
                 return;
             }
             if (!state.drag) return;
-            state.drag.current = pointerToRect(e);
+            const point = pointerToRect(e);
+            if (state.space) {
+                const previous = state.lastPoint ?? state.drag.current;
+                const dx = point.x - previous.x;
+                const dy = point.y - previous.y;
+                state.drag.anchor = { x: state.drag.anchor.x + dx, y: state.drag.anchor.y + dy };
+                state.drag.current = { x: state.drag.current.x + dx, y: state.drag.current.y + dy };
+            } else {
+                state.drag.current = point;
+            }
             const rect = computeMarqueeRect(state.drag, e.shift, e.alt);
             if (rect.width > 0 && rect.height > 0) {
                 // Use the op resolved at pointer-down so that alt held mid-drag
@@ -250,6 +316,22 @@ function makeMarqueeTool(id: 'marquee-rect' | 'marquee-ellipse', label: string, 
             }
             state.drag = null;
             state.clearedSelection = null;
+            state.space = false;
+            state.lastPoint = null;
+        },
+        onKeyDown: (e, ctx) => {
+            if (e.key !== ' ' && e.key !== 'Spacebar') return;
+            if (!state.drag) return;
+            state.space = true;
+            e.rawEvent.preventDefault();
+            ctx.requestRender();
+        },
+        onKeyUp: (e, ctx) => {
+            if (e.key !== ' ' && e.key !== 'Spacebar') return;
+            if (!state.drag) return;
+            state.space = false;
+            e.rawEvent.preventDefault();
+            ctx.requestRender();
         },
     };
 }
@@ -278,6 +360,19 @@ function renderMarqueeOverlay(state: InternalState, overlay: OverlayRenderContex
         ctx.lineDashOffset = 4 / Math.max(0.0001, zoom);
         ctx.stroke();
     }
+    ctx.setLineDash([]);
+    const w = Math.round(rect.width);
+    const h = Math.round(rect.height);
+    const hudX = rect.x + rect.width + 8 / Math.max(0.0001, zoom);
+    const hudY = rect.y + rect.height - 30 / Math.max(0.0001, zoom);
+    const hudW = 58 / Math.max(0.0001, zoom);
+    const hudH = 28 / Math.max(0.0001, zoom);
+    ctx.fillStyle = 'rgba(30, 30, 30, 0.9)';
+    ctx.fillRect(hudX, hudY, hudW, hudH);
+    ctx.fillStyle = '#fff';
+    ctx.font = `${10 / Math.max(0.0001, zoom)}px sans-serif`;
+    ctx.fillText(`W: ${w} px`, hudX + 5 / Math.max(0.0001, zoom), hudY + 11 / Math.max(0.0001, zoom));
+    ctx.fillText(`H: ${h} px`, hudX + 5 / Math.max(0.0001, zoom), hudY + 23 / Math.max(0.0001, zoom));
     ctx.restore();
 }
 

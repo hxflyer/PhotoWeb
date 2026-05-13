@@ -48,6 +48,7 @@ import { initAutoSaveCheck } from './core/autoSave';
 import { captureLayerRegion, createPixelHistoryAction } from './core/history';
 import { bindTypePanelStore, bindTypeToastBridge, getEditingStyle, updateEditingStyle, type TypeLayerData } from './tools/type';
 import { moveSelectedPixelsBy } from './tools/move';
+import { isMarqueeGestureActive } from './tools/marquee';
 import { cloneShapeData } from './tools/shapeCommands';
 import { rerenderShapeLayer } from './tools/shapeRender';
 import type { ShapeData } from './store/types';
@@ -715,6 +716,7 @@ function App() {
       // Demote Zoom → Hand when Space is the first press but Cmd was
       // already held — handled in the Space branch below.
       if (e.code !== 'Space' || e.repeat) return;
+      if (isMarqueeGestureActive()) return;
       e.preventDefault();
       if (active !== null) return;
       const useZoom = e.metaKey || e.ctrlKey;

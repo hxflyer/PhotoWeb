@@ -299,6 +299,9 @@ function MarqueeOptions({ mode }: { mode: 'rect' | 'circle' }) {
     const [, force] = useState(0);
     const opts = getMarqueeOptions();
     const update = (next: Parameters<typeof setMarqueeOptions>[0]) => { setMarqueeOptions(next); force(t => t + 1); };
+    const updateDimension = (key: 'width' | 'height', value: number) => {
+        update({ [key]: Math.max(1, Number.isFinite(value) ? value : 1) });
+    };
     return (
         <>
             {/* Mode icons */}
@@ -341,12 +344,56 @@ function MarqueeOptions({ mode }: { mode: 'rect' | 'circle' }) {
             {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Style:')}
-                <select className="opts-input" style={{ width: 80 }}>
-                    <option>Normal</option>
-                    <option>Fixed Ratio</option>
-                    <option>Fixed Size</option>
+                <select
+                    data-testid="marquee-style"
+                    className="opts-input"
+                    style={{ width: 92 }}
+                    value={opts.style}
+                    onChange={e => update({ style: e.target.value as typeof opts.style })}
+                >
+                    <option value="normal">Normal</option>
+                    <option value="fixed-ratio">Fixed Ratio</option>
+                    <option value="fixed-size">Fixed Size</option>
                 </select>
             </div>
+            {opts.style !== 'normal' && (
+                <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('W:')}
+                        <input
+                            data-testid="marquee-width"
+                            type="number"
+                            min={1}
+                            value={opts.width}
+                            onChange={e => updateDimension('width', Number(e.target.value))}
+                            className="opts-input"
+                            style={{ width: 54 }}
+                        />
+                        {opts.style === 'fixed-size' && <span className="opts-label">px</span>}
+                    </div>
+                    <button
+                        data-testid="marquee-swap"
+                        className="opts-btn"
+                        title="Swap Width and Height"
+                        onClick={() => update({ width: opts.height, height: opts.width })}
+                    >
+                        <Repeat2 size={13} />
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('H:')}
+                        <input
+                            data-testid="marquee-height"
+                            type="number"
+                            min={1}
+                            value={opts.height}
+                            onChange={e => updateDimension('height', Number(e.target.value))}
+                            className="opts-input"
+                            style={{ width: 54 }}
+                        />
+                        {opts.style === 'fixed-size' && <span className="opts-label">px</span>}
+                    </div>
+                </>
+            )}
         </>
     );
 }
