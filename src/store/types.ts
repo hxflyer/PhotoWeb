@@ -144,6 +144,7 @@ export interface DialogState {
     adjustmentDialog: { isOpen: boolean; adjustmentId: string; params: Record<string, unknown> };
     isImageSizeOpen: boolean;
     isCanvasSizeOpen: boolean;
+    isArbitraryRotationOpen: boolean;
     isTrimOpen: boolean;
     isColorPickerOpen: boolean;
     colorPickerTarget: 'primary' | 'secondary' | 'type';
@@ -190,6 +191,7 @@ export type ToolId =
     | 'path-selection'
     | 'direct-selection'
     | 'eyedropper'
+    | 'ruler'
     | 'type-horizontal'
     | 'type-vertical'
     | 'hand'
@@ -232,6 +234,7 @@ export interface DocumentSlice {
     setCanvasSize: (width: number, height: number) => void;
     rotateCanvas: (degrees: number) => void;
     flipCanvas: (axis: 'horizontal' | 'vertical') => void;
+    straightenActiveLayer: (degrees: number) => void;
     resizeImage: (newW: number, newH: number, method: import('../core/imageTransforms').ResampleMethod, resolution?: number, resample?: boolean) => void;
     resizeCanvas: (newW: number, newH: number, anchorX: number, anchorY: number, extensionColor: string) => void;
     trimCanvas: (basis: import('../core/imageTransforms').TrimBasis, sides: { top: boolean; right: boolean; bottom: boolean; left: boolean }) => void;
@@ -669,9 +672,11 @@ export interface PanelsSlice {
     closeAdjustmentDialog: () => void;
     openImageSizeDialog: () => void;
     openCanvasSizeDialog: () => void;
+    openArbitraryRotationDialog: () => void;
     openTrimDialog: () => void;
     closeImageSizeDialog: () => void;
     closeCanvasSizeDialog: () => void;
+    closeArbitraryRotationDialog: () => void;
     closeTrimDialog: () => void;
     openColorPicker: (target: 'primary' | 'secondary' | 'type') => void;
     closeColorPicker: () => void;

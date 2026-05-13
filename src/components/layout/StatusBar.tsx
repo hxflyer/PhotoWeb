@@ -29,6 +29,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   'path-selection': 'Path Selection',
   'direct-selection': 'Direct Selection',
   eyedropper: 'Eyedropper',
+  ruler: 'Ruler',
   'type-horizontal': 'Horizontal Type',
   'type-vertical': 'Vertical Type',
   hand: 'Hand',

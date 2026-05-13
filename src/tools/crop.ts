@@ -1,5 +1,6 @@
 import type { EditorStore } from '../store/types';
 import { useEditorStore } from '../store/editorStore';
+import { nearestAxisStraightenDegrees } from '../core/imageTransforms';
 import type { Tool, ToolContext, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 
@@ -223,7 +224,7 @@ export const cropTool: Tool = {
     onPointerDown: (e, ctx) => {
         if (e.button !== 0) return;
         const store = ctx.getStore();
-        if (options.straighten) {
+        if (options.straighten || e.ctrl || e.meta) {
             const point = p(e);
             state.straighten = { start: point, end: point };
             ctx.requestRender();
@@ -258,9 +259,9 @@ export const cropTool: Tool = {
             state.straighten = null;
             options.straighten = false;
             if (len > 4) {
-                const angleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
-                ctx.getStore().rotateCanvas(-angleDeg);
-                state.rect = null; // canvas size changed; recompute next interaction
+                const correction = nearestAxisStraightenDegrees(dx, dy);
+                ctx.getStore().rotateCanvas(correction);
+                initCrop(ctx.getStore());
             }
             ctx.requestRender();
             return;
@@ -275,6 +276,8 @@ export const cropTool: Tool = {
         }
         if (e.key === 'Escape') {
             e.rawEvent.preventDefault();
+            state.straighten = null;
+            options.straighten = false;
             state.rect = null;
             state.drag = null;
             ctx.requestRender();

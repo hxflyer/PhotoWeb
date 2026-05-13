@@ -39,6 +39,7 @@ import { getMoveOptions, setMoveOptions } from '../../tools/move';
 import { getShapeOptions, setShapeOptions } from '../../tools/shapes';
 import { getCustomShapeLibrary, CUSTOM_SHAPE_VIEWBOX } from '../../tools/customShapes';
 import { getCropOptions, setCropOptions, type CropAspectId, type CropOverlayId } from '../../tools/crop';
+import { clearRulerMeasurement, getRulerMeasurement, straightenRulerMeasurement } from '../../tools/ruler';
 import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
 import type { BlendModeId } from '../../core/blendModes';
 import {
@@ -512,6 +513,36 @@ function EyedropperOptions() {
                 <input type="checkbox" defaultChecked style={{ accentColor: 'hsl(var(--accent-primary))' }} />
                 Show Sampling Ring
             </label>
+        </>
+    );
+}
+
+function RulerOptions() {
+    const [, force] = useState(0);
+    const measurement = getRulerMeasurement();
+    const refresh = () => force(t => t + 1);
+    return (
+        <>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'hsl(var(--text-label))' }}>
+                <input type="checkbox" disabled style={{ accentColor: 'hsl(var(--accent-primary))' }} />
+                Use Measurement Scale
+            </label>
+            {S.sep()}
+            <button
+                data-testid="ruler-straighten-layer"
+                className="opts-btn"
+                onClick={() => { straightenRulerMeasurement(); refresh(); }}
+            >
+                Straighten Layer
+            </button>
+            <button
+                data-testid="ruler-clear"
+                className="opts-btn"
+                disabled={!measurement}
+                onClick={() => { clearRulerMeasurement(); refresh(); }}
+            >
+                Clear
+            </button>
         </>
     );
 }
@@ -1533,7 +1564,7 @@ export function OptionsBar() {
         'marquee-rect': 'Rectangular Marquee', 'marquee-ellipse': 'Elliptical Marquee',
         'select': 'Marquee', 'lasso': 'Lasso', 'lasso-poly': 'Polygonal Lasso',
         'magic-wand': 'Magic Wand', 'quick-selection': 'Quick Selection',
-        'crop': 'Crop', 'eyedropper': 'Eyedropper',
+        'crop': 'Crop', 'eyedropper': 'Eyedropper', 'ruler': 'Ruler',
         'pen': 'Pen', 'freeform-pen': 'Freeform Pen',
         'path-selection': 'Path Selection', 'direct-selection': 'Direct Selection',
         'type-horizontal': 'Type', 'type-vertical': 'Vertical Type',
@@ -1555,6 +1586,7 @@ export function OptionsBar() {
             case 'quick-selection': return <QuickSelOptions />;
             case 'crop': return <CropOptions />;
             case 'eyedropper': return <EyedropperOptions />;
+            case 'ruler': return <RulerOptions />;
             case 'brush': return <BrushOptions />;
             case 'pencil': return <PencilOptions />;
             case 'eraser': return <EraserOptions />;

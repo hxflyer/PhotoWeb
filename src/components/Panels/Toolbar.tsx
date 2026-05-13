@@ -4,7 +4,7 @@ import {
     Wand2, Pencil, Move,
     PenTool, PenLine, MousePointer, Pipette, Type, Hand, ZoomIn,
     Hexagon, Minus, Star, Lasso, ChevronRight, ChevronsLeft, ChevronsRight, Repeat2,
-    Maximize, Maximize2, Minimize2,
+    Maximize, Maximize2, Minimize2, Ruler,
 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { loadImage } from '../../utils/imageLoader';
@@ -54,6 +54,9 @@ const TOOL_GROUPS: { primary: ToolDef; subs?: ToolDef[] }[] = [
     },
     {
         primary: { id: 'eyedropper', icon: Pipette, label: 'Eyedropper Tool', shortcut: 'I' },
+        subs: [
+            { id: 'ruler', icon: Ruler, label: 'Ruler Tool', shortcut: 'I' },
+        ],
     },
     {
         primary: { id: 'brush', icon: Brush, label: 'Brush Tool', shortcut: 'B' },

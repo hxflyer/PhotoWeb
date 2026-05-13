@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { DocumentSlice, EditorStore } from './types';
 import {
     rotateCanvas as rotateCanvasHelper,
+    rotateCanvasInPlace,
     flipCanvas as flipCanvasHelper,
     resampleCanvas,
     resizeCanvasWithAnchor,
@@ -160,6 +161,26 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         });
         },
     }),
+
+    straightenActiveLayer: (degrees) => {
+        if (!Number.isFinite(degrees) || Math.abs(degrees) < 0.0001) return;
+        const { activeLayerId, layers } = get();
+        const layer = layers.find(l => l.id === activeLayerId);
+        if (!layer) return;
+        get().executeDocumentCommand({
+            kind: 'transform',
+            label: 'Straighten Layer',
+            layerId: layer.id,
+            run: () => {
+                const active = get().layers.find(l => l.id === layer.id);
+                if (!active) return;
+                const result = rotateCanvasInPlace(active.canvas, degrees);
+                copyCanvasContent(active.canvas, result);
+                active.markDirty(null);
+                set({ layers: [...get().layers] });
+            },
+        });
+    },
 
     resizeImage: (newW, newH, method: ResampleMethod, resolution, resample = true) => {
         if (!guardDocumentSize(newW, newH, get().reportError)) return;

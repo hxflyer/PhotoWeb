@@ -18,6 +18,7 @@ import { FilterDialog } from './components/Dialogs/FilterDialog';
 import { AdjustmentDialog } from './components/Dialogs/AdjustmentDialog';
 import { ImageSizeDialog } from './components/Dialogs/ImageSizeDialog';
 import { CanvasSizeDialog } from './components/Dialogs/CanvasSizeDialog';
+import { ArbitraryRotationDialog } from './components/Dialogs/ArbitraryRotationDialog';
 import { TrimDialog } from './components/Dialogs/TrimDialog';
 import { ColorPickerDialog } from './components/Dialogs/ColorPickerDialog';
 import { ExportDialog } from './components/Dialogs/ExportDialog';
@@ -188,6 +189,7 @@ function App() {
         || s.dialogs.isColorPickerOpen || s.dialogs.isRefineEdgeDialogOpen
         || s.dialogs.isSaveSelectionDialogOpen || s.dialogs.isLoadSelectionDialogOpen
         || s.dialogs.isColorRangeDialogOpen || s.dialogs.isDefringeDialogOpen
+        || s.dialogs.isArbitraryRotationOpen
         || s.dialogs.isTrimOpen || s.dialogs.isFeatherDialogOpen
         || s.dialogs.filterDialog.isOpen || s.dialogs.adjustmentDialog.isOpen;
       if (anyDialog) return;
@@ -513,7 +515,7 @@ function App() {
           b: ['brush', 'pencil'],
           e: ['eraser', 'magic-eraser', 'background-eraser'],
           g: ['fill', 'gradient'],
-          i: ['eyedropper'],
+          i: ['eyedropper', 'ruler'],
           j: ['spot-healing', 'healing-brush', 'patch', 'red-eye'],
           m: ['marquee-rect', 'marquee-ellipse'],
           l: ['lasso', 'lasso-poly', 'magnetic-lasso'],
@@ -1004,6 +1006,10 @@ function App() {
         currentWidth={gs().width} currentHeight={gs().height}
         onConfirm={(w, h, ax, ay, color) => gs().resizeCanvas(w, h, ax, ay, color)} onClose={() => gs().closeCanvasSizeDialog()} />
 
+      <ArbitraryRotationDialog isOpen={dialogs.isArbitraryRotationOpen}
+        onConfirm={(degrees) => gs().rotateCanvas(degrees)}
+        onClose={() => gs().closeArbitraryRotationDialog()} />
+
       <TrimDialog isOpen={dialogs.isTrimOpen}
         onConfirm={(basis, sides) => gs().trimCanvas(basis, sides)} onClose={() => gs().closeTrimDialog()} />
 
@@ -1123,7 +1129,8 @@ function App() {
         data-rotate90cw={() => gs().rotateCanvas(90)} data-rotate90ccw={() => gs().rotateCanvas(-90)}
         data-rotate180={() => gs().rotateCanvas(180)} data-fliphorizontal={() => gs().flipCanvas('horizontal')}
         data-flipvertical={() => gs().flipCanvas('vertical')} data-imagesize={() => gs().openImageSizeDialog()}
-        data-canvassize={() => gs().openCanvasSizeDialog()} data-trim={() => gs().openTrimDialog()} />
+        data-canvassize={() => gs().openCanvasSizeDialog()} data-rotatearbitrary={() => gs().openArbitraryRotationDialog()}
+        data-trim={() => gs().openTrimDialog()} />
     </>
   );
 }

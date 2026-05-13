@@ -21,6 +21,7 @@ import './gradient';
 import './paintBucket';
 import './crop';
 import './eyedropper';
+import './ruler';
 import './dodgeBurnSponge';
 import './pen';
 import './pathSelection';

@@ -58,6 +58,24 @@ export function rotateCanvas(src: HTMLCanvasElement, degrees: number): HTMLCanva
     return out;
 }
 
+export function rotateCanvasInPlace(src: HTMLCanvasElement, degrees: number): HTMLCanvasElement {
+    const out = document.createElement('canvas');
+    out.width = src.width;
+    out.height = src.height;
+    const ctx = out.getContext('2d')!;
+    ctx.translate(src.width / 2, src.height / 2);
+    ctx.rotate((degrees * Math.PI) / 180);
+    ctx.drawImage(src, -src.width / 2, -src.height / 2);
+    return out;
+}
+
+export function nearestAxisStraightenDegrees(dx: number, dy: number): number {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < 0.0001) return 0;
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    const candidates = [-angle, 90 - angle, -90 - angle, 180 - angle, -180 - angle];
+    return candidates.reduce((best, next) => Math.abs(next) < Math.abs(best) ? next : best);
+}
+
 // ── Flip ──────────────────────────────────────────────────────────────────
 
 export function flipCanvas(src: HTMLCanvasElement, axis: FlipAxis): HTMLCanvasElement {
