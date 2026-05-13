@@ -1,0 +1,1785 @@
+[
+  {
+    "url": "https://www.photoshopessentials.com/basics/getting-started-photoshop/",
+    "slug": "getting-started-photoshop",
+    "image_count": 2,
+    "summary": "Keep Photoshop CC updated via the Creative Cloud desktop app, then install Adobe Bridge to download photos from your camera and organize, preview, and open images. Change Photoshop’s default color settings to a working space like sRGB for better-looking photos, and sync those settings across Creative Cloud apps to maintain color accuracy. Adjust essential Preferences—such as interface customization, performance options, and auto-save intervals—to keep Photoshop running smoothly, and learn how to reset Preferences to defaults as a key troubleshooting step.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/opening-images-photoshop/",
+    "slug": "opening-images-photoshop",
+    "image_count": 2,
+    "summary": "Set Photoshop as your default image editor in Windows 10 or Mac OS X, then open existing images using the File menu or drag-and-drop. Use Adobe Bridge to browse and select files, but fix file type associations in Bridge if images open in the wrong program. Open images directly into Camera Raw for raw processing, or move raw and JPEG files from Lightroom to Photoshop for further editing. Close all open images at once using the Close All command.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/learning-the-photoshop-interface/",
+    "slug": "learning-the-photoshop-interface",
+    "image_count": 2,
+    "summary": "Navigate Photoshop's interface by exploring the toolbar, including how to reset or customize it in Photoshop CC. Manage panels, switch between tabbed documents and floating windows, and use multi-document layouts to view or move images between open files. Streamline your workspace with custom workspaces and maximize screen real estate with screen modes.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-image-navigation/",
+    "slug": "photoshop-image-navigation",
+    "image_count": 2,
+    "summary": "Navigate images in Photoshop using the Zoom Tool, Hand Tool, and basic navigation commands, then extend those skills to zoom and pan multiple images simultaneously. Use the Navigator panel to track your position when zoomed in, and enable Overscroll in Photoshop CC to scroll past image boundaries at any zoom level. Instantly jump between image areas with the hidden Birds Eye View feature, and rotate the canvas without rotating the image using the Rotate View Tool. The chapter concludes with essential tips, tricks, and keyboard shortcuts for efficient image navigation.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-resize-images-in-photoshop-complete-guide/",
+    "slug": "how-to-resize-images-in-photoshop-complete-guide",
+    "image_count": 2,
+    "summary": "Resize images for print or web using the Image Size dialog box, controlling pixels, resolution, and file size. For pixel art, apply the Nearest Neighbor interpolation to keep edges crisp. Enlarge photos with Preserve Details 2.0 in Photoshop CC, which intelligently upscales while minimizing artifacts.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/cropping-images-in-photoshop-complete-lesson-guide/",
+    "slug": "cropping-images-in-photoshop-complete-lesson-guide",
+    "image_count": 2,
+    "summary": "Crop images non-destructively using the Crop Tool, straighten tilted horizons, and add canvas space for borders. Master the Perspective Crop Tool to fix angled distortion, resize photos to exact frame sizes, and use Content-Aware Crop in Photoshop CC to intelligently fill empty areas. Crop images as circles by combining the Elliptical Marquee tool with a layer mask.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/make-selections-photoshop/",
+    "slug": "make-selections-photoshop",
+    "image_count": 1,
+    "summary": "Select anything in an image using Photoshop’s full arsenal of selection tools. Draw geometric shapes with the Rectangular or Elliptical Marquee Tools, trace freehand edges with the Lasso, Polygonal Lasso, or Magnetic Lasso, or select by color using the Magic Wand Tool or the Color Range command. Paint over an object to select it instantly with the Quick Selection Tool, or trace surgically precise paths with the Pen Tool. The Focus Area command isolates only the in-focus parts of a photo. After making a selection, add to or subtract from it, or keep only the overlapping area. Use Free Transform to scale or rotate the selected content, or use Transform Selection to reshape the selection outline itself before committing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/understanding-photoshop-layer-masks/",
+    "slug": "understanding-photoshop-layer-masks",
+    "image_count": 72,
+    "summary": "Add a layer mask to any layer by clicking the Add Layer Mask icon at the bottom of the Layers panel. A white thumbnail appears linked to the layer; painting on that thumbnail with black hides parts of the layer, while painting with white reveals them again. Unlike lowering the Opacity slider, which fades the entire layer uniformly, or using the Eraser Tool, which permanently deletes pixels, a layer mask is non-destructive—you can switch between black and white brushes at any time to refine which areas are visible without losing any original image data.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/clipping-masks-essentials/",
+    "slug": "clipping-masks-essentials",
+    "image_count": 49,
+    "summary": "Create a clipping mask by placing a content layer above a transparent layer; the bottom layer's content defines visibility for the layer above it, while transparent areas hide the clipped layer's content. Unlock the Background layer by clicking its lock icon, then Ctrl-click (Win) / Command-click (Mac) the Add New Layer icon to insert a blank layer below your image. Fill the bottom layer with a shape, gradient, or text using the Shape tool or Type tool, then right-click the top layer and choose Create Clipping Mask—or press Alt+Ctrl+G (Win) / Option+Command+G (Mac). The image now appears only where the bottom layer has pixels, fitting perfectly into shapes or text without altering the original layer.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-draw-gradients-with-the-gradient-tool-in-photoshop/",
+    "slug": "how-to-draw-gradients-with-the-gradient-tool-in-photoshop",
+    "image_count": 82,
+    "summary": "Draw gradients across layers, selections, or layer masks using the Gradient Tool, selected from the Tools panel or by pressing G. Choose a preset gradient from the Gradient Picker by clicking the arrow next to the preview bar in the Options Bar, then double-click a thumbnail to apply it. Load additional themed gradient sets, such as Color Harmonies or Metals, from the gear icon menu in the Gradient Picker. Draw gradients by clicking and dragging across the canvas; the length and direction of the drag determine the gradient’s transition area and angle.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/scale-resize-images-smart-objects-photoshop/",
+    "slug": "scale-resize-images-smart-objects-photoshop",
+    "image_count": 63,
+    "summary": "Convert a normal layer to a smart object in the Layers panel by right-clicking and choosing \"Convert to Smart Object,\" then resize it freely with Edit > Free Transform or Ctrl+T (Win) / Command+T (Mac) without permanently discarding pixels. Unlike a standard pixel layer, which loses detail when scaled down because Photoshop throws away pixels, a smart object acts as a protective container that keeps the original image data intact. This means you can scale the smart object smaller and later scale it back up to its original size—or even larger—without any blockiness or blurriness, no matter how many times you resize it. Use the Layers panel to rename layers and set up a side-by-side comparison with a normal pixel layer to see the difference, and fill the Background layer with white via Edit > Fill for contrast.",
+    "in_scope": false,
+    "out_reason": "smart_objects"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/brush-dynamics/brush-dynamics-intro/",
+    "slug": "brush-dynamics-intro",
+    "image_count": 6,
+    "summary": "Open the Brushes panel, select a brush preset, and enable six dynamic categories to control size, angle, color, and texture as you paint.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-check-your-generative-credits-in-photoshop/",
+    "slug": "how-to-check-your-generative-credits-in-photoshop",
+    "image_count": 8,
+    "summary": "Open Photoshop's Home Screen by clicking the house icon in the upper left, then click the Profile button in the upper right corner to open your profile panel and view your current generative credits balance for the month, along with a Buy button for purchasing more. You cannot check your balance from the main workspace, so you must switch to the Home Screen first, and return to your document by clicking the PS logo.",
+    "in_scope": false,
+    "out_reason": "generative_ai"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-make-complex-selections-instantly-in-photoshop/",
+    "slug": "how-to-make-complex-selections-instantly-in-photoshop",
+    "image_count": 24,
+    "summary": "Use the upgraded Select Subject or Remove Background commands in the latest Photoshop beta to make impossibly complex selections—like a bicycle with thin spokes—with a single click. First, ensure the feature runs on Adobe’s cloud servers by going to Edit (Win) or Photoshop (Mac) > Preferences > Image Processing and setting Select Subject and Remove Background to Cloud. With an image open, click Select Subject in the Contextual Task Bar (right-click the pasteboard to show it if hidden) to create a selection outline, or click Remove Background to instantly turn that selection into a layer mask that deletes the background. Both commands produce the same selection, but Remove Background automates the masking step.",
+    "in_scope": false,
+    "out_reason": "ai_cloud_selection"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/place-an-image-in-a-shape-with-the-frame-tool-in-photoshop-2025/",
+    "slug": "place-an-image-in-a-shape-with-the-frame-tool-in-photoshop-2025",
+    "image_count": 57,
+    "summary": "Use the Frame Tool in Photoshop 2025 to place an image into any custom shape, including rectangles, ellipses, triangles, or custom shapes from the Shapes panel. Select the Frame Tool from the toolbar, choose a shape in the Options Bar, and drag out a frame on the canvas. The Layers panel shows a frame layer with separate thumbnails for the frame and its contents. Place an image by clicking the Contextual Task Bar’s Place button to browse your files, or use Generate image to create an AI-powered image via Adobe Firefly. The frame thumbnail must be selected before placing content; to reposition or scale the image inside the frame, click the contents thumbnail and use the transform handles.",
+    "in_scope": false,
+    "out_reason": "frame_tool"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/the-easy-way-to-open-or-add-images-in-photoshop/",
+    "slug": "the-easy-way-to-open-or-add-images-in-photoshop",
+    "image_count": 11,
+    "summary": "Drag an image from Windows Explorer or Mac Finder onto Photoshop’s Home Screen or blank workspace to open it as a new document, or drop it directly into an existing document to add it as a new layer via Free Transform. To import multiple images as layers, select them all in your file manager and drag them into the document; Photoshop pauses after each import so you can resize or reposition with Free Transform, requiring you to click the check mark in the Options Bar to proceed through each image until all are added on individual layers.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/hide-the-home-screen/",
+    "slug": "hide-the-home-screen",
+    "image_count": 9,
+    "summary": "Disable Photoshop's auto-show Home Screen in Preferences > General, then open and close a document to commit the change.",
+    "in_scope": false,
+    "out_reason": "home_screen"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/hide-photoshop-with-screen-modes-and-interface-tricks/",
+    "slug": "hide-photoshop-with-screen-modes-and-interface-tricks",
+    "image_count": 12,
+    "summary": "Cycle through Photoshop's screen modes by pressing F to hide interface elements progressively, or Shift+F to reverse direction. Full Screen Mode hides the toolbar, Options Bar, panels, menu bar, tab area, scroll bars, and status area completely, displaying only your image. Press Tab to toggle the toolbar, Options Bar, and panels on or off, or Shift+Tab to hide just the panels. Hold the spacebar to temporarily access the Hand Tool and reposition your image when interface elements are hidden. Access screen modes from View > Screen Mode, the toolbar's Screen Mode icon, or the F key.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-use-live-gradients-in-photoshop-2023/",
+    "slug": "how-to-use-live-gradients-in-photoshop-2023",
+    "image_count": 79,
+    "summary": "Draw a live gradient by selecting the Gradient Tool (press G), setting Gradient Mode to Gradient in the Options Bar, and optionally choosing a preset from the Gradient Preset picker. Pick a style like Linear or Radial (cycle with bracket keys), leave Dither checked and Method on Perceptual, then click and drag on the canvas to create the gradient with a live preview. After drawing, use the on-canvas controls—color stops, midpoint sliders, and angle handles—to non-destructively edit colors, size, angle, and opacity, or save a custom preset from the Properties panel.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/crop-image-circle-photoshop/",
+    "slug": "crop-image-circle-photoshop",
+    "image_count": 24,
+    "summary": "Crop an image into a perfect circle using the Elliptical Marquee Tool hidden behind the Rectangular Marquee Tool in the toolbar. First unlock the Background layer by clicking its lock icon so transparency is supported. Hold Shift while dragging to constrain the selection to a perfect circle, and add the spacebar to reposition the selection while still drawing. After the selection is placed, click the Add Layer Mask icon at the bottom of the Layers panel to instantly crop the image to the circle, leaving the corners transparent. Save the result as a PNG to preserve the transparency for use on any background.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/using-layer-effects-with-layer-masks-in-photoshop/",
+    "slug": "using-layer-effects-with-layer-masks-in-photoshop",
+    "image_count": 46,
+    "summary": "Add a layer mask to a layer that already has a stroke effect, and the mask hides the stroke along with the image content, not just the image. To fix this, right-click the layer’s effects entry in the Layers panel, choose Create Layers to convert the stroke into its own separate layer, then apply the mask to that new stroke layer independently. For drop shadows, the mask also clips the shadow away; the solution is to place the shadow on its own layer by right-clicking the Drop Shadow effect and selecting Create Layer, then mask the shadow layer separately. Use the Select menu’s Transform Selection command to resize a selection outline, and the Add Layer Mask icon to apply masks.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-paste-an-image-into-a-layer-mask-in-photoshop/",
+    "slug": "how-to-paste-an-image-into-a-layer-mask-in-photoshop",
+    "image_count": 32,
+    "summary": "Hold Alt (Win) / Option (Mac) and click the layer mask thumbnail in the Layers panel to switch the document view to the mask itself, then paste the copied image into that view using Edit > Paste. The image appears in the mask thumbnail, not as a separate layer. After pasting, use Image > Adjustments > Levels or Curves to boost contrast and control the mask’s effect intensity.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshops-brush-tool-fixed-in-latest-update/",
+    "slug": "photoshops-brush-tool-fixed-in-latest-update",
+    "image_count": 15,
+    "summary": "Use the new Brush Tip Outline option in Photoshop's Cursors Preferences to change the cursor thickness and stop losing it while painting.",
+    "in_scope": false,
+    "out_reason": "changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-crop-a-single-layer-in-photoshop/",
+    "slug": "how-to-crop-a-single-layer-in-photoshop",
+    "image_count": 39,
+    "summary": "Select the layer you want to crop, then use the Rectangular Marquee Tool to drag a selection around the area to keep. Resize the selection with Transform Selection from the Select menu, unlink the Width and Height fields in the Options Bar to unlock the aspect ratio, then invert the selection (Select > Inverse) and press Delete to crop away everything outside the selection. Remove the selection outline with Select > Deselect. This method is destructive and permanent, so for a flexible, non-destructive alternative use a layer mask instead.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-download-the-photoshop-beta/",
+    "slug": "how-to-download-the-photoshop-beta",
+    "image_count": 16,
+    "summary": "Download and install the latest Photoshop beta through the Creative Cloud Desktop app by selecting Beta apps in the left column, locating Photoshop (Beta), and clicking Install. Both the official release and beta can run simultaneously, but the beta only opens from the Installed beta apps section, not All apps. Confirm you are running the beta via the Help > About Photoshop menu (Windows) or the Photoshop (Beta) label in the Menu Bar (Mac). Once open, click the Beta Feedback button in the upper right to see available preview features, report bugs, submit ideas, or join the beta community.",
+    "in_scope": false,
+    "out_reason": "install_update"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/remove-distractions-with-neutral-color-mode-in-photoshop-2022/",
+    "slug": "remove-distractions-with-neutral-color-mode-in-photoshop-2022",
+    "image_count": 8,
+    "summary": "Open Photoshop’s Interface Preferences (Edit > Preferences > Interface on Windows, Photoshop > Preferences > Interface on Mac) and check the Neutral Color Mode option, introduced in the August 2022 release (version 23.5). This instantly replaces distracting static interface elements—like the blue Share button—with neutral gray, without affecting your image, the Color Picker, or the Gradient Editor. No restart is required; the change takes effect as soon as you click OK to close the dialog box.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/select-subjects-powerful-new-cloud-option-in-photoshop-2022/",
+    "slug": "select-subjects-powerful-new-cloud-option-in-photoshop-2022",
+    "image_count": 24,
+    "summary": "Use the Object Selection, Quick Selection, or Magic Wand tool, then click the arrow next to the Select Subject button in the Options Bar to choose between Device (local processing for speed) and Cloud (Adobe’s servers for more detailed selections). Running Select Subject on the Cloud may produce more accurate results, especially with complex subjects like groups of people, but requires an internet connection. After comparing selections, set your preferred mode as the default in Photoshop’s Preferences under the new Select Subject category.",
+    "in_scope": false,
+    "out_reason": "ai_cloud_selection"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-keep-images-centered-after-cropping/",
+    "slug": "how-to-keep-images-centered-after-cropping",
+    "image_count": 19,
+    "summary": "Turn off the Crop Tool’s Classic Mode in the Options Bar gear icon to keep images centered after cropping; using the Rectangular Marquee Tool with Image > Crop or the Crop Tool in Classic Mode always snaps the result to the upper-left corner, and even undoing a normal Crop Tool crop leaves the image off-center.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/resize-selections-with-transform-selection/",
+    "slug": "resize-selections-with-transform-selection",
+    "image_count": 54,
+    "summary": "Resize a selection outline without affecting the pixels inside using Photoshop's Transform Selection command, found under the Select menu or by right-clicking inside an active selection. Drag any handle to scale the outline, hold Shift while dragging to unlock the aspect ratio, click and drag inside the box to reposition, or rotate by dragging just outside the box (hold Shift for 15-degree increments). Unlike Free Transform (Edit > Free Transform), which resizes the selected pixels, Transform Selection only alters the selection boundary itself.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-selection-basics-the-rectangular-and-elliptical-marquee-tools/",
+    "slug": "photoshop-selection-basics-the-rectangular-and-elliptical-marquee-tools",
+    "image_count": 133,
+    "summary": "Draw rectangular and elliptical selections using the Rectangular and Elliptical Marquee Tools, accessed from the toolbar or with the M keyboard shortcut (Shift+M toggles between them). Click and drag to create freeform rectangular or elliptical selection outlines, hold the spacebar while dragging to reposition the outline mid-draw, or click and drag inside an existing selection to move its outline without affecting pixels. Combine multiple selections by adding to or subtracting from them to build complex shapes, and use the marching ants boundary to isolate areas for editing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-draw-custom-shapes-in-photoshop/",
+    "slug": "how-to-draw-custom-shapes-in-photoshop",
+    "image_count": 150,
+    "summary": "Draw custom shapes in Photoshop using the Custom Shape Tool or the Shapes panel. Select the Custom Shape Tool from the toolbar, then open the Custom Shape Picker in the Options Bar to choose a shape from groups like Wild Animals or Leaf Trees. Set the Tool Mode to Shape, pick a fill color via the Fill swatch (solid, gradient, pattern, or custom from the Color Picker), then drag on the canvas to draw. Load hundreds of hidden shapes by clicking the gear icon in the Picker and choosing a library like Animals or Objects. Combine multiple shapes by drawing them on separate shape layers, then use the Merge Shape Components option in the Properties panel to unite them into one. Save any merged result as a new custom shape preset by selecting it and choosing Save Custom Shape from the Shapes panel menu.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-tools-toolbar-overview/",
+    "slug": "photoshop-tools-toolbar-overview",
+    "image_count": 78,
+    "summary": "Navigate the Photoshop toolbar by toggling between single and double column layouts using the double arrows at the top. Access hidden tools by clicking and holding or right-clicking any tool icon with a small arrow in its bottom right corner, then select from the fly-out menu. Each spot displays either the default tool or the last tool you selected, so you may need to reopen the menu to switch back. The toolbar logically groups related tools: Move and Selection tools at the top, followed by Crop and Slice, Measurement, Retouching and Painting, Drawing and Type, and finally Navigation tools at the bottom.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-draw-shapes-with-the-shape-tools/",
+    "slug": "how-to-draw-shapes-with-the-shape-tools",
+    "image_count": 104,
+    "summary": "Draw shapes using the Rectangle, Ellipse, Triangle, Polygon, and Line tools, all nested in the toolbar behind the Rectangle Tool icon. Set the Tool Mode to Shape in the Options Bar to create scalable, editable vector shapes. Choose a Fill color from the swatch—select No Color, Solid Color, Gradient, or Pattern presets. Right-click the tool icon in the Options Bar and choose Reset Tool to restore default settings. Requires Photoshop 2022 or newer.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-birds-eye-view-tutorial/",
+    "slug": "photoshop-birds-eye-view-tutorial",
+    "image_count": 11,
+    "summary": "Press and hold the H key to temporarily select the Hand Tool, then click and hold on the image to zoom out to a full-screen bird’s-eye view. A rectangle representing your document window appears; drag it to any new area and release the mouse button to instantly zoom back in at the same magnification level. This hidden feature works from any tool and eliminates manual zooming and panning, letting you jump between image regions in a single fluid motion.",
+    "in_scope": false,
+    "out_reason": "nav_extras"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/zoom-and-pan-all-images-at-once-in-photoshop/",
+    "slug": "zoom-and-pan-all-images-at-once-in-photoshop",
+    "image_count": 20,
+    "summary": "Hold the Shift key while dragging with the Hand Tool (or while holding the spacebar) to pan all open images simultaneously. To zoom all images at once, select the Zoom Tool, enable the Scrubby Zoom option in the Options Bar, then hold Shift and click-drag left or right on any image. Use Window > Arrange to choose a multi-document layout like 2-up Vertical so images are visible side-by-side; the active image’s tab appears brighter, and clicking any image or its tab switches focus. The Shift+Zoom and Shift+Pan tricks work only when multiple images are open and displayed in a multi-document layout.",
+    "in_scope": false,
+    "out_reason": "multi_doc_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-zoom/",
+    "slug": "photoshop-zoom",
+    "image_count": 49,
+    "summary": "Zoom in and out of images using the Zoom Tool, the Hand Tool, or the View menu’s Zoom In and Zoom Out commands, but speed up navigation with keyboard shortcuts: Ctrl++ (Win) / Command++ (Mac) to zoom in and Ctrl+- (Win) / Command+- (Mac) to zoom out, which jump to preset percentages. Check the current zoom level in the document tab or the lower-left corner, where you can double-click to type a custom value or hold Ctrl (Win) / Command (Mac) to activate the scrubby slider—drag right to zoom in, left to zoom out, and add Shift for 10% increments.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/add-contact-copyright-info-photoshop/",
+    "slug": "add-contact-copyright-info-photoshop",
+    "image_count": 57,
+    "summary": "Add copyright and contact info to images using Photoshop’s File Info dialog box, then save the details as a reusable template. Open File > File Info, set the Basic category, enter your name in the Author field, change Copyright Status to Copyrighted, type a copyright symbol (Alt+0169 on Windows, Option+G on Mac) followed by your name, and add your website URL in the Copyright Info URL box. Copy that URL, switch to the IPTC category, and paste it into the Website(s) field under IPTC Contact. Save the template via the File Info dialog’s menu, but first delete the Document Title field to avoid overwriting it when applying the template to other images. Use Adobe Bridge to apply the template to multiple images at once.",
+    "in_scope": false,
+    "out_reason": "file_metadata"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/using-the-object-selection-tool-and-object-finder-in-photoshop-2022/",
+    "slug": "using-the-object-selection-tool-and-object-finder-in-photoshop-2022",
+    "image_count": 69,
+    "summary": "Select people or objects instantly by enabling the Object Finder in the Options Bar after choosing the Object Selection Tool from the toolbar (nested with the Quick Selection and Magic Wand tools). Hover your cursor over any object in the image to see it highlighted, then click to create a selection without drawing any outline. For objects the Finder misses, fall back to the original method: set the Mode to Rectangle or Lasso, then drag a rough selection around the target; Photoshop analyzes that area and snaps the selection to the object. Add to an existing selection by holding Shift while dragging, and subtract by holding Alt (Win) / Option (Mac). The Object Finder works automatically in Photoshop 2022 and newer, but the manual drag method remains available for tricky subjects.",
+    "in_scope": false,
+    "out_reason": "ai_cloud_selection"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/make-photoshop-your-default-image-editor-in-windows-11/",
+    "slug": "make-photoshop-your-default-image-editor-in-windows-11",
+    "image_count": 16,
+    "summary": "Right-click a JPEG (or any image type) in File Explorer, choose Properties, click the Change button next to “Opens with,” select Photoshop from the list (or use More apps or Look for another app on this PC to locate it), then click OK and close the Properties dialog. After that, double-clicking any JPEG will launch Photoshop and open the file directly. Repeat the same steps for PNG, TIFF, or other formats you want handled by Photoshop. If file extensions are hidden, enable them via View > Show > File name extensions first.",
+    "in_scope": false,
+    "out_reason": "os_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/draw-5-point-star/",
+    "slug": "draw-5-point-star",
+    "image_count": 38,
+    "summary": "Draw a perfect 5-point star using the Polygon Tool set to 5 sides and 0 corner radius, then enable the Star Ratio option in the tool’s gear menu and set the ratio to 50% to align the inner points precisely. Hold Shift while dragging to keep the star upright, and release the mouse before Shift to finalize the shape. Save the star as a custom shape by going to Edit > Define Custom Shape, giving it a name, and accessing it anytime from the Custom Shape Tool’s shape picker. This method works in Photoshop 2021 or later, where the Polygon Tool’s Star Ratio control ensures perfectly symmetrical points.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/open-image-vs-place-image/",
+    "slug": "open-image-vs-place-image",
+    "image_count": 30,
+    "summary": "Open an image with File > Open to place it in its own separate document, or use File > Place Embedded to insert an image as a new layer inside an already-open document. Place Embedded is grayed out until at least one document is open because it requires an existing target file. Using Open for two images creates two independent documents, each with its own tab and Layers panel, making it impossible to blend them directly. Place Embedded adds the image as a Smart Object layer, enabling immediate blending with layers in the active document.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-make-photoshop-your-default-image-editor/",
+    "slug": "how-to-make-photoshop-your-default-image-editor",
+    "image_count": 29,
+    "summary": "Right-click an image file in Windows File Explorer, choose Properties, click the Change button next to “Opens with,” and select Photoshop from the list (click More Apps if it is not visible). On a Mac, Control-click the file, select Get Info, expand the “Open with” section, choose Photoshop from the dropdown, and click Change All to apply the setting to all files of that type. Repeat these steps for each file extension—JPEG, PNG, TIFF—you want Photoshop to handle by default.",
+    "in_scope": false,
+    "out_reason": "os_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/find-missing-shapes-gradients-and-patterns-in-photoshop-cc-2020/",
+    "slug": "find-missing-shapes-gradients-and-patterns-in-photoshop-cc-2020",
+    "image_count": 44,
+    "summary": "Open the Gradients, Patterns, or Shapes panel, click the panel menu icon in the top right corner, and choose Legacy Gradients, Legacy Patterns and Textures, or Legacy Shapes and More from the fly-out list to load the classic presets hidden since Photoshop 2020. For hundreds of additional new shapes, open the Shapes panel menu and select Nature, Animals, Flowers, or another category to append those sets. Hold Ctrl (Win) / Command (Mac) while clicking a group’s arrow to expand or collapse all groups at once in any of these panels.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-crop-images-photoshop-cc/",
+    "slug": "how-to-crop-images-photoshop-cc",
+    "image_count": 86,
+    "summary": "Crop images non-destructively using the Crop Tool (C) in Photoshop 2021. Select the tool, then drag the corner or edge handles to define the crop area; press Enter to apply. To straighten a crooked horizon, click the Straighten icon in the Options bar, then drag a line along something that should be horizontal or vertical. The key caveat: enable \"Delete Cropped Pixels\" in the Options bar to discard pixels permanently, or leave it unchecked to keep the full image hidden outside the canvas, allowing later repositioning with the Crop Tool.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/update-photoshop-cc/",
+    "slug": "update-photoshop-cc",
+    "image_count": 20,
+    "summary": "Open the Creative Cloud desktop app from the system tray (Windows) or Menu Bar (Mac), or from Photoshop via Help > Updates. In the app, select the Updates category, then click the Update button next to Photoshop—close Photoshop first if prompted. After the update, click Open and verify the version number under Help > About Photoshop (Windows) or Photoshop > About Photoshop (Mac). To avoid losing custom settings when updating to a new major version, the tutorial explains how to keep the previous version installed and how to enable automatic updates in the Creative Cloud app’s preferences.",
+    "in_scope": false,
+    "out_reason": "install_update"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/using-the-enhanced-properties-panel-in-photoshop/",
+    "slug": "using-the-enhanced-properties-panel-in-photoshop",
+    "image_count": 18,
+    "summary": "Select a Background, pixel, or type layer in the Layers panel and the enhanced Properties panel in Photoshop CC 2020 puts a wealth of controls at your fingertips. For the Background layer, you can now change image size, crop, trim, rotate the canvas, or apply Select Subject and Remove Background directly from the panel’s new Quick Actions. Pixel layers gain similar Quick Actions, while type layers display all Character and Paragraph panel options for instant text formatting, plus Quick Actions to convert type into a frame or shape. Open the panel via Window > Properties; twirl any group (Canvas, Rulers & Grids, Guides, Quick Actions) open or closed by clicking its arrow.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/select-subject-vs-remove-background-in-photoshop/",
+    "slug": "select-subject-vs-remove-background-in-photoshop",
+    "image_count": 38,
+    "summary": "Remove backgrounds automatically using Photoshop CC 2020’s Select Subject or Remove Background commands, both found in the Properties panel after converting the Background layer to a standard pixel layer. Select Subject draws a selection and leaves it for you to refine or delete, while Remove Background immediately deletes the background. For better control, use Select Subject, then fix problem areas with the Object Selection Tool in the Select and Mask workspace.",
+    "in_scope": false,
+    "out_reason": "ai_cloud_selection"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/select-subject-select-and-mask-photoshop-cc-2018/",
+    "slug": "select-subject-select-and-mask-photoshop-cc-2018",
+    "image_count": 33,
+    "summary": "Use Select Subject from the Select menu, the Options Bar with the Object Selection, Quick Selection, or Magic Wand tools active, or the Properties panel to automatically detect and select the main subject—people, animals, or objects—with one click, powered by Adobe Sensei AI. While the command often gets 90–95% of the selection correct, especially in CC 2020 and later, expect to refine edges in the Select and Mask workspace for tricky areas like hair or soft focus boundaries.",
+    "in_scope": false,
+    "out_reason": "ai_cloud_selection"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/open-multiple-images-as-layers-in-photoshop/",
+    "slug": "open-multiple-images-as-layers-in-photoshop",
+    "image_count": 38,
+    "summary": "Open multiple images as layers in one step using File > Scripts > Load Files into Stack, which creates a new document and names each layer after the source file. For adding a single image into an existing document, use File > Place Embedded instead of Place Linked. Avoid checking Attempt to Automatically Align Source Images or Create Smart Object after Loading Layers unless you specifically need those behaviors. Toggle layer visibility with the eye icons in the Layers panel.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-create-a-rainbow-gradient-in-photoshop/",
+    "slug": "how-to-create-a-rainbow-gradient-in-photoshop",
+    "image_count": 52,
+    "summary": "Open the Gradients panel (Window > Gradients) and create a new group via the panel menu's \"New Gradient Group\" command. Select the Gradient Tool, click the gradient swatch in the Options Bar to open the Gradient Editor, and choose the \"Black, White\" preset from the Basics folder. Change the black color stop to red (R:255, G:0, B:0) at 0% location, then click in a blank area of the preview bar to add a new color stop and set it to yellow. Continue adding stops for green, cyan, blue, and magenta, adjusting each stop's location to space the colors evenly across the gradient. Save your rainbow as a new preset by clicking \"New\" in the Gradient Editor, and it will appear in your custom group for applying to images, shapes, or text.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/free-transform-in-photoshop-cc-2019-new-features-and-changes/",
+    "slug": "free-transform-in-photoshop-cc-2019-new-features-and-changes",
+    "image_count": 14,
+    "summary": "Scale images, type, and shapes proportionally by default with Free Transform in Photoshop CC 2020, using Shift to unlock the aspect ratio.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/transform-and-warp-images-with-free-transform-in-photoshop-cc-2019/",
+    "slug": "transform-and-warp-images-with-free-transform-in-photoshop-cc-2019",
+    "image_count": 77,
+    "summary": "Scale, rotate, flip, skew, distort, and apply perspective to any unlocked pixel, type, shape, or smart object layer using Edit > Free Transform (Ctrl+T / Cmd+T). Drag corner or side handles to scale; hold Shift to constrain proportions. Rotate by moving the cursor just outside a corner handle until the curved arrow appears, then drag. Right-click inside the transform box to switch between Skew, Distort, Perspective, and Warp modes—Skew lets you slant the image by dragging a side handle, while Distort allows free movement of any corner handle independently. The Background layer is locked and cannot be transformed; unlock it by clicking the lock icon in the Layers panel. To avoid transparency when scaling smaller, add a Solid Color fill layer below the image via the New Fill or Adjustment Layer icon. Press Esc to cancel a transform without applying changes.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-use-content-aware-fill-in-photoshop-cc-2019/",
+    "slug": "how-to-use-content-aware-fill-in-photoshop-cc-2019",
+    "image_count": 73,
+    "summary": "Use the Lasso Tool to draw a rough selection around an unwanted object, leaving a small margin of surrounding detail, then open Edit > Content-Aware Fill to enter the dedicated workspace introduced in CC 2019 and improved in CC 2020. The workspace splits into a work area on the left and a Preview panel on the right; the green overlay shows the sampling area that Photoshop can borrow pixels from. Adjust this sampling area with the Sampling Brush Tool to include or exclude specific regions, and use the toolbar’s other tools to rotate, scale, or mirror the sampled content for better blending. The Preview panel updates in real time, and you can resize it by dragging its left edge, then apply the fill non-destructively so the original image remains untouched.",
+    "in_scope": false,
+    "out_reason": "content_aware"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/drawing-custom-shapes-with-the-shapes-panel-in-photoshop-cc-2020/",
+    "slug": "drawing-custom-shapes-with-the-shapes-panel-in-photoshop-cc-2020",
+    "image_count": 150,
+    "summary": "Draw custom shapes in Photoshop using the Custom Shape Tool or the Shapes panel. Select the Custom Shape Tool from the toolbar, then open the Custom Shape Picker in the Options Bar to choose a shape from groups like Wild Animals or Leaf Trees. Set the Tool Mode to Shape, then pick a fill color—solid, gradient, pattern, or a custom color via the Color Picker. Most of Photoshop’s hundreds of shapes are hidden by default; load them from the Shapes panel’s fly-out menu. Combine and merge multiple shapes into one, then save the result as a new custom shape preset.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/new-ways-to-add-gradients-in-photoshop-cc-2020/",
+    "slug": "new-ways-to-add-gradients-in-photoshop-cc-2020",
+    "image_count": 40,
+    "summary": "Drag a gradient thumbnail from the new Gradients panel directly onto a Background, pixel, shape, or type layer to apply it instantly in Photoshop CC 2020. Dropping onto a Background layer creates a Gradient fill layer above it, which you can then blend with the image by changing the fill layer’s blend mode (e.g., to Color) in the Layers panel. To swap gradients, select the Gradient fill layer and click a different thumbnail in the Gradients panel.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/the-new-gradients-and-gradients-panel-in-photoshop-cc-2020/",
+    "slug": "the-new-gradients-and-gradients-panel-in-photoshop-cc-2020",
+    "image_count": 41,
+    "summary": "Open the Gradients panel from the Window menu, then click the panel menu icon and choose Legacy Gradients to restore the classic gradient sets from earlier Photoshop versions alongside the new default sets organized by color theme (Blues, Purples, Reds, and so on). Twirl any folder open or closed by clicking its arrow, or Ctrl-click (Win) / Command-click (Mac) any arrow to expand or collapse all sets at once. Change thumbnail size via the panel menu’s Small Thumbnail, Large Thumbnail, Small List, or Large List options. The top row shows recently used gradients, which you can hide by unchecking Show Recents in the same menu. Use the Create New Group, Create New Gradient, and Delete Gradient icons at the panel’s bottom to manage custom gradients, then edit them in the Gradient Editor.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/create-color-swatches-from-images-in-photoshop-cc-2020/",
+    "slug": "create-color-swatches-from-images-in-photoshop-cc-2020",
+    "image_count": 31,
+    "summary": "Open an image in Photoshop CC 2020, duplicate the Background layer, then apply Filter > Pixelate > Mosaic to reduce the image to colored squares, adjusting the Cell Size slider (e.g., 80) to simplify the palette. In the Swatches panel, click the Create New Group icon to make a new folder for your custom set, then sample colors directly from the pixelated image using the Eyedropper tool and click the New Swatch button in the panel to add each color. Save your set as a custom .aco file via the panel menu to reuse later.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/drag-and-drop-colors-swatches-in-photoshop-cc-2020/",
+    "slug": "drag-and-drop-colors-swatches-in-photoshop-cc-2020",
+    "image_count": 38,
+    "summary": "Drag colors directly from the improved Swatches panel in Photoshop CC 2020 onto any layer in your document. The panel now groups swatches into collapsible sets (RGB, CMYK, Pastels, etc.), which you can open or close all at once by Ctrl/Command-clicking any folder arrow. To apply a color, simply drag a swatch onto a pixel layer to fill its contents, onto a shape or type layer to change its fill, or onto the canvas to create a new Solid Color fill layer. For a Color Overlay layer effect, hold Alt (Win) / Option (Mac) while dragging. Access the panel via Window > Swatches, and adjust thumbnail size from the panel menu.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/cloud-documents-photoshop-cc-2020/",
+    "slug": "cloud-documents-photoshop-cc-2020",
+    "image_count": 34,
+    "summary": "Save a Photoshop file as a .psdc (Photoshop Document Cloud) to store it online, then reopen and continue editing it on any PC, Mac, or iPad where you are signed into the same Creative Cloud account. View all your cloud documents from the Home Screen by selecting “Cloud documents” from the left menu, or open them via File > Open and clicking the “Open cloud documents” button. A small cloud icon on a thumbnail means the file has not yet been downloaded to your current device, so the first open will take longer while it caches locally. Rename, delete, or restore a deleted cloud document from the Home Screen.",
+    "in_scope": false,
+    "out_reason": "creative_cloud"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/warp-images-with-the-enhanced-warp-tool-in-photoshop-cc-2020/",
+    "slug": "warp-images-with-the-enhanced-warp-tool-in-photoshop-cc-2020",
+    "image_count": 37,
+    "summary": "Use the enhanced Warp command in Photoshop CC 2020 to bend and reshape images with far more precision than before. Access it via Edit > Transform > Warp or by clicking the Warp icon in the Free Transform Options Bar. The new Warp grid presets and custom grid sizes let you add your own grid lines and control points, select and warp multiple points simultaneously, and even scale or rotate different areas independently. Convert your layer to a smart object first (Layers panel menu > Convert to Smart Object) so the warp remains editable and reversible without quality loss.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/turn-a-photoshop-brush-into-an-eraser/",
+    "slug": "turn-a-photoshop-brush-into-an-eraser",
+    "image_count": 21,
+    "summary": "Turn any active brush into an eraser by switching the Brush Tool’s blend mode from Normal to Clear—this instantly erases pixels on the current layer using the exact same brush tip, size, and settings you painted with. In Photoshop 2020 and later, an even faster method is to hold the tilde key (~) while painting with the Brush Tool; releasing the key returns to normal painting. Both techniques only work when painting on a separate layer above the background, because the Clear blend mode and tilde shortcut have no effect on the locked Background layer.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/object-selection-tool/",
+    "slug": "object-selection-tool",
+    "image_count": 41,
+    "summary": "Select the Object Selection Tool from the toolbar (keyboard shortcut W) nested with the Quick Selection and Magic Wand tools. Before drawing, set the Mode to Rectangle or Lasso in the Options Bar; with Lasso mode, hold Alt/Option to temporarily switch to the Polygonal Lasso for clicking around objects. Drag a rough selection around your subject, and Photoshop automatically shrink-wraps the selection to its edges. To refine, drag around missed areas while holding Shift to add or Alt/Option to subtract, with Object Subtract enabling advanced subtraction technology.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/shapes/custom-shape-tool/",
+    "slug": "custom-shape-tool",
+    "image_count": 50,
+    "summary": "Select the Custom Shape Tool from the Tools panel by clicking and holding the Rectangle Tool, then set the Tool Mode to Shape in the Options Bar. Click the shape thumbnail to open the Custom Shape Picker, then click the gear icon and choose All from the menu to load every shape set at once; click Append to add them to the existing defaults rather than replacing them. Draw any custom shape—hearts, animals, music notes, or copyright symbols—as a resolution-independent vector that stays crisp at any size.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/using-layer-effects-and-layer-styles-in-photoshop-cc-2020-complete-guide/",
+    "slug": "using-layer-effects-and-layer-styles-in-photoshop-cc-2020-complete-guide",
+    "image_count": 147,
+    "summary": "Add layer effects and layer styles in Photoshop CC 2020 using the fx icon at the bottom of the Layers panel or the Layer > Layer Style menu, choosing from ten non-destructive effects like Drop Shadow, Stroke, and Outer Glow. A layer style is a collection of two or more effects plus blending options, while a single effect is just a layer effect. Effects cannot be applied to the Background layer because it lacks transparency, so ensure the target layer is a type, pixel, or shape layer. Use the new CC 2020 layer style presets for one-click results, and find missing older presets by loading them from the Styles panel menu.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brush-tool-hidden-tips-tricks/",
+    "slug": "photoshop-brush-tool-hidden-tips-tricks",
+    "image_count": 35,
+    "summary": "Press B to select the Brush Tool instantly, then enable a crosshair in the brush cursor via Edit > Preferences > Cursors (Windows) or Photoshop CC menu > Preferences > Cursors (Mac) by checking “Show Crosshair in Brush Tip.” For smoother strokes, open Window > Brush Settings (or Brush panel in CS6), lower the Spacing value from the default 25% to 10% to eliminate bumpy edges caused by spaced dots. Change brush size faster using the left and right bracket keys ([ and ]) instead of right-clicking for the Brush Preset Picker slider.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/open-images-photoshop-cc/",
+    "slug": "open-images-photoshop-cc",
+    "image_count": 32,
+    "summary": "Open images in Photoshop using the Home Screen, which appears when no documents are open and displays thumbnails of recent files for quick reopening. Click the Open button on the Home Screen to launch File Explorer or Finder, then double-click a JPEG or other image to open it. Return to the Home Screen at any time by clicking the Home button in the upper-left interface corner, then click Open again to add a second image. Close an image via File > Close. Note that opening a raw file differs from opening a standard JPEG and requires separate handling.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/create-new-documents-photoshop-cc/",
+    "slug": "create-new-documents-photoshop-cc",
+    "image_count": 36,
+    "summary": "Create a new blank canvas in Photoshop using the New Document dialog box, accessed from the Home Screen’s “Create New…” button, the File > New menu, or the Ctrl+N/Command+N shortcut. Choose a preset size from categories like Photo, Print, Web, or Mobile, or enter custom Width, Height, Resolution, and Color Mode values in the panel on the right. Save your custom settings as a reusable preset using the “Save Preset” button, and toggle between the default and the older, smaller dialog box via the “Preset Details” icon for a more streamlined workflow.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-avoid-losing-your-original-images-in-photoshop/",
+    "slug": "how-to-avoid-losing-your-original-images-in-photoshop",
+    "image_count": 52,
+    "summary": "Save the original image as a copy immediately after opening it by going to File > Save As, adding \"_copy\" to the filename, and clicking Save; this ensures all subsequent edits and saves overwrite only the copy, not the original. For JPEGs, choose Maximum quality and Baseline Optimized in the JPEG Options dialog. To work non-destructively, use layers, adjustment layers, or Smart Objects instead of direct edits like Image > Adjustments > Desaturate, which permanently alters pixel data and makes restoring the original impossible once the file is saved and closed.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/restore-legacy-free-transform-photoshop-cc-2019/",
+    "slug": "restore-legacy-free-transform-photoshop-cc-2019",
+    "image_count": 7,
+    "summary": "Open Photoshop’s Preferences (Ctrl+K / Cmd+K) and in the General category enable the **Use Legacy Free Transform** checkbox. This restores the pre-CC 2019 behavior where dragging any handle scales non‑proportionally by default; hold **Shift** while dragging a corner handle to scale proportionally. The option takes effect immediately—no restart required—and works in Photoshop CC 20.0.5 or later.",
+    "in_scope": false,
+    "out_reason": "legacy_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/merge-layers-to-a-new-layer-without-flattening-your-image/",
+    "slug": "merge-layers-to-a-new-layer-without-flattening-your-image",
+    "image_count": 9,
+    "summary": "Press Shift+Ctrl+Alt+E (Win) or Shift+Command+Option+E (Mac) to merge a copy of all visible layers onto a brand new layer above the topmost layer, leaving the originals untouched. First select the top layer in the Layers panel so the merged copy appears above everything. Rename the resulting layer descriptively by double-clicking its name. This keyboard shortcut replaces the destructive Flatten Image command (Layer > Flatten Image) and preserves every layer for future editing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/copy-layer-effects-photoshop/",
+    "slug": "copy-layer-effects-photoshop",
+    "image_count": 41,
+    "summary": "Copy a single layer effect by holding Alt (Win) / Option (Mac) and dragging the effect name from one layer to another in the Layers panel. To copy all layer effects at once, Alt-drag the word \"Effects\" instead. For an exact visual match, copy the entire layer style—which includes blending options—by right-clicking the source layer, choosing \"Copy Layer Style,\" then right-clicking the target layer and selecting \"Paste Layer Style.\" You can also paste onto a layer group to apply effects to multiple layers simultaneously.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/auto-select-layers-photoshop/",
+    "slug": "auto-select-layers-photoshop",
+    "image_count": 25,
+    "summary": "Enable faster layer selection by activating the Move Tool (press V) and checking Auto-Select in the Options Bar, then click any layer's content in the document to instantly highlight it in the Layers panel. To select multiple layers, drag a selection marquee around their contents with the Move Tool, or hold Ctrl (Windows) or Command (Mac) and click each item. Switch Auto-Select from Layer to Group in the Options Bar to select an entire layer group by clicking any layer within it. Clicking the Background layer's content deselects all layers, as the Background cannot be auto-selected.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-layer-masks-advanced-tips-and-tricks/",
+    "slug": "photoshop-layer-masks-advanced-tips-and-tricks",
+    "image_count": 44,
+    "summary": "Press and hold Alt (Win) / Option (Mac) and click the layer mask thumbnail in the Layers panel to display the mask as a grayscale image in the document window, making it easier to edit fine details. Use the same shortcut to toggle back to the composite view. To temporarily hide the mask’s effect without deleting it, Shift-click the mask thumbnail to place a red X over it; Shift-click again to re-enable the mask. Copy a mask from one layer to another by Alt-dragging (Win) / Option-dragging (Mac) the mask thumbnail onto the target layer. Feather a mask’s edges by double-clicking the mask thumbnail and adjusting the Feather slider in the Properties panel, or use the Masks panel’s Density slider to control overall opacity.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-use-paint-symmetry-in-photoshop-cc-2019/",
+    "slug": "how-to-use-paint-symmetry-in-photoshop-cc-2019",
+    "image_count": 40,
+    "summary": "Use Paint Symmetry in Photoshop CC 2019 to create mirrored, symmetrical artwork by painting multiple brush strokes at once with the Brush, Pencil, or Eraser Tool. Click the butterfly icon in the Options Bar to open the Paint Symmetry menu and choose from ten options, including Vertical, Horizontal, Dual Axis, Radial, and Mandala. A blue symmetry path appears on the canvas, but note that it is for visual reference only and always affects the entire canvas regardless of its size, so resizing it is unnecessary. After selecting a symmetry option, paint on the canvas to see strokes mirrored automatically, and combine this feature with layer masks for more creative effects.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type-changes-photoshop-cc-2019/",
+    "slug": "type-changes-photoshop-cc-2019",
+    "image_count": 21,
+    "summary": "Select the Type Tool and click in your document to instantly see a live preview of your current font and type size using placeholder “Lorem Ipsum” text. Browse fonts or adjust the size with the scrubby slider in the Options Bar, and the preview updates in real time before you type your own text. Commit text by simply clicking away from it, no longer needing the Options Bar checkmark. Free Transform now scales type proportionally by default—hold Shift to switch to freeform mode, or hold Alt/Option to scale from the center.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/place-images-into-shapes-with-the-new-frame-tool-in-photoshop-cc-2019/",
+    "slug": "place-images-into-shapes-with-the-new-frame-tool-in-photoshop-cc-2019",
+    "image_count": 59,
+    "summary": "Drag out a rectangular or elliptical frame with the Frame Tool (keyboard shortcut K), then use File > Place Embedded to drop an image into that frame. Hold Shift while dragging to force a square or circle, and press the spacebar mid-drag to reposition the frame. The image lands as a smart object inside a dedicated Frame layer, letting you resize or move the content independently. To swap images, simply drag a new one from your computer onto the frame. A stroke can be added around the frame from the Options Bar, but note that clipping masks offer more flexibility for advanced users.",
+    "in_scope": false,
+    "out_reason": "frame_tool"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/preview-layer-blend-modes-photoshop-cc-2019/",
+    "slug": "preview-layer-blend-modes-photoshop-cc-2019",
+    "image_count": 17,
+    "summary": "Hover your cursor over any blend mode in the Layers panel’s Blend Mode menu to see a live preview of its effect on your image before committing. In Photoshop CC 2019, simply click the Blend Mode option to open the list, then mouse over each mode—Darken, Multiply, Screen, Overlay, and all 27 options—and the document instantly updates to show the result. No need to select or cycle with Shift+Plus/Minus; the preview disappears when you move the cursor away, letting you experiment risk-free.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/new-content-aware-crop-tool-photoshop-cc/",
+    "slug": "new-content-aware-crop-tool-photoshop-cc",
+    "image_count": 28,
+    "summary": "Enable Content-Aware Crop in the Options Bar after selecting the Crop Tool, then use the Straighten Tool to drag a line across a horizon or edge; Photoshop rotates the image and automatically fills the resulting empty corners with matching detail instead of leaving checkerboard transparency. Extend the crop border beyond the original photo edges to add more room around subjects, and press Enter to apply—the tool generates plausible content in the expanded areas, though results vary depending on image complexity and surrounding detail.",
+    "in_scope": false,
+    "out_reason": "content_aware"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/crop-and-resize-photos-to-match-frame-sizes-with-photoshop-cc/",
+    "slug": "crop-and-resize-photos-to-match-frame-sizes-with-photoshop-cc",
+    "image_count": 23,
+    "summary": "Crop and resize an image to fit any frame size by using the Crop Tool with the \"W x H x Resolution\" preset from the Aspect Ratio menu in the Options Bar. Enter the exact frame dimensions (like 10 in by 8 in) and a resolution (300 ppi) into the Width, Height, and Resolution fields, then drag the crop border to compose the shot and press Enter. This simultaneously changes the aspect ratio and sets the print size, avoiding the distortion that occurs when unlinking Width and Height in the Image Size dialog box.",
+    "in_scope": false,
+    "out_reason": "print_output"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/perspective-crop-tool-photoshop/",
+    "slug": "perspective-crop-tool-photoshop",
+    "image_count": 20,
+    "summary": "Select the Perspective Crop Tool from behind the standard Crop Tool in the Toolbar, then click and drag to draw a crop border around the image. Drag the corner handles to align the perspective grid lines with edges in the photo that should be vertical, such as the sides of a building, holding Shift to constrain movement horizontally. Press Enter to apply the crop, which simultaneously straightens the distorted edges and removes the unwanted areas, fixing keystone distortion in one step.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-resize-pixel-art-in-photoshop/",
+    "slug": "how-to-resize-pixel-art-in-photoshop",
+    "image_count": 26,
+    "summary": "Resize pixel art in Photoshop without losing its crisp, blocky appearance by opening Image > Image Size, ensuring Resample is on, and entering a percentage that is a multiple of 100 (like 400%) into the Width and Height boxes. The default resampling method blends pixels, creating unwanted soft edges and halos, so you must change the Resample dropdown from Automatic to Nearest Neighbor (hard edges) to keep each pixel square and sharp. Use the preview window to check results before applying.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/the-truth-about-image-resolution-and-file-size-in-photoshop/",
+    "slug": "the-truth-about-image-resolution-and-file-size-in-photoshop",
+    "image_count": 15,
+    "summary": "Open any image in Photoshop, go to Image > Image Size, and see that the Resolution value (e.g., 300 pixels/inch) only controls print size—dividing pixel dimensions by resolution gives inches on paper—and has zero effect on the file size in megabytes shown at the top of the dialog box. Lowering the resolution to 72 ppi does not shrink the file size because file size depends solely on pixel dimensions (width × height) and compression, not on how many pixels are assigned per inch. To prove it, change the Resolution field while keeping the pixel dimensions unchanged; the megabyte value stays identical, confirming that there is no such thing as a “web resolution” for faster downloads.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-calculate-image-size-in-photoshop/",
+    "slug": "how-to-calculate-image-size-in-photoshop",
+    "image_count": 10,
+    "summary": "Open any image in Photoshop and go to Image > Image Size to see its current pixel dimensions and file size in megabytes. The file size depends on both the total pixel count and the RGB color model: each pixel requires 3 bytes of memory—one byte each for the Red, Green, and Blue color channels. To calculate the file size yourself, multiply the image’s width in pixels by its height to get the total number of pixels, then multiply that result by 3. The final number is the file size in bytes, which you can convert to megabytes by dividing by 1,048,576. This explains exactly where the Image Size dialog box gets its number.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-resize-images-for-email-and-photo-sharing-with-photoshop/",
+    "slug": "how-to-resize-images-for-email-and-photo-sharing-with-photoshop",
+    "image_count": 30,
+    "summary": "Use the Image > Duplicate command to create a flattened copy of your photo, then open Image Size from the same menu. In the dialog box, ensure Dimensions are set to Pixels, then enter a new width—Photoshop automatically constrains proportions and updates the height. For email or sharing, a width around 600–800 pixels is typical; this simultaneously shrinks the file size in megabytes displayed at the top of the panel. Avoid resampling with the \"Resample\" checkbox unchecked, as that would only change the print resolution, not the pixel dimensions needed for screen viewing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-resize-images-for-print-with-photoshop/",
+    "slug": "how-to-resize-images-for-print-with-photoshop",
+    "image_count": 42,
+    "summary": "Open any image in Photoshop, go to Image > Image Size, and turn off the Resample checkbox to change only the print size without altering pixels. The Width, Height, and Resolution fields then show the current print dimensions; adjust the Resolution to 300 pixels per inch for standard frame sizes like 8x10 or 11x14. If the image is too small for the desired print, turn Resample back on and increase the pixel dimensions (upsampling) to enlarge it. For frame sizes that don’t match the photo’s aspect ratio, crop the image first using the Crop Tool before resizing.",
+    "in_scope": false,
+    "out_reason": "print_output"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshops-image-size-command-features-and-tips/",
+    "slug": "photoshops-image-size-command-features-and-tips",
+    "image_count": 31,
+    "summary": "Open the Image Size dialog box via Image > Image Size or Ctrl+Alt+I (Win) / Command+Option+I (Mac) to view and change an image’s dimensions and resolution. Use the redesigned preview window to see the image at an accurate 100% view; click and drag inside it to scroll, click directly on the image to jump the preview to that spot, or use the +/- buttons (or Ctrl/Command-click to zoom in, Alt/Option-click to zoom out) to adjust the zoom level. Resize the entire dialog box by dragging a corner for a larger preview. The right panel displays the current pixel dimensions and resolution, where you can choose preset sizes, enter custom Width/Height/Resolution values, and toggle the Resample option to control whether pixel data is added or removed during resizing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/pixels-image-size-resolution-photoshop/",
+    "slug": "pixels-image-size-resolution-photoshop",
+    "image_count": 28,
+    "summary": "Pixels are the tiny colored squares that form all digital images, and their grid becomes visible when zooming past 500% in Photoshop, though the Pixel Grid overlay can be toggled off via View > Show > Pixel Grid. Image size refers to the pixel width and height of an image, viewable in the Image Size dialog box (Image > Image Size), which also displays total pixel count. Image resolution controls print size by dictating how many pixels are squeezed into each inch, and contrary to popular belief, resolution has no effect on the file size of your image.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/blend-mode-tips-tricks/",
+    "slug": "blend-mode-tips-tricks",
+    "image_count": 28,
+    "summary": "Cycle through all 27 layer blend modes from your keyboard by pressing Shift+Plus (next) or Shift+Minus (previous) while the Move Tool (V) or a selection tool is active—tools without their own blend modes prevent accidental tool-mode changes. Jump directly to a specific blend mode using shortcuts: Shift+Alt+N for Normal, Shift+Alt+M for Multiply, Shift+Alt+S for Screen, Shift+Alt+O for Overlay, Shift+Alt+F for Soft Light, and Shift+Alt+C for Color. Adjust a blend mode’s intensity by duplicating the layer, applying the blend mode to the copy, then lowering the copy’s Opacity slider. Memorize shortcuts faster by noting that the letter often matches the mode’s first letter (e.g., M for Multiply, S for Screen).",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-crop-tool-tips-and-tricks/",
+    "slug": "photoshop-crop-tool-tips-and-tricks",
+    "image_count": 29,
+    "summary": "Press C to select the Crop Tool, then use Shift to lock the aspect ratio while dragging a corner handle, Alt (Win) / Option (Mac) to resize from the center, or both together. Tap X to swap between portrait and landscape orientation, H to hide or show the cropped area, and P to toggle Classic Mode so you move the crop border instead of the image. Hold Ctrl (Win) / Command (Mac) to temporarily access the Straighten Tool and drag along a horizon line to rotate the image, then release the key to return to cropping. Press Esc to cancel, and cycle through overlays like Rule of Thirds using the Overlay icon in the Options Bar.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/watermark-images-photoshop/",
+    "slug": "watermark-images-photoshop",
+    "image_count": 51,
+    "summary": "Place your logo or copyright text as a linked smart object so that any edits to the original logo file instantly update across all images. First, create your logo in a separate Photoshop document with a transparent background (turn off the Background layer’s visibility icon) and save it as a .PSD. Open an image, go to File > Place Linked, select your logo file, and click Place. Use Free Transform to resize and reposition the watermark. Because it is a linked smart object (available only in Photoshop CC), editing the original .PSD file will automatically refresh the watermark in every document that links to it.",
+    "in_scope": false,
+    "out_reason": "watermark_workflow"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-merge-layers-as-smart-objects-in-photoshop/",
+    "slug": "how-to-merge-layers-as-smart-objects-in-photoshop",
+    "image_count": 35,
+    "summary": "Select all layers you want to combine, then go to the Layers panel menu and choose Convert to Smart Object, or right-click and select Convert to Smart Object. This merges the layers into a single smart object that remains fully editable—double-click its thumbnail to open the embedded document, make changes to any original layer, save, and the main document updates instantly. Any filters applied to the smart object become editable smart filters, so you can sharpen or adjust non-destructively without deleting merged copies or redoing work. Use Shift+Ctrl+Alt+E (Win) / Shift+Command+Option+E (Mac) to merge layers onto a new layer, but converting to a smart object instead avoids the hassle of deleting and re-merging when edits are needed later.",
+    "in_scope": false,
+    "out_reason": "smart_objects"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-copy-smart-objects-in-photoshop/",
+    "slug": "how-to-copy-smart-objects-in-photoshop",
+    "image_count": 54,
+    "summary": "Copy a smart object using either **Layer > New > Layer via Copy** (Ctrl+J) or **Layer > Smart Objects > New Smart Object via Copy**. New Layer via Copy creates a linked duplicate that shares the original’s content—editing one automatically updates the other. New Smart Object via Copy creates an independent duplicate; changes to either copy do not affect the other. Both commands are found under the Layer menu, and the Layers panel shows a smart object icon on each thumbnail.",
+    "in_scope": false,
+    "out_reason": "smart_objects"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-edit-and-replace-smart-object-contents-in-photoshop/",
+    "slug": "how-to-edit-and-replace-smart-object-contents-in-photoshop",
+    "image_count": 54,
+    "summary": "Convert any layer into a smart object by right-clicking it in the Layers panel and choosing Convert to Smart Object, then use a layer mask to place the image inside a selection made with the Polygonal Lasso Tool. Double-click the smart object thumbnail to open its contents in a separate document window, where you can edit the image using any Photoshop tool or adjustment—changes save automatically back to the main document. To replace the contents entirely, right-click the smart object layer, choose Replace Contents, and select a new image file; the new image instantly appears inside the frame, preserving all masks, transforms, and filters applied to the smart object. This workflow turns smart objects into reusable templates, as the frame selection and layer mask remain intact while only the internal image changes.",
+    "in_scope": false,
+    "out_reason": "smart_objects"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-use-smart-filters-in-photoshop/",
+    "slug": "how-to-use-smart-filters-in-photoshop",
+    "image_count": 62,
+    "summary": "Convert any layer into a smart object by renaming the Background layer and choosing Convert to Smart Object from the Layers panel menu, then apply filters from the Filter menu—such as Gaussian Blur—as editable, non-destructive smart filters. Smart filters appear beneath the smart object layer in the Layers panel, where you can double-click the filter name to reopen and adjust its settings at any time without quality loss, toggle visibility on or off, change blend mode and opacity, and reorder multiple filters by dragging them up or down. Each smart filter set includes a built-in layer mask, letting you paint with black on the mask to hide the filter effect from specific areas, and you can even apply Camera Raw Filter as a non-destructive smart filter for powerful, reversible edits.",
+    "in_scope": false,
+    "out_reason": "smart_filters"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-create-smart-objects-in-photoshop/",
+    "slug": "how-to-create-smart-objects-in-photoshop",
+    "image_count": 49,
+    "summary": "Open an image directly as a smart object via File > Open as Smart Object, or convert any existing layer—including the Background layer—by using Layer > Smart Objects > Convert to Smart Object, right-clicking the layer in the Layers panel, or right-clicking the canvas with a selection tool active (except the Magic Wand). The smart object icon appears on the layer thumbnail, indicating the content is now protected inside a container that can be scaled, transformed, warped, distorted, or filtered without permanent damage or quality loss. Multiple copies of the same smart object update automatically when the source content is edited, making them ideal for reusable templates.",
+    "in_scope": false,
+    "out_reason": "smart_objects"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/three-ways-to-blend-two-images-together-photoshop/",
+    "slug": "three-ways-to-blend-two-images-together-photoshop",
+    "image_count": 34,
+    "summary": "Blend two images in Photoshop using three methods. Start with the Opacity option in the Layers panel, lowering the value from 100% to make the top layer transparent and reveal the image below—press 1 for 10%, 2 for 20%, or two numbers quickly for precise values. Next, apply layer blend modes like Multiply or Screen from the blend mode dropdown to creatively merge images, especially textures with photos. Finally, use a layer mask by adding a white mask to the top layer and painting with a black brush to hide areas, revealing the bottom layer seamlessly. Each method offers distinct control for fading, texturing, or compositing images together.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/get-more-brushes-photoshop-cc-2018/",
+    "slug": "get-more-brushes-photoshop-cc-2018",
+    "image_count": 12,
+    "summary": "Open the Brushes panel via Window > Brushes, click the panel menu icon in the upper right corner, and choose Get More Brushes to launch your browser to Adobe’s site where 15 brush sets from Kyle T. Webster are available for download. After downloading an .abr file, double-click it while Photoshop is running to install the set, which then appears as a new folder in the Brushes panel. This process gives Creative Cloud subscribers access to over 1000 additional brushes, including watercolor, spatter, impressionist, and manga styles, beyond the 20 default brushes included in the Dry Media, Wet Media, and Special Effects sets.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/save-custom-brush-presets-photoshop-cc2018/",
+    "slug": "save-custom-brush-presets-photoshop-cc2018",
+    "image_count": 24,
+    "summary": "Save custom brushes as presets using the new Brushes panel in Photoshop CC 2018, which replaces the old Brush Presets panel and now saves Tool Settings from the Options Bar (Mode, Opacity, Flow, Smoothing) plus brush color alongside standard Brush Settings. After setting up a brush—for example, a highlighter with Multiply mode, 60% Opacity, 100 px size, 77° Angle, 20% Roundness, 100% Hardness, and 10% Spacing—open the Brushes panel via Window > Brushes, click the Create New Group icon to make a folder for organization, select that group, then click the Create New Brush icon to save the preset with all settings and color included.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/restore-legacy-brushes-photoshop-cc-2018/",
+    "slug": "restore-legacy-brushes-photoshop-cc-2018",
+    "image_count": 8,
+    "summary": "Open the Brushes panel menu or the Brush Preset Picker gear icon, choose Legacy Brushes from the list, and click OK to restore all of Photoshop's classic brush sets—including Assorted Brushes, Natural Brushes, and Special Effect Brushes—that were removed starting in CC 2018. The loaded sets appear inside a new Legacy Brushes folder below the default folders in both the Brushes panel and the Brush Preset Picker, where you can twirl open any set to select individual brushes.",
+    "in_scope": false,
+    "out_reason": "legacy_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/resize-image-match-another-photoshop/",
+    "slug": "resize-image-match-another-photoshop",
+    "image_count": 13,
+    "summary": "Select the image you need to resize by clicking its document tab, then open Image > Image Size. Instead of typing dimensions manually, go to the Window menu and choose the name of the other open image from the list at the bottom—Photoshop instantly updates the Width and Height fields in the Image Size dialog to match that image’s pixel dimensions. Click OK to apply the resize. This trick works with any number of open documents and avoids writing down or retyping values.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/create-new-photoshop-document-same-size-as-open-document/",
+    "slug": "create-new-photoshop-document-same-size-as-open-document",
+    "image_count": 10,
+    "summary": "Copy the Background layer (Select > All, then Edit > Copy) from the open document, then choose File > New; Photoshop automatically fills the Width, Height, and Resolution fields in the New Document dialog box to match the copied layer’s dimensions, so you can click Create without manually entering or memorizing any numbers.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-choose-type-colors-from-images-with-photoshop/",
+    "slug": "how-to-choose-type-colors-from-images-with-photoshop",
+    "image_count": 16,
+    "summary": "Sample a single color for all type or different colors for individual letters by clicking the Type Tool’s color swatch in the Options Bar to open the Color Picker, then moving the cursor over the image—it becomes the Eyedropper Tool—and clicking to sample any pixel. For multi-color text, highlight a single letter with the Type Tool, click the color swatch again, sample a new area, and click the checkmark in the Options Bar to accept. The Color Picker remains open until you click OK, so you can click multiple spots in the image to preview the color before committing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/access-refine-edge-photoshop-cc-2018/",
+    "slug": "access-refine-edge-photoshop-cc-2018",
+    "image_count": 5,
+    "summary": "Hold the Shift key while choosing Select and Mask from the Select menu to open the classic Refine Edge dialog box instead of the Select and Mask workspace. This trick works in Photoshop CC 2018 and later versions, but requires an initial selection made beforehand with a tool like Color Range or the Quick Selection Tool, as Refine Edge cannot create selections from scratch.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/5-ways-move-images-photoshop-documents/",
+    "slug": "5-ways-move-images-photoshop-documents",
+    "image_count": 46,
+    "summary": "Drag and drop, copy-paste, or duplicate a layer to move an image between Photoshop documents. Use **Select > All** and **Edit > Copy/Paste** to transfer a full image onto its own new layer. Duplicate a layer by right-clicking it in the Layers panel and choosing **Duplicate Layer**, then selecting the destination document from the dialog. For drag and drop, arrange documents as tabbed windows, in a multi-document layout (via **Window > Arrange**), or as floating windows; then drag the layer from the Layers panel or the image itself onto the target document’s canvas. A key caveat: dragging between tabbed documents requires hovering over the target tab until the document switches, then releasing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/upscale-images-photoshop-cc-2018/",
+    "slug": "upscale-images-photoshop-cc-2018",
+    "image_count": 18,
+    "summary": "Enlarge images in Photoshop without losing quality using Preserve Details 2.0, a technology preview available in Photoshop CC 2018 and later. First, enable it under Edit (Windows) or Photoshop CC (Mac) > Preferences > Technology Previews. Open Image Size from the Image menu, ensure Resample is checked, and enter your new Width and Height (e.g., 400%). Change the resample method from Automatic to Preserve Details 2.0, then adjust the Reduce Noise slider to balance sharpness and smoothness. This algorithm intelligently adds pixels to preserve fine detail and texture, avoiding the soft or chunky results of older upsampling methods.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/find-missing-curvature-pen-tool-photoshop-cc-2018/",
+    "slug": "find-missing-curvature-pen-tool-photoshop-cc-2018",
+    "image_count": 9,
+    "summary": "If the Curvature Pen Tool is missing from your Toolbar after upgrading to Photoshop CC 2018, it is likely because you are using a custom workspace saved from an earlier version. Restore it by clicking the Edit Toolbar icon (three dots) near the bottom of the Toolbar, or go to Edit > Toolbar. In the Customize Toolbar dialog box, drag the Curvature Pen Tool from the Extra Tools column into the Toolbar column, placing it between the Freeform Pen Tool and the Add Anchor Point Tool. Click Done, and the tool will now appear nested behind the standard Pen Tool.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/use-curvature-pen-tool-photoshop-cc-2018/",
+    "slug": "use-curvature-pen-tool-photoshop-cc-2018",
+    "image_count": 59,
+    "summary": "Use the Curvature Pen Tool in Photoshop CC 2018 to draw paths by clicking to add anchor points; Photoshop automatically generates smooth curves between them. Set the Tool Mode to \"Path\" in the Options Bar before starting, then click to place points—the tool draws curved lines by default. To switch between curved and straight segments, double-click any anchor point to toggle its corner point property. After completing a path, convert it into a selection, vector mask, or shape via the right-click context menu or the Properties panel. The tool is nested behind the standard Pen Tool in the Toolbar, and you can add guide layouts (View > New Guide Layout) to help align points precisely.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/rich-tool-tips-photoshop-cc-2018/",
+    "slug": "rich-tool-tips-photoshop-cc-2018",
+    "image_count": 5,
+    "summary": "Hover over any tool in the Toolbar to see the new Rich Tool Tips in Photoshop CC 2018—large pop-ups that include a short video animation of the tool in action, along with its name, keyboard shortcut, and description. To disable this feature and restore the traditional, compact text-only Tool Tips, open Preferences (Edit > Preferences > Tools on Windows; Photoshop CC > Preferences > Tools on Mac) and uncheck \"Use Rich Tooltips\".",
+    "in_scope": false,
+    "out_reason": "rich_tooltips"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-image-navigation-tips-tricks-and-shortcuts/",
+    "slug": "photoshop-image-navigation-tips-tricks-and-shortcuts",
+    "image_count": 5,
+    "summary": "Navigate images faster using keyboard shortcuts and tool tricks. Press Ctrl+0 (Win) / Command+0 (Mac) to fit the image on screen, or Ctrl+1 / Command+1 for 100% view. Temporarily switch to the Zoom Tool from any other tool by holding Ctrl+spacebar (Win) / Command+spacebar (Mac) to zoom in, or add Alt/Option to zoom out. Use the Hand Tool by holding the spacebar to pan, or double-click it for Fit on Screen. The Navigator panel offers a thumbnail for quick zoom and pan control, while the Rotate View Tool lets you non-destructively rotate the canvas using the R key.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-rotate-view-tool/",
+    "slug": "photoshop-rotate-view-tool",
+    "image_count": 17,
+    "summary": "Use the Rotate View Tool (nested behind the Hand Tool in the Toolbar, shortcut R) to rotate the canvas without altering the image pixels, preserving quality. Click and drag inside the document window to freely rotate the view; a compass appears with a red marker always pointing to the image’s true top. Hold Shift while dragging to snap rotation in 15-degree increments. For precise angles, enter a value in the Rotation Angle box in the Options Bar, or use the Scrubby Slider by clicking and dragging left or right over the “Rotation Angle” label, with Shift held for finer control.",
+    "in_scope": false,
+    "out_reason": "nav_extras"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-cc-overscroll/",
+    "slug": "photoshop-cc-overscroll",
+    "image_count": 10,
+    "summary": "Enable Overscroll in Photoshop’s Preferences (Edit/Photoshop menu > Preferences > Tools) to pan or scroll an image with the Hand Tool even when the entire image fits on screen. With Overscroll off, Photoshop prevents any movement at Fit on Screen (View > Fit on Screen or Ctrl+0/Cmd+0). Turning it on lets you drag any edge or corner area—like a subject positioned off-center—into the middle of the document window for retouching without zooming in.",
+    "in_scope": false,
+    "out_reason": "nav_extras"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-use-the-navigator-panel-in-photoshop/",
+    "slug": "how-to-use-the-navigator-panel-in-photoshop",
+    "image_count": 18,
+    "summary": "Open the Navigator panel from the Window menu, then resize it by dragging its bottom-left corner for a larger preview. Zoom by dragging the slider bar, clicking the mountain icons, entering a specific percentage in the lower-left field, or using the hidden scrubby slider (Ctrl/Command-click and drag on the zoom value). The red view box in the preview window shows which portion of the image is visible in the document window; click and drag that box to pan around when zoomed in.",
+    "in_scope": false,
+    "out_reason": "nav_extras"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-screen-modes-interface-tricks/",
+    "slug": "photoshop-screen-modes-interface-tricks",
+    "image_count": 16,
+    "summary": "Switch between Photoshop’s three Screen Modes—Standard Screen Mode, Full Screen Mode With Menu Bar, and Full Screen Mode—to hide interface elements and reclaim screen space for your image. Access them from the View menu or the Screen Mode icon at the bottom of the Toolbar. Standard Screen Mode shows the entire interface, including the Toolbar, panels, Menu Bar, Options Bar, tab, scroll bars, and Status Bar. Full Screen Mode With Menu Bar hides the Toolbar and panels but keeps the Menu Bar; Full Screen Mode hides everything except the image. Use the F key to cycle through modes, and press Tab to toggle all panels on or off. Note that Screen Modes control interface visibility, while View Modes (like Fit on Screen or 100%) control zoom level independently.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-workspaces/",
+    "slug": "photoshop-workspaces",
+    "image_count": 29,
+    "summary": "Switch between Photoshop’s built-in workspaces—Essentials, 3D, Graphic and Web, Motion, Painting, and Photography—by going to Window > Workspace or clicking the Workspace icon in the upper right of the interface. Each workspace rearranges the panels, Toolbar, menu items, and keyboard shortcuts to suit specific tasks, like using the Layers, Adjustments, and Color panels in Essentials for general editing or different panels for painting or photography. Save your own custom workspace after arranging panels and tools exactly how you want them, then update or delete it from the same menu. Restore the default Essentials workspace anytime to reset the panel layout.",
+    "in_scope": false,
+    "out_reason": "workspaces"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/view-multiple-images-photoshop/",
+    "slug": "view-multiple-images-photoshop",
+    "image_count": 23,
+    "summary": "Use the Window > Arrange menu to select a multi-document layout like 2-up Vertical or 2-up Horizontal, which displays all open images simultaneously in resizable panels. Only the document whose tab is highlighted is editable; click a tab or inside a window to make it active. Layouts for three or more documents are grayed out until enough images are open.",
+    "in_scope": false,
+    "out_reason": "multi_doc_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/tabbed-and-floating-documents-in-photoshop/",
+    "slug": "tabbed-and-floating-documents-in-photoshop",
+    "image_count": 25,
+    "summary": "Drag a document tab down and away from the tab bar to turn it into a floating window, or drag a floating window's title bar back into the tab bar to re-dock it. Switch between tabbed documents by clicking their tabs or using Ctrl+Tab (Win) / Control+Tab (Mac); add Shift to reverse direction. Reorder tabs by dragging them horizontally—dragging diagonally accidentally creates a floating window. To have new images open as floating windows by default, disable \"Open Documents as Tabs\" in Photoshop's Preferences under the Interface panel.",
+    "in_scope": false,
+    "out_reason": "multi_doc_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/managing-panels-photoshop-cc/",
+    "slug": "managing-panels-photoshop-cc",
+    "image_count": 51,
+    "summary": "Open the panel area along the right of the interface, then show, hide, and rearrange panels by dragging their tabs into or out of panel groups. Use the workspace selection icon in the upper right to choose the Essentials workspace, then reset it via the menu to restore the default layout of the Color, Properties, and Layers panels in the main column. Panels like Swatches and Libraries appear as additional tabs within groups; drag a tab to move it between columns or create its own floating group.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/reset-toolbar-photoshop-cc/",
+    "slug": "reset-toolbar-photoshop-cc",
+    "image_count": 15,
+    "summary": "Right-click the toolbar’s three-dot menu and choose Reset Toolbar to restore every tool slot to its default primary tool, or use Edit > Toolbar to drag tools back manually. For tool-specific options, right-click any tool icon in the Options Bar and pick Reset Tool to clear custom settings for that single tool, or choose Reset All Tools from the same menu to reset every tool’s Options Bar defaults at once—a feature that, since Photoshop CC 2014, also resets the toolbar layout, not just the settings.",
+    "in_scope": false,
+    "out_reason": "toolbar_customization"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/getting-know-photoshop-interface/",
+    "slug": "getting-know-photoshop-interface",
+    "image_count": 23,
+    "summary": "Navigate the Photoshop interface by identifying its core components: the Document window with its tab, zoom level, and Status Bar (which reveals image dimensions and color profile when clicked); the Toolbar, expandable via double-arrows at the top; the Options Bar, which updates options for the currently selected tool; the Menu Bar for file, edit, and layer commands; and the right-side panel area. Use the Search feature to quickly find tools or commands, and switch between pre-built Workspaces to customize the layout. This overview applies to both Photoshop CC and CS6.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/reset-photoshop-preferences/",
+    "slug": "reset-photoshop-preferences",
+    "image_count": 6,
+    "summary": "Press and hold Shift+Ctrl+Alt (Win) / Shift+Command+Option (Mac) while relaunching Photoshop to trigger a prompt asking to delete the Adobe Photoshop Settings file; choosing Yes resets all preferences, color settings, custom keyboard shortcuts, and workspaces to defaults. In Photoshop CC, open Edit > Preferences > General (Win) / Photoshop CC > Preferences > General (Mac), enable the new Reset Preferences On Quit option, confirm, then quit and relaunch Photoshop to achieve the same reset.",
+    "in_scope": false,
+    "out_reason": "prefs_reset"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/essential-photoshop-preferences-beginners/",
+    "slug": "essential-photoshop-preferences-beginners",
+    "image_count": 31,
+    "summary": "Open the Photoshop Preferences (Edit/Photoshop > Preferences > General) and disable Export Clipboard to prevent performance issues from huge files being sent to your system clipboard. Switch to the Interface category and click one of the four Color Theme swatches to change the overall shade of gray in the workspace, with the default being the second darkest swatch from the left in both Photoshop CC and CS6.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/sync-photoshops-color-settings-creative-cloud-apps/",
+    "slug": "sync-photoshops-color-settings-creative-cloud-apps",
+    "image_count": 14,
+    "summary": "Synchronize Photoshop’s color settings with other Creative Cloud apps like Illustrator and InDesign by using Adobe Bridge, not Photoshop itself. First, confirm your custom color preset (e.g., “My Color Settings” with Adobe RGB as the RGB working space and Preserve Embedded Profiles active) is selected in Photoshop’s Edit > Color Settings dialog. Then open Adobe Bridge via File > Browse in Bridge, go to Edit > Creative Suite Color Settings, choose your preset, and click Apply—the Suite Color Settings dialog will show all apps now synced. A key caveat: the sync option is only available in Bridge, not within Photoshop, and you must have Bridge installed separately for Creative Cloud subscribers.",
+    "in_scope": false,
+    "out_reason": "creative_cloud"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/color-settings/",
+    "slug": "color-settings",
+    "image_count": 16,
+    "summary": "Open Photoshop's Color Settings from the Edit menu and change the RGB working space from the default sRGB to Adobe RGB (1998) to access a wider color gamut with richer, more saturated colors and greater detail. The Working Spaces section under the Color Settings dialog box controls which color space Photoshop uses for different tasks; only the RGB setting matters for on-screen editing, while CMYK, Gray, and Spot can stay at their defaults. This single switch expands the range of colors available without altering any other advanced options, and the change applies to all images you open thereafter.",
+    "in_scope": false,
+    "out_reason": "color_management"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/what-is-adobe-bridge/",
+    "slug": "what-is-adobe-bridge",
+    "image_count": 35,
+    "summary": "Use Adobe Bridge as a digital asset manager to find, organize, and preview images without opening Photoshop. Navigate the Bridge interface and panels to browse files, then customize thumbnail sizes with a slider and view larger previews in the Preview panel. Jump to a Full Screen Preview for a closer look or enter Review Mode to cycle through a series, keeping only the keepers. Apply one-to-five-star ratings or color labels (e.g., yellow for \"needs work,\" green for \"approved\") to sort images, and add keywords or copyright information via the Metadata panel. Filter images by rating, label, or other criteria to quickly locate specific files.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-download-photos-from-your-camera-with-adobe-bridge/",
+    "slug": "how-to-download-photos-from-your-camera-with-adobe-bridge",
+    "image_count": 24,
+    "summary": "Use Adobe Bridge’s built-in Photo Downloader to transfer images from a camera or memory card to your computer. Launch Bridge from Photoshop via **File > Browse in Bridge**, then open the Photo Downloader by choosing **File > Get Photos from Camera** or clicking the camera icon in Bridge’s toolbar. Select your camera or card from the **Get Photos from** dropdown; if it does not appear, click **Refresh List**. Mac users can set the Photo Downloader to launch automatically when a camera is connected by toggling **When a Camera is Connected, Launch Adobe Photo Downloader** in Bridge’s Preferences under the **Adobe Bridge CC** menu.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/install-adobe-bridge-cc/",
+    "slug": "install-adobe-bridge-cc",
+    "image_count": 6,
+    "summary": "Install Adobe Bridge, a powerful file browser included with your Creative Cloud subscription, by opening the Creative Cloud desktop app from Photoshop's Help > Updates menu. Scroll through the available apps list until you find Bridge, then click the Install button. Once the installation completes, Bridge moves to your installed apps list where you can open it directly from the Creative Cloud app or later from within Photoshop.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/close-images-photoshop/",
+    "slug": "close-images-photoshop",
+    "image_count": 10,
+    "summary": "Close a single image using File > Close, Ctrl+W (Win) / Command+W (Mac), or the “x” on the document tab. Close all open images at once with File > Close All or Ctrl+Alt+W / Command+Option+W. An asterisk in the tab signals unsaved changes; choosing No/Don’t Save still closes the image and discards edits permanently, so use Cancel to abort. When closing multiple unsaved images, check Apply to All to apply the same save/don’t-save choice to every file. If you opened images from Adobe Bridge, use File > Close and Go to Bridge to return directly to Bridge.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/open-image-camera-raw/",
+    "slug": "open-image-camera-raw",
+    "image_count": 30,
+    "summary": "Double-click a raw file’s thumbnail in Adobe Bridge’s Content panel to open it directly in Camera Raw; JPEGs and TIFFs require a different method. For JPEGs, right-click the thumbnail in Bridge, choose **Open in Camera Raw** from the context menu, or use the keyboard shortcut **Ctrl+R** (Win) / **Cmd+R** (Mac). The same right-click approach works for TIFFs. Once inside Camera Raw, click **Open Image** to send the file to Photoshop for further editing, or click **Done** to save your non-destructive adjustments and return to Bridge without opening Photoshop.",
+    "in_scope": false,
+    "out_reason": "camera_raw"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/adobe-bridge-file-type-associations/",
+    "slug": "adobe-bridge-file-type-associations",
+    "image_count": 21,
+    "summary": "Open Adobe Bridge's Preferences panel, select the File Type Associations section, and reassign any misbehaving file extension—such as PNG, TIFF, or JPEG—to the correct version of Photoshop by clicking its current application entry and choosing Photoshop from the pop-up menu. This fixes the problem when Bridge opens images in the wrong program or in an older Photoshop version instead of the newest one. The change applies immediately to all future files of that type, and you can verify the fix by double-clicking a thumbnail in Bridge's Content panel to see the image open in the intended Photoshop version.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/open-images-photoshop-adobe-bridge/",
+    "slug": "open-images-photoshop-adobe-bridge",
+    "image_count": 23,
+    "summary": "Open Adobe Bridge from Photoshop via File > Browse in Bridge, then use the Folders panel (click its tab next to Favorites) to navigate your computer’s directory tree. Click triangles to expand folders and locate your images. Once you find the folder, select an image in the Content panel and press Ctrl+Enter (Windows) or Cmd+Return (Mac) to open it directly into Photoshop, or right-click and choose Open. Bridge CC must be installed separately through the Creative Cloud app (Help > Updates in Photoshop), even though it is included free with all Creative Cloud subscriptions.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/increasing-canvas-size-crop-tool-photoshop/",
+    "slug": "increasing-canvas-size-crop-tool-photoshop",
+    "image_count": 40,
+    "summary": "Use the Crop Tool to expand canvas space around an image instead of just trimming it. First, unlock the Background layer by clicking its lock icon (CC) or Alt/Option-double-clicking the name (CS6 and earlier). Select the Crop Tool (C), then drag any crop handle outward to add blank, transparent space. Hold Alt (Win) / Option (Mac) while dragging a handle to resize the crop border symmetrically from the center, or hold Shift to constrain proportions. Press Enter to commit the crop, then add a new solid-color fill layer beneath the image layer to turn the extra space into a colored border.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-rotate-and-straighten-images-in-photoshop-cc/",
+    "slug": "how-to-rotate-and-straighten-images-in-photoshop-cc",
+    "image_count": 33,
+    "summary": "Rotate an image by hand using the Crop Tool, then straighten it more accurately with the Straighten Tool, or use the Ruler Tool for the best precision. With the Crop Tool selected, move the cursor outside the crop border until the Rotate icon appears, then click and drag to rotate, aligning a horizontal or vertical element with the grid lines. For a faster, more accurate straighten, click the Straighten icon in the Options Bar and drag along something that should be straight. The Ruler Tool, hidden behind the Eyedropper Tool, lets you click and drag along a crooked edge, then click Straighten Layer in the Options Bar to automatically rotate and crop the image.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/legacy-new-document-dialog-box-photoshop-cc/",
+    "slug": "legacy-new-document-dialog-box-photoshop-cc",
+    "image_count": 29,
+    "summary": "Open Photoshop's Preferences (Edit > Preferences > General on Windows, Photoshop CC > Preferences > General on Mac) and check the \"Use Legacy 'New Document' Interface\" box to instantly switch from the redesigned New Document dialog box to the smaller, original version. The legacy dialog box opens with your last-used settings or Photoshop's defaults, and you can name your document in the Name field or skip it and name it later when saving. Select a document type from the Document Type dropdown to choose from built-in presets like Photo, Web, Mobile, and Art & Illustration, or create your own custom presets.",
+    "in_scope": false,
+    "out_reason": "legacy_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/hidden-recent-files-panel-photoshop-cc/",
+    "slug": "hidden-recent-files-panel-photoshop-cc",
+    "image_count": 20,
+    "summary": "Enable the hidden Recent Files workspace in Photoshop CC via Edit (Win) / Photoshop CC (Mac) > Preferences > General, checking “Show 'Recent Files' Workspace When Opening A File,” then quit and relaunch. With the workspace active, choose File > Open (or press Ctrl+O / Cmd+O) to display recent files as clickable thumbnails in a panel, even while other documents remain open—unlike the Start screen, which only appears when no documents are open. The panel avoids the name-only list of File > Open Recent, letting you visually identify and reopen images without closing your current document.",
+    "in_scope": false,
+    "out_reason": "home_screen"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/disable-start-workspace-photoshop-cc/",
+    "slug": "disable-start-workspace-photoshop-cc",
+    "image_count": 23,
+    "summary": "Disable the Start workspace in Photoshop CC by going to Edit (Win) or Photoshop CC (Mac) > Preferences > General and unchecking “Show ‘START’ Workspace When No Documents Are Open,” then quit and relaunch Photoshop to see an empty workspace instead. Without the Start screen, create new documents via File > New or Ctrl+N (Win) / Command+N (Mac), open existing images with File > Open or Ctrl+O (Win) / Command+O (Mac), and reopen recent files from File > Open Recent.",
+    "in_scope": false,
+    "out_reason": "home_screen"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/updated-start-workspace-photoshop-cc/",
+    "slug": "updated-start-workspace-photoshop-cc",
+    "image_count": 39,
+    "summary": "Open the Start workspace in Photoshop CC 2017 to create new documents or open existing images. Click the **New...** button on the left or the **Start new** button in the center to launch the completely redesigned **New Document** dialog box. Use the **Open...** button to browse for files, or select a recently-opened file from the **RECENT FILES** list. The new **CC FILES** option lets you open PSDs stored in your Creative Cloud cloud storage. Dynamic tiles along the bottom offer Adobe Stock image search, tutorials, and downloadable content; click **Show All** to view more tiles and **Back** to return.",
+    "in_scope": false,
+    "out_reason": "home_screen"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/make-photoshop-your-default-image-editor-in-windows-10/",
+    "slug": "make-photoshop-your-default-image-editor-in-windows-10",
+    "image_count": 29,
+    "summary": "Right-click an image file in Windows File Explorer, choose Properties, click the Change button next to “Opens with,” and select Photoshop from the list—if Photoshop isn’t listed, click More Apps to find it. On a Mac, Control-click the file, select Get Info, expand the “Open with” section, choose Photoshop from the dropdown, and click Change All to apply the setting to all files of that type. Repeat these steps separately for each file extension you want to open in Photoshop, such as JPEG, PNG, and TIFF.",
+    "in_scope": false,
+    "out_reason": "os_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/default-image-editor-mac/",
+    "slug": "default-image-editor-mac",
+    "image_count": 29,
+    "summary": "Right-click an image file in Windows File Explorer, choose Properties, click the Change button next to “Opens with,” and select Photoshop from the list; if Photoshop isn’t listed, click More Apps to find it. On a Mac, Control-click the image file, select Get Info, expand the “Open with” section, choose Photoshop from the dropdown menu, then click Change All to apply the setting to all files of that type. Repeat these steps separately for each file extension—such as JPEG, PNG, and TIFF—to make Photoshop the default editor for all your image formats.",
+    "in_scope": false,
+    "out_reason": "os_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layer-shortcuts/",
+    "slug": "layer-shortcuts",
+    "image_count": 25,
+    "summary": "Press F7 to toggle the Layers panel, hold Alt (Win) / Option (Mac) while clicking the New Layer icon to name a layer before creation, or use Shift+Ctrl+N (Win) / Shift+Command+N (Mac) to open the New Layer dialog from the keyboard. Bypass naming with Shift+Ctrl+Alt+N (Win) / Shift+Command+Option+N (Mac). Copy a layer or selection to a new layer with Ctrl+J (Win) / Command+J (Mac); add Ctrl+Alt+J (Win) / Command+Option+J to name the copy first. Copy and move a layer simultaneously by selecting the Move Tool (V), then Alt-dragging (Win) / Option-dragging (Mac) the layer in the document. To add a new layer below the currently selected one, hold Ctrl (Win) / Command (Mac) while clicking the New Layer icon.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/creating-new-background-layer-action-photoshop/",
+    "slug": "creating-new-background-layer-action-photoshop",
+    "image_count": 41,
+    "summary": "Convert the existing Background layer into a normal layer by double-clicking its name in the Layers panel and clicking OK, then create a new Background layer from scratch by choosing Layer > New > Background From Layer. To save these steps as a reusable action, open the Actions panel (Window > Actions), click the New Action icon, name it, click Record, perform the two steps, then click Stop. Before recording, press D to reset the Foreground and Background colors to their defaults (white for the Background color) or press X to swap them to black. The new Background layer will fill with whichever Background color is active.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/background-layer-photoshop-cc/",
+    "slug": "background-layer-photoshop-cc",
+    "image_count": 36,
+    "summary": "Open an image in Photoshop and it lands on a locked Background layer that cannot be moved, have transparent pixels, or be reordered. Use the Move Tool to drag the layer and Photoshop pops a warning listing these restrictions, with a Convert to Normal Layer button new in CC. Instead of clicking that button, unlock the layer by double-clicking its name in the Layers panel and clicking OK in the New Layer dialog, instantly converting it to a normal layer that supports transparency, repositioning, and stacking freely.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/layers-panel/",
+    "slug": "layers-panel",
+    "image_count": 75,
+    "summary": "Navigate the Layers panel by opening it from the Window menu or locating it in the lower-right panel group, where each layer appears as a row with a name, a preview thumbnail, and controls for visibility, blend modes, opacity, locking, and fill. Add new layers using the New Layer button, delete them by dragging to the trash icon, and reorder layers by dragging rows up or down. Group layers by selecting multiple and pressing Ctrl+G (Cmd+G on Mac), and apply layer masks or adjustment layers from the icons at the bottom of the panel. The Background layer is a special locked type that cannot be moved or have transparency until you convert it to a normal layer by double-clicking its name.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/understanding-photoshop-layers/",
+    "slug": "understanding-photoshop-layers",
+    "image_count": 43,
+    "summary": "Draw a square selection with the Rectangular Marquee Tool, fill it via Edit > Fill using the Color Picker, then add a circle with the Elliptical Marquee Tool and a different color. Without layers, moving or editing one shape affects the other because both exist on the same Background layer. Recreate the composition with layers by placing each shape on its own new layer, using the Layers panel to select, move, and reorder them independently. The Layers panel, accessed via Window > Layers, lets you add layers, rename them, change opacity, and toggle visibility, making non-destructive editing possible.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type-on-a-path/",
+    "slug": "type-on-a-path",
+    "image_count": 20,
+    "summary": "Select the Ellipse Tool, set its Tool Mode to Path in the Options Bar, then Shift+Alt/Option-drag from the center of your image to draw a perfect circular path. Switch to the Type Tool, choose your font and size, and move the cursor directly over the path until it becomes an I-beam with a dotted wavy line. Click on the path and begin typing; the text will follow the path’s shape. You can reposition the text later by dragging its start or end marker with the Path Selection Tool.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/smart-filters-editable-type-photoshop/",
+    "slug": "smart-filters-editable-type-photoshop",
+    "image_count": 71,
+    "summary": "Convert the Type layer to a Smart Object to apply any Photoshop filter—like Gaussian Blur—as a fully editable Smart Filter, keeping the text live and editable. The Smart Object icon appears on the layer thumbnail, and the Smart Filter appears below the layer in the Layers panel with a built-in layer mask, adjustable blend mode, and independent opacity. Unlike rasterizing, this method lets you re-open the filter dialog at any time, toggle effects on/off, and stack multiple filters without permanent changes.",
+    "in_scope": false,
+    "out_reason": "smart_filters"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/move-jpeg-images-lightroom-photoshop/",
+    "slug": "move-jpeg-images-lightroom-photoshop",
+    "image_count": 29,
+    "summary": "Right-click a JPEG in Lightroom’s Develop module, go to the Photo menu, choose Edit In > Edit in Adobe Photoshop CC, and Lightroom sends a pixel-based copy to Photoshop with all Develop module adjustments baked in. Unlike raw files, JPEGs do not open as Camera Raw smart objects; the copy is a flattened TIFF or PSD (set in Lightroom’s External Editing preferences). After editing in Photoshop—for example, using the Clone Stamp or Spot Healing Brush to remove wires—simply save the file (File > Save). The edited version automatically appears back in Lightroom’s catalog next to the original, with “-Edit” appended to the filename. This round-trip workflow works identically for TIFFs and PSDs, letting you leverage Lightroom’s non-destructive global adjustments and Photoshop’s pixel-level retouching without ever altering the original JPEG.",
+    "in_scope": false,
+    "out_reason": "lightroom_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/move-raw-files-lightroom-photoshop/",
+    "slug": "move-raw-files-lightroom-photoshop",
+    "image_count": 34,
+    "summary": "Right-click the raw file in Lightroom’s Develop module or Library grid and choose **Edit In** > **Edit in Adobe Photoshop CC**. Lightroom automatically creates a copy of the raw file, converts it to a TIFF or PSD (set in **Preferences** > **External Editing**), and opens that copy in Photoshop. After making pixel-level edits using layers, masks, selections, or filters, simply press **Ctrl+S** (Win) / **Cmd+S** (Mac) to save. The saved TIFF or PSD is instantly added back into the Lightroom catalog, stacked next to the original raw file, preserving all metadata and organization.",
+    "in_scope": false,
+    "out_reason": "lightroom_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/custom-toolbar-photoshop/",
+    "slug": "custom-toolbar-photoshop",
+    "image_count": 63,
+    "summary": "Open the Customize Toolbar dialog box via Edit > Toolbar or by right-clicking the ellipsis icon below the Zoom Tool and choosing Edit Toolbar. Drag any tool from the Extra Tools list on the right into the Toolbar list on the left to add it, or drag a tool out of the Toolbar list to hide it. Reorder tools by dragging them up or down in the left column, and group or ungroup them by dragging one tool onto another or away from its group. Save your custom layout as a preset using the Presets menu at the top of the dialog box, then load it later or restore defaults from the same menu. Keyboard shortcuts for individual tools remain unchanged unless you reassign them separately in the Keyboard Shortcuts dialog.",
+    "in_scope": false,
+    "out_reason": "toolbar_customization"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/new-darker-dialog-boxes-in-photoshop-cc-2015/",
+    "slug": "new-darker-dialog-boxes-in-photoshop-cc-2015",
+    "image_count": 15,
+    "summary": "Open Photoshop CC 2015's Preferences (Edit > Preferences > Interface on Windows, Photoshop > Preferences > Interface on Mac) and choose one of four color themes to adjust the brightness of the entire interface, including dialog boxes that previously remained stubbornly light. The November 2015 update finally darkened all dialog boxes—like Smart Sharpen—to match the main interface, making it easier to focus on the image preview. If you prefer the old look, simply select a lighter color theme to brighten everything back up.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/the-new-start-screen-and-recent-files-panel-in-photoshop-cc-2015/",
+    "slug": "the-new-start-screen-and-recent-files-panel-in-photoshop-cc-2015",
+    "image_count": 38,
+    "summary": "Open Photoshop CC 2015 and use the new Start screen and Recent Files panel to quickly access recently-opened images or create new documents without the traditional Tools or Layers panels cluttering the view. The Start screen appears on launch or when closing the last open document, displaying a list of recent files in either List View or Thumbnail View via the two icons above the column. Switch between the Start workspace and the familiar Essentials workspace using the Workspace menu in the upper right to toggle the Start screen on or off. Note that thumbnails only appear after you have opened a file in this version.",
+    "in_scope": false,
+    "out_reason": "home_screen"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshops-free-transform-essentials/",
+    "slug": "photoshops-free-transform-essentials",
+    "image_count": 61,
+    "summary": "Use Free Transform (Ctrl+T / Command+T) to move, scale, rotate, skew, distort, add perspective, or warp any layer, selection, shape, type, layer mask, or vector mask. Access it from the Edit menu or with the keyboard shortcut. A bounding box with handles appears around your object; drag a corner handle to scale proportionally (hold Shift), drag a side handle to stretch, or move the pivot point to change the center of rotation. Right-click inside the bounding box to switch between transformation modes like Skew, Distort, Perspective, and Warp without leaving Free Transform. Apply multiple transformations as a single step to minimize quality loss, or convert your layer to a Smart Object first for fully non-destructive editing. Note that in Photoshop CC 2019, the default behavior changed to scale proportionally without holding Shift, so check your version’s preferences if the handles behave unexpectedly.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/blending-photos-with-layer-masks-and-gradients-in-photoshop/",
+    "slug": "blending-photos-with-layer-masks-and-gradients-in-photoshop",
+    "image_count": 60,
+    "summary": "Blend two or more photos into a seamless composite by combining gradients with layer masks in Photoshop. Place each image on its own layer, then add a layer mask to the top image you want to blend. Use the Gradient Tool set to the Foreground to Background gradient (black to white) and drag across the mask to hide or reveal portions of the layer—black conceals, white reveals. The key distinction is that Foreground to Background creates a smooth, opaque-to-opaque transition, while Foreground to Transparent fades the image into transparency, which is useful when you need the underlying layers to show through without a hard edge. Control the blend by adjusting the gradient’s start and end points, and toggle layer visibility to preview each image individually.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-use-the-gradient-editor-in-photoshop/",
+    "slug": "how-to-use-the-gradient-editor-in-photoshop",
+    "image_count": 60,
+    "summary": "Open the Gradient Editor by clicking the gradient preview bar in the Options Bar with the Gradient Tool active, then select any preset gradient as a starting point. Edit colors by double-clicking the color stops below the gradient bar to open the Color Picker, and add or remove stops by clicking below the bar or dragging a stop away. Adjust the transition between colors by dragging the diamond-shaped midpoint markers, and control the smoothness of the blend using the Smoothness value in the Gradient Editor. Add transparency by adjusting the opacity stops above the bar, and save your custom gradient as a new preset by typing a name and clicking the New button.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-use-the-custom-shape-tool-in-photoshop-cs6/",
+    "slug": "how-to-use-the-custom-shape-tool-in-photoshop-cs6",
+    "image_count": 50,
+    "summary": "Select the Custom Shape Tool from the Tools panel by clicking and holding the Rectangle Tool icon, then set the Tool Mode to Shape in the Options Bar to draw resolution-independent vector shapes. Click the shape thumbnail in the Options Bar to open the Custom Shape Picker, then click the gear icon and choose All from the list to load every shape set at once, clicking Append to add them without replacing the defaults.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/vector-shapes-vs-pixel-shapes-in-photoshop/",
+    "slug": "vector-shapes-vs-pixel-shapes-in-photoshop",
+    "image_count": 20,
+    "summary": "Vector shapes, made from mathematical points, remain crisp at any size, while pixel shapes become blurry when scaled. Use the Free Transform Path command (Edit > Free Transform Path or Ctrl+T/Command+T) to scale a vector shape layer, identified by the shape icon in the layer preview thumbnail. Scaling a pixel shape with Free Transform (Edit > Free Transform) reveals jagged edges and lost detail, demonstrating why vector shapes are preferable for logos, UI designs, and any artwork requiring resizing.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/how-to-draw-vector-shapes-in-photoshop-cs6/",
+    "slug": "how-to-draw-vector-shapes-in-photoshop-cs6",
+    "image_count": 79,
+    "summary": "Draw basic geometric vector shapes in Photoshop CS6 using the Rectangle, Rounded Rectangle, Ellipse, Polygon, and Line tools, selecting **Shape** from the Tool Mode option in the Options Bar to ensure resolution-independent, scalable results. Set a fill color by clicking the Fill swatch and choosing No Color, Solid Color, Gradient, or Pattern, then add a stroke with customizable appearance. Shape layers remain editable later, allowing you to adjust fill, stroke, and path properties without losing quality.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/drawing-vector-vs-pixel-shapes-in-photoshop-cs6/",
+    "slug": "drawing-vector-vs-pixel-shapes-in-photoshop-cs6",
+    "image_count": 20,
+    "summary": "Draw vector shapes and pixel shapes in Photoshop CS6, then compare how they behave when scaled. Use the Shape tool to create a vector shape on a Shape layer, identified by the small shape icon in the layer preview thumbnail, and a pixel shape on a normal layer. Scale the vector shape to 10% of its original size using Edit > Free Transform Path (or Ctrl+T/Command+T) and entering Width and Height values in the Options Bar, then scale it back up to 100%—the vector shape remains crisp and sharp because it is based on mathematical points, not pixels. In contrast, scaling a pixel shape down and then back up reveals permanent quality loss, as pixels cannot be recreated once discarded.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/new-guide-layout-in-photoshop-cc/",
+    "slug": "new-guide-layout-in-photoshop-cc",
+    "image_count": 34,
+    "summary": "Open the New Guide Layout dialog box from the View menu, then set any number of columns and rows with exact widths, heights, gutters, and margins—all from one panel. Check Clear Existing Guides to remove old guides before applying the new layout, and use the Preview option to see changes live on your document. Save custom layouts as presets for reuse. This feature is available only in Photoshop CC (2014 or later) and requires an active Creative Cloud subscription.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/make-photoshop-default-image-editor-windows-8/",
+    "slug": "make-photoshop-default-image-editor-windows-8",
+    "image_count": 12,
+    "summary": "Right-click any image file in Windows Explorer, choose Open with > Choose default program, select Adobe Photoshop from the list (click More options if needed), and check the box to always use this app. First enable file name extensions via the View menu so you can identify .jpg, .png, or .tif files. This overrides Windows Photo Viewer or the Photos app, making Photoshop the default viewer and editor for that specific format.",
+    "in_scope": false,
+    "out_reason": "os_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-cc-2014-color-panel/",
+    "slug": "photoshop-cc-2014-color-panel",
+    "image_count": 23,
+    "summary": "Resize the Color panel in Photoshop CC 2014 by dragging its left or bottom edge, or undock it by dragging the name tab to resize independently. The panel now includes two new color-selection modes borrowed from the Color Picker: the Hue Cube and Brightness Cube. Switch to these via the panel menu to choose colors by clicking directly on a hue strip and a brightness/saturation square, making the larger panel size genuinely useful for more intuitive color picking without opening the Color Picker.",
+    "in_scope": false,
+    "out_reason": "version_changelog"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/cc/2014/improving-focus-area-selections-refine-edge/",
+    "slug": "improving-focus-area-selections-refine-edge",
+    "image_count": 51,
+    "summary": "Use Focus Area to create an initial depth-of-field selection, then click the Refine Edge button in the dialog box to transfer it. Inside Refine Edge, cycle through View Modes (On White, On Black, On Layers) by pressing F, and temporarily access the Zoom Tool with Ctrl+spacebar (Win) / Command+spacebar (Mac) or the Hand Tool with the spacebar alone. The critical Edge Detection section analyzes tone and color transitions around the selection outline to find true edges, while the Adjust Edge and Output sections handle fine-tuning and final output. Refine Edge cannot make initial selections—it only refines edges from an existing selection.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/cc/2014/focus-area/",
+    "slug": "focus-area",
+    "image_count": 45,
+    "summary": "Use Select > Focus Area to let Photoshop CC 2014 automatically analyze an image and create a selection based on the in-focus region, ideal for isolating a sharp subject against a blurred background. After the initial selection appears in the Focus Area dialog box, adjust the In-Focus Range slider to expand or contract which areas are considered sharp enough to include. Change the selection’s preview background via the View thumbnail (press F to cycle through On White, On Black, Overlay, On Layers, or Black & White). The initial selection often requires further refinement, which is handled in a second step using the Refine Edge command.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/essential-layers-panel-preferences/",
+    "slug": "essential-layers-panel-preferences",
+    "image_count": 20,
+    "summary": "Open the Layers Panel Options dialog box by clicking the menu icon in the top-right corner of the Layers panel and choosing Panel Options, or right-click/Control-click empty space below the bottom layer. Choose Small, Medium, Large, or No Thumbnails to control preview thumbnail size. To prevent Photoshop from automatically adding a layer mask to every new Fill or Adjustment layer, uncheck the \"Add 'mask' by default to adjustment layers\" and \"Add 'mask' by default to fill layers\" options in the same dialog box, keeping the panel uncluttered when masks are unnecessary.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-image-navigation-tips-tricks-shortcuts/",
+    "slug": "photoshop-image-navigation-tips-tricks-shortcuts",
+    "image_count": 49,
+    "summary": "Zoom in and out using the document tab's zoom level box in the lower-left corner—double-click it, type a value, and press Enter. For faster control, hover over that box, hold Ctrl (Win) or Command (Mac) to activate the scrubby slider, then drag right to zoom in or left to zoom out; add Shift to jump in 10% increments. Master the essential keyboard shortcuts: Ctrl++ (Win) / Command++ (Mac) to zoom in and Ctrl+- (Win) / Command+- (Mac) to zoom out, noting that these commands snap to preset percentages like 25%, 33.3%, or 50%. The View menu also offers Zoom In and Zoom Out commands, but the shortcuts and scrubby slider are far more efficient for daily navigation.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/image-navigation-essentials-zooming-panning-photoshop/",
+    "slug": "image-navigation-essentials-zooming-panning-photoshop",
+    "image_count": 49,
+    "summary": "Zoom in and out using the Zoom Tool from the toolbar, or press Ctrl++ (Win) / Command++ (Mac) to zoom in and Ctrl+- (Win) / Command+- (Mac) to zoom out, with the zoom level displayed in the document tab and bottom-left corner. Double-click the bottom-left zoom value to type a custom percentage, or hover over it while holding Ctrl (Win) / Command (Mac) to activate the scrubby slider—drag right to zoom in, left to zoom out, and add Shift for 10% increments. Use the Hand Tool (H) to pan, or hold the Spacebar to temporarily switch from any tool to the Hand Tool for scrolling.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-cs6-workspaces/",
+    "slug": "photoshop-cs6-workspaces",
+    "image_count": 18,
+    "summary": "Save any custom panel arrangement as a named workspace via the workspace selection box in the top right corner of the interface, then instantly recall it later from the same drop-down menu. Photoshop CS6 includes built-in workspaces like Essentials and Painting, each displaying a task-specific set of panel groups in the main and secondary columns. To create your own, arrange panels (moving them between groups, collapsing them into icon view, or closing them) and choose **New Workspace** from the menu; the saved layout preserves panel positions, keyboard shortcuts, and customized menus. Revert to the default layout at any time by selecting **Reset Essentials** from the workspace menu.",
+    "in_scope": false,
+    "out_reason": "workspaces"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/managing-panels-in-photoshop-cs6/",
+    "slug": "managing-panels-in-photoshop-cs6",
+    "image_count": 45,
+    "summary": "Reset the Essentials workspace from the workspace selection box in the top-right corner, then choose Reset Essentials to restore default panel positions. Panels appear in two columns on the right, with the main column showing the Color, Adjustments, and Layers panels by default. Multiple panels are grouped into panel groups, indicated by tabs at the top; click any tab to bring that panel to the front of its group, while dimmed tabs show hidden panels.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/default-image-editor-in-windows/",
+    "slug": "default-image-editor-in-windows",
+    "image_count": 29,
+    "summary": "Right-click a JPEG (or PNG, TIFF) thumbnail in Windows File Explorer, choose Properties, click the Change button next to “Opens with,” and select Photoshop from the list—if it’s missing, click More Apps to find it. On a Mac, Control-click the file, select Get Info, expand the “Open with” section, choose Photoshop from the dropdown, then click Change All to apply the setting to all files of that type. Repeat these steps for each image format you want Photoshop to handle by default.",
+    "in_scope": false,
+    "out_reason": "os_integration"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/clipping-masks-and-type/",
+    "slug": "clipping-masks-and-type",
+    "image_count": 31,
+    "summary": "Place a photo inside text by creating a clipping mask between a Type layer and an image layer. After adding your text with the Type Tool, resize it using Free Transform (Edit > Free Transform or Ctrl+T/Command+T). Position the image layer directly above the Type layer in the Layers panel, then right-click the image layer and choose \"Create Clipping Mask\" (or press Ctrl+Alt+G / Command+Option+G). The image will only appear within the letter shapes, while areas outside the text remain hidden. Choose a thick font like Impact so more of the image is visible through the letters.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/background-auto-save-cs6/",
+    "slug": "background-auto-save-cs6",
+    "image_count": 13,
+    "summary": "Save large Photoshop files without interruption using CS6’s Background Save, which lets you continue editing—even adding adjustment layers—while the file writes in the background, indicated by a percentage and progress bar in the document window’s name tab and bottom-left corner. Enable Auto Save via Edit > Preferences > File Handling to set an interval (e.g., every 5, 10, 15, or 30 minutes); if Photoshop crashes, the next launch prompts you to recover the auto-saved version, preventing total loss of unsaved work. Both features are on by default, but you can disable Background Save in the same Preferences panel if needed.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/interface-cs6/",
+    "slug": "interface-cs6",
+    "image_count": 10,
+    "summary": "Switch between four interface color themes in Photoshop CS6 by going to Edit > Preferences > Interface (PC) or Photoshop > Preferences > Interface (Mac) and clicking one of the four gray thumbnails, or cycle through them directly with Shift+F2 (darker to lighter) and Shift+F1 (lighter to darker). Change the pasteboard color independently by right-clicking (Win) or Control-clicking (Mac) in the canvas area and choosing Black, Dark Gray, Medium Gray, Light Gray, or Select Custom Color to open the Color Picker, though sticking with neutral grays avoids color interference with your image.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/color-range/",
+    "slug": "color-range",
+    "image_count": 51,
+    "summary": "Use the Color Range command (Select > Color Range) to make tone- and color-based selections that are far more flexible and accurate than the Magic Wand. Set the Select option to Sampled Colors, then click on the image with the Eyedropper Tool to sample a color; hold Shift to add more colors with the Add to Sample Tool, or Alt to remove colors with the Subtract from Sample Tool. Unlike the Magic Wand, Color Range is a command accessed from the Menu Bar, not a tool in the Tools panel, and it offers additional preset options like Reds, Yellows, Highlights, and Shadows for instant selections.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type/warp-text/",
+    "slug": "warp-text",
+    "image_count": 28,
+    "summary": "Use the Type Tool with a Type layer selected, then click the Warp Text icon (a T with a curved line) in the Options Bar to open the Warp Text dialog box. Choose from 15 warp styles like Arc, then adjust the intensity with the Bend slider, dragging left for negative values to reverse the curve direction. The text remains 100% live and editable, and the warp effect itself stays fully adjustable—you can change styles, tweak settings, or turn warping off entirely without any loss of quality.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type/font-size/",
+    "slug": "font-size",
+    "image_count": 15,
+    "summary": "Select the Type Tool, choose a font and color, then sample a color directly from the image using the Eyedropper Tool while the Color Picker is open. Instead of guessing a font size in the Options Bar, select the Type layer in the Layers panel and press Ctrl+T (Win) / Command+T (Mac) to activate Free Transform. Drag any corner handle to scale the text to any size with a live preview, avoiding the trial-and-error of preset sizes. Because type is vector-based, scaling it this way remains crisp at any size.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/feather-quick-mask/",
+    "slug": "feather-quick-mask",
+    "image_count": 17,
+    "summary": "Feather selection edges with a live preview by switching to Quick Mask mode (press Q) instead of using Select > Modify > Feather, which forces blind guessing. After making an elliptical selection, enter Quick Mask to see the selection as a red overlay; the softness of the transition appears as a gradient between red and clear areas. Double-click the Quick Mask icon to adjust the color and opacity of the overlay for better visibility. Paint with a soft-edged brush in Quick Mask to manually refine the feathered edge, or use Gaussian Blur (Filter > Blur > Gaussian Blur) on the Quick Mask to apply precise, previewable feathering. Press Q again to return to the standard selection, now with perfectly softened edges ready for your vignette or composite.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/basic-selections/",
+    "slug": "basic-selections",
+    "image_count": 29,
+    "summary": "Hold down the Shift key to add to an existing selection—a small plus sign appears on the cursor. Use the Rectangular Marquee Tool (press M) to drag a selection around the bottom half of a shape, then Shift-drag around the top square to combine both areas into one selection. The Options Bar contains four selection icons: New Selection, Add To Selection, Subtract From Selection, and Intersect With Selection. By default, dragging a new selection replaces the previous one, but Shift temporarily activates Add To Selection, letting you build complex selections without losing earlier work.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type/paragraph-panel/",
+    "slug": "paragraph-panel",
+    "image_count": 31,
+    "summary": "Open the Paragraph panel via Window > Paragraph or the toggle icon in the Options Bar, then click its name tab. Use the top row of icons to align text (Left Align, Center, Right Align) or to justify it so every line fills the text box width. The four justification options—Justify Last Left, Justify Last Centered, Justify Last Right, and Justify All—differ only in how they handle the paragraph’s final line. Below the alignment row, adjust Indent Left Margin, Indent Right Margin, Indent First Line, and add Space Before or After Paragraph using the numeric fields.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type/character-panel/",
+    "slug": "character-panel",
+    "image_count": 33,
+    "summary": "Open the Character panel via Window > Character or the toggle icon in the Options Bar to access advanced type controls beyond the Options Bar. Set font family, style, size, and text color from either location—they are identical. Apply anti-aliasing (Sharp, Crisp, Strong, or Smooth) from the panel’s lower-right corner or the Options Bar to smooth letter edges; the default Sharp method works for most text, but test each to see subtle differences in edge transition.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type/area-type/",
+    "slug": "area-type",
+    "image_count": 29,
+    "summary": "Use the Type Tool (T) to click and drag out a rectangular text box, then release to create an area type container; text you type will automatically wrap to the next line when it reaches the box’s edge, unlike point type which requires manual line breaks via Enter/Return. The text box includes resizing handles similar to Free Transform, and you can hold Shift while dragging to force a perfect square. Font, style, size, color, and alignment options are set in the Options Bar before or after drawing the box.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type/photoshop-type-essentials/",
+    "slug": "photoshop-type-essentials",
+    "image_count": 42,
+    "summary": "Select the Type Tool from the Tools panel or press T, then click in your document to create point type. Choose a font, style, and size from the Options Bar; the font list shows a preview of each typeface, and you can adjust the preview size under Edit (Windows) or Photoshop (Mac) > Preferences > Type > Font Preview Size.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/shapes/add-subtract/",
+    "slug": "add-subtract",
+    "image_count": 36,
+    "summary": "Combine two or more vector shapes on a single Shape layer using the Add to Shape Area, Subtract from Shape Area, Intersect Shape Areas, and Exclude Overlapping Shape Areas options in the Options Bar. Select a Shape tool, ensure Shape Layers mode is active, then click the desired icon before drawing the next shape. The vector mask thumbnail on the layer must have a white highlight border; if the options appear grayed out, click the thumbnail to select it. Add merges the new shape into the existing one, Subtract removes the overlapping portion, Intersect keeps only the overlap, and Exclude hides the overlap.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/shapes/vectors-paths-pixels/",
+    "slug": "vectors-paths-pixels",
+    "image_count": 73,
+    "summary": "Choose the Shape Layers option in the Options Bar to draw resolution-independent vector shapes made of mathematical points, lines, and curves rather than pixels. Unlike pixel-based shapes, vector shapes remain crisp and sharp at any size and always print at the printer’s highest resolution. The Layers panel automatically adds a new Shape layer with a color swatch you set in the Options Bar, and Photoshop handles all the math when you resize or reshape.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/shapes/photoshop-shape-essentials/",
+    "slug": "photoshop-shape-essentials",
+    "image_count": 51,
+    "summary": "Use the five geometric Shape tools—Rectangle, Rounded Rectangle, Ellipse, Polygon, and Line—to draw resolution-independent vector shapes by first selecting the Shape Layers option (the leftmost icon in the Options Bar) and choosing a color from the Color Picker via the color swatch. Switch between tools directly from the Options Bar icons after selecting one from the Tools panel. Drag to draw; release to fill the shape, and change its color later without quality loss.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/align-layers/",
+    "slug": "align-layers",
+    "image_count": 50,
+    "summary": "Select the Move Tool to activate the Align and Distribute icons in the Options Bar, then Shift-click multiple layers in the Layers panel to enable them. Use Align Top Edges, Align Vertical Centers, or Align Bottom Edges to line up layer contents vertically, and Align Left Edges, Align Horizontal Centers, or Align Right Edges to line them up horizontally. For equal spacing between three or more layers, use Distribute Top Edges, Distribute Vertical Centers, Distribute Bottom Edges, Distribute Left Edges, Distribute Horizontal Centers, or Distribute Right Edges.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/layer-groups/",
+    "slug": "layer-groups",
+    "image_count": 34,
+    "summary": "Organize your Layers panel by grouping related layers into virtual folders using layer groups. Click the folder icon at the bottom of the Layers panel to create a new empty group, or select multiple layers and choose Layer > Group Layers (Ctrl+G / Cmd+G) to bundle them instantly. Twirl the triangle icon to expand or collapse a group, revealing its indented child layers. Toggle the group’s own visibility eyeball to show or hide every layer inside at once. Nest groups within other groups for deeper hierarchy, and drag layers in or out of any group to reassign them.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/images-as-layers/",
+    "slug": "images-as-layers",
+    "image_count": 11,
+    "summary": "Open Adobe Bridge, select multiple images using Shift-click, then go to Tools > Photoshop > Load Files into Photoshop Layers to open them all into one document, each on its own layer named after the original file. To view a single layer, Alt-click (Win) or Option-click (Mac) its eyeball icon in the Layers panel, which temporarily hides all others; click again to restore visibility. The document canvas automatically sizes to fit all images, so some layers may show transparency and require resizing with Free Transform. Rename layers by double-clicking the layer name and typing a new one, removing the file extension if desired.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/background-layer/",
+    "slug": "background-layer",
+    "image_count": 35,
+    "summary": "The Background layer is a locked, special layer that Photoshop creates automatically when an image is opened. Unlike normal layers, its contents cannot be moved with the Move Tool—a lock icon in the Layers panel and a dialog box prevent it—and deleting pixels (for example, with Backspace/Delete after a Magic Wand selection) fills the area with the background color rather than transparency. To bypass these restrictions, convert the Background layer into a normal layer by renaming it or double-clicking its lock icon in the Layers panel.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-background-layer/",
+    "slug": "photoshop-background-layer",
+    "image_count": 27,
+    "summary": "Open any image in Photoshop CS5 and it lands on a locked Background layer, shown in italics in the Layers panel with a lock icon. Unlike normal layers, you cannot move its contents with the Move Tool—Photoshop warns the layer is locked—and deleting pixels with Backspace/Delete triggers the Fill dialog box instead of creating transparency because the Background layer does not support transparent pixels. To bypass these restrictions, convert the Background layer into a normal layer by renaming it or double-clicking its lock icon in the Layers panel, which unlocks full editing freedom.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-cs5-layers-panel-essentials/",
+    "slug": "photoshop-cs5-layers-panel-essentials",
+    "image_count": 55,
+    "summary": "Open an image in Photoshop CS5 and the Layers panel—found in the lower right or via Window > Layers—shows a single row for the Background layer, including its name, a preview thumbnail, and a lock icon. Click the New Layer icon at the bottom of the panel to add a new empty layer above it. The panel groups with Channels and Paths; click any name tab to switch between them. Each layer gets its own row, and the preview thumbnail shows the content on that specific layer.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/layers-intro/",
+    "slug": "layers-intro",
+    "image_count": 31,
+    "summary": "Open the Layers panel, create a new white 800x600 pixel document, then use the Rectangular Marquee Tool to drag a selection and fill it with a color via Edit > Fill and the Color Picker, demonstrating how without layers every new shape or image element permanently alters the single Background layer, making it impossible to move, edit, or remove that red rectangle independently later.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/opacity-vs-fill/",
+    "slug": "opacity-vs-fill",
+    "image_count": 18,
+    "summary": "Lower the Opacity value to 50% on a layer with layer styles, and the entire layer—including any applied effects like drop shadows, strokes, or bevel and emboss—fades uniformly. Lower the Fill value to 50% instead, and only the layer’s content (the pixels or text) becomes transparent, while the layer styles remain fully opaque. This distinction only matters when layer styles are present; on a plain layer without effects, Opacity and Fill behave identically. Both controls sit in the top-right corner of the Layers panel, with Fill directly below Opacity.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/fill-shapes-with-text/",
+    "slug": "fill-shapes-with-text",
+    "image_count": 24,
+    "summary": "Use the Custom Shape Tool set to Paths mode to draw a shape outline, then fill it with text by clicking inside the path with the Type Tool. Choose any shape from the Shape Picker, draw it while holding Shift to maintain proportions, and reposition with the spacebar during the drag. After drawing, reshape or rotate the path with Edit > Free Transform Path (Ctrl+T / Command+T). Select a font, size, and color from the Options Bar, then click directly on the path outline to begin typing; the text will flow inside the shape’s boundaries.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/text-shapes/",
+    "slug": "text-shapes",
+    "image_count": 32,
+    "summary": "Convert text into a shape via Layer > Type > Convert to Shape, then use the Direct Selection Tool (hidden behind the Path Selection Tool) to select anchor points around a letter’s interior and press Backspace/Delete to cut a hole. Switch to the Custom Shape Tool, choose a shape from the Options bar, and set the tool to “Subtract from Shape Area” to punch that shape out of the text. To add a shape, select “Add to Shape Area” instead. The shape layer’s vector mask thumbnail must be highlighted in the Layers panel before selecting or editing anchor points. Once text is converted to a shape, it is no longer editable as type.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/repeating-patterns-from-custom-shapes/",
+    "slug": "repeating-patterns-from-custom-shapes",
+    "image_count": 37,
+    "summary": "Create repeating patterns from custom shapes by first opening a new 100x100 pixel transparent document, then adding vertical and horizontal guides from the rulers (View > Rulers) to mark the center. Select the Custom Shape Tool from behind the Rectangle Tool in the Tools panel, choose a shape from the Options bar, and draw it centered on the guides. Save the tile as a pattern via Edit > Define Pattern, then fill any layer with it using a Pattern Fill layer or the Paint Bucket Tool set to Pattern mode.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/repeating-patterns-colors-gradients/",
+    "slug": "repeating-patterns-colors-gradients",
+    "image_count": 42,
+    "summary": "Add a solid color fill layer by clicking the New Fill or Adjustment Layer icon at the bottom of the Layers panel and choosing Solid Color, then pick a color in the Color Picker to replace the white background. To recolor the circles themselves, select the pattern layer first, then add another Solid Color fill layer above it; this will initially block the circles from view. Fix this by changing the fill layer’s blend mode from Normal to Multiply in the Layers panel, which lets the circles show through while applying the new color. For a gradient effect, use a Gradient fill layer instead of Solid Color, choosing a preset or custom gradient in the Gradient Fill dialog, and again set the blend mode to Multiply to color the circles while preserving their shape.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/repeating-patterns-intro/",
+    "slug": "repeating-patterns-intro",
+    "image_count": 31,
+    "summary": "Create a 100×100 pixel transparent document, then add horizontal and vertical guides at 50% position (View > New Guide) to mark the exact center. Design your tile on this canvas, then save it as a pattern via Edit > Define Pattern. Apply the pattern by adding a new layer, opening the Layer Style dialog (Layer > Layer Style > Pattern Overlay), and selecting your saved pattern from the list. The tile size controls the repeat frequency—smaller tiles produce denser repeats. Guide colors can be changed in Preferences (Edit/Photoshop > Preferences > Guides, Grid & Slices) if the default cyan is hard to see.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/move-photos-tabbed-documents/",
+    "slug": "move-photos-tabbed-documents",
+    "image_count": 21,
+    "summary": "Drag a photo from one tabbed document into another by first selecting the Move Tool, clicking inside the source image, and dragging its content onto the destination document’s name tab at the top of the window. Keep the mouse button held while hovering over the tab—Photoshop automatically switches to the target document—then drag downward into the canvas and release. This technique works around the tabbed interface introduced in CS4, which otherwise blocks the familiar drag-and-drop between floating windows. To revert to floating windows, disable Open Documents As Tabs in Edit/Photoshop > Preferences > Interface (Ctrl+K/Command+K).",
+    "in_scope": false,
+    "out_reason": "multi_doc_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/moving-photos-between-documents/",
+    "slug": "moving-photos-between-documents",
+    "image_count": 21,
+    "summary": "Drag the Move Tool from one document window into another, holding Shift to center the image automatically. The Layers panel shows only the active document’s content, so click inside a window to make it active before dragging. For CS4/CS5 users, first go to Window > Arrange > Float All in Windows to avoid tabbed documents.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/type-path-photoshop/",
+    "slug": "type-path-photoshop",
+    "image_count": 19,
+    "summary": "Draw type along any path in Photoshop using the Type Tool and a path created with Shape Tools, the Pen Tool, or custom shapes. Select the Ellipse Tool (or any shape tool), choose the Paths option in the Options Bar, then drag out your path. Switch to the Type Tool, pick your font and size in the Options Bar, and move the cursor directly over the path until it becomes an I-beam with a dotted wavy line. Click on the path and begin typing; the text follows the path's direction. After accepting the text with the checkmark, use the Path Selection Tool to click and drag the text along the path to reposition it, or drag across the path to flip it to the opposite side.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/download-photos-bridge-cs5/",
+    "slug": "download-photos-bridge-cs5",
+    "image_count": 16,
+    "summary": "Connect a camera or memory card and use Adobe Bridge CS5’s Photo Downloader to select, preview, and transfer only the photos you want. First, enable the automatic launch of the Photo Downloader in Bridge’s Preferences (Ctrl+K / Command+K) under “When a Camera is Connected, Launch Adobe Photo Downloader.” Click the “Get Photos from Camera” icon or choose File > Get Photos from Camera, then switch from the Standard Dialog to the Advanced Dialog to see thumbnails of every image. From there, choose a destination folder on your hard drive, rename files if desired, and add author/copyright metadata before downloading—photos are stored in normal folders, not inside Bridge itself.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/free-transform/",
+    "slug": "free-transform",
+    "image_count": 20,
+    "summary": "Hold down Shift while dragging any corner handle to resize proportionally, keeping the original shape intact without stretching or squashing the content. Use Ctrl+T (Win) / Command+T (Mac) to activate Free Transform, then drag side handles to adjust width or height independently, or hold Alt (Win) / Option (Mac) to reshape from the center outward. The bounding box appears around the active layer’s content, but Free Transform cannot select objects on its own—the content must already be on its own layer or selected beforehand.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/transform-selection/",
+    "slug": "transform-selection",
+    "image_count": 54,
+    "summary": "Resize a selection outline without affecting the pixels inside using Photoshop's Transform Selection command, found under the Select menu or by right-clicking inside an active selection. Drag any corner or side handle to scale the outline; hold Shift while dragging to unlock the aspect ratio for independent width and height adjustments. Click and drag inside the transform box to reposition the outline, or drag just outside a corner handle to rotate it, with Shift snapping rotation to 15-degree increments. Unlike Free Transform (Edit > Free Transform), which resizes the selected pixels, Transform Selection modifies only the selection boundary itself.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/quick-selection-tool/",
+    "slug": "quick-selection-tool",
+    "image_count": 20,
+    "summary": "Paint over the main subject with the Quick Selection Tool (shortcut W) to automatically select it based on tone, color, and texture, starting with a single click and then dragging like a brush. The tool defaults to \"Add to selection\" mode (shown by a plus sign in the cursor and the middle icon in the Options Bar), so you simply keep painting to expand the selection without holding Shift. If you accidentally select background areas, press Ctrl+Z (Win) / Command+Z (Mac) to undo the last stroke, or switch to the \"Subtract from selection\" mode in the Options Bar to paint over and remove unwanted regions.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/magic-wand-tool/",
+    "slug": "magic-wand-tool",
+    "image_count": 25,
+    "summary": "Click the Magic Wand tool, nested behind the Quick Selection Tool in CS3 and later, then adjust the Tolerance value in the Options Bar to control how many shades lighter or darker than the clicked pixel are included in the selection. A Tolerance of 0 selects only the exact tone clicked, while the default 32 selects pixels up to 32 shades brighter or darker, making the tool ideal for selecting large areas of solid color but less effective on gradients or images with subtle tonal variations.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/cs5/preferences/",
+    "slug": "preferences",
+    "image_count": 28,
+    "summary": "Set Photoshop CS5 to run faster and suit your workflow by adjusting key preferences. Open the dialog with Ctrl+K (Win) or Command+K (Mac), then set Image Interpolation to Bicubic Sharper for sharper results when reducing image size with the Image Size dialog, Crop Tool, or Free Transform. Disable Export Clipboard to prevent performance lags from copying large files to memory. Uncheck Use Shift Key For Tool Switch so pressing a letter key (like L for the Lasso, Polygonal Lasso, or Magnetic Lasso) cycles through nested tools without holding Shift.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/cs5/mini-bridge/",
+    "slug": "mini-bridge",
+    "image_count": 38,
+    "summary": "Open Mini Bridge in Photoshop CS5 via the File > Browse in Mini Bridge command, the Window > Extensions > Mini Bridge menu, the Application Bar icon, or the collapsed panel icon. The panel displays a Home Page with Browse Files and Settings options; clicking Browse Files launches full Adobe Bridge in the background and reveals the Navigation Pod (top) and Content Pod (bottom). Navigate folders using Favorites, Recent Folders, Recent Files, or Collections headings in the left column, then preview and open images from the Content Pod without leaving Photoshop. Note that Mini Bridge does not support rating, labeling, or creating Collections—those require the full Bridge program.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/adobe-bridge-cs4/get-photos/",
+    "slug": "get-photos",
+    "image_count": 16,
+    "summary": "Use Adobe Bridge CS4's Photo Downloader to transfer images from a camera or memory card to your computer. First, press Ctrl+K (Win) / Command+K (Mac) to open Bridge Preferences and enable \"When a Camera is Connected, Launch Adobe Photo Downloader.\" Connect your camera or click the Get Photos from Camera icon to open the Photo Downloader, then switch to the Advanced Dialog format to see thumbnails with checkboxes, allowing you to deselect unwanted images before downloading. Bridge stores photos in normal folders on your hard drive, not within Bridge itself.",
+    "in_scope": false,
+    "out_reason": "camera_import"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/adobe-bridge-cs4/quick-tour/",
+    "slug": "quick-tour",
+    "image_count": 30,
+    "summary": "Launch Bridge CS4 from Photoshop's Application Bar or via File > Browse in Bridge (Ctrl+Alt+O / Command+Option+O) to open its three-column interface. Use the Back and Forward browse buttons to navigate through folder history, the down-pointing arrow to jump to parent folders or Favorites, and the Recent Files or Folders icon to revisit recently viewed files and folders. The central Content panel displays thumbnails of the currently selected folder, while the left and right columns hold panels for previewing, organizing, and adding metadata to images.",
+    "in_scope": false,
+    "out_reason": "adobe_bridge"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/brush-dynamics/other-dynamics/",
+    "slug": "other-dynamics",
+    "image_count": 19,
+    "summary": "Paint with dynamically varying opacity and flow using the Other Dynamics section of the Brushes panel. Opacity controls the translucency of the entire brush stroke, remaining constant even where brush tips overlap; only a new, separate stroke can darken those areas. Flow, by contrast, controls the opacity of each individual brush tip, so overlapping tips within a single stroke combine to become more opaque. Access these controls normally from the Options Bar, but Other Dynamics lets you link them to pen pressure, stylus wheel, or other inputs via the Control dropdown, enabling strokes that fade or build up naturally as you paint.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/brush-dynamics/color-dynamics/",
+    "slug": "color-dynamics",
+    "image_count": 39,
+    "summary": "Control hue, saturation, brightness, and purity of brush strokes using the Color Dynamics section in the Brushes panel. Set a Foreground and Background color, then use the Foreground/Background Jitter slider to randomly swap between them as you paint. Adjust the Hue Jitter, Saturation Jitter, and Brightness Jitter sliders to let Photoshop randomly vary those color attributes with each dab. Note that only the Foreground/Background option has a Control dropdown for pen pressure or fade; the Hue, Saturation, Brightness, and Purity sliders rely solely on jitter for randomization.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/brush-dynamics/dual-brush/",
+    "slug": "dual-brush",
+    "image_count": 16,
+    "summary": "Mix two different brushes together using Photoshop’s Dual Brush options in the Brushes panel. Click directly on the words Dual Brush on the left side of the panel, then choose a second brush tip from the thumbnails on the right. Adjust the second brush’s Diameter and Spacing sliders independently from the main brush, and use the Scatter and Count sliders to spread multiple copies of the second brush inside the first. The initial brush acts like a cookie cutter—the second brush never extends beyond the first brush’s shape, no matter how large you make it.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/brush-dynamics/texture/",
+    "slug": "texture",
+    "image_count": 27,
+    "summary": "Click directly on the word **Texture** in the Brushes panel to access options that let you paint with a pattern, simulating textured surfaces like canvas or paper. Choose a pattern from the Pattern Picker, loading additional sets like Artistic Surfaces via the fly-out menu and clicking **Append** to keep existing patterns. The **Mode** drop-down controls how the brush and texture blend, while the **Depth** options, initially grayed out, determine the texture’s visibility and are enabled by adjusting the **Depth Jitter** or **Control** settings. The **Texture Each Tip** checkbox applies the texture to every brush mark rather than the entire stroke, and the **Scale** slider resizes the pattern relative to the brush tip.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/brush-dynamics/scattering/",
+    "slug": "scattering",
+    "image_count": 16,
+    "summary": "Scatter multiple copies of your brush tip along each stroke by opening the Brushes panel and clicking directly on the word Scattering (not its checkbox) to access the controls. Drag the Scatter slider right to spread brush tips apart, or enable Both Axes to scatter them randomly in all directions for a sprayed-on look. Use the Count slider to add extra brush tips per spacing interval, and choose a Control option like Fade, Pen Pressure, or Pen Tilt to dynamically vary the scattering amount—just ensure the Scatter value is above zero first, or no effect will occur.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/brush-dynamics/shape-dynamics/",
+    "slug": "shape-dynamics",
+    "image_count": 41,
+    "summary": "Click directly on the words **Shape Dynamics** in the Brushes panel (not the checkbox) to access controls for dynamically varying a brush’s **size**, **angle**, and **roundness** while painting. Each section has a **Control** dropdown—set to **Off** by default—that lets you choose how the variation behaves. For size, the **Fade** option (the only choice that does not require a pen tablet) gradually reduces brush thickness over a set number of **steps** (default 25), making each successive brush stamp smaller until the stroke disappears.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-brushes/make-brushes/",
+    "slug": "make-brushes",
+    "image_count": 22,
+    "summary": "Create a custom pixel-based brush by designing a black shape on a white 200 x 200 pixel document, then go to Edit > Define Brush Preset. The brush tip is grayscale: black creates 100% visible areas, white becomes transparent, and gray yields partial opacity. Use the Brush Tool with a small round brush (like Hard Round 5 Pixels) to draw the shape, ensuring the Foreground color is black. After defining the brush, open the Brushes panel (Window > Brushes) to adjust dynamic options like Shape Dynamics or Scattering, which alter the brush’s behavior. Note that custom brushes are pixel-based, so resizing them much larger than their default size will make them soft and dull.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/magnetic-lasso-tool/",
+    "slug": "magnetic-lasso-tool",
+    "image_count": 21,
+    "summary": "Press Caps Lock to switch the Magnetic Lasso Tool’s cursor to a circle with a crosshair, revealing the exact area Photoshop scans for edges based on color and brightness differences. Click once on an object’s edge to set a starting point, then drag loosely around the shape; the tool snaps the selection outline to detected edges automatically. Access it by clicking and holding the Lasso Tool in the Tools panel, or cycle through all three lasso tools by pressing Shift+L.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/polygonal-lasso-tool/",
+    "slug": "polygonal-lasso-tool",
+    "image_count": 21,
+    "summary": "Select the Polygonal Lasso Tool from behind the standard Lasso Tool in the Tools panel (or cycle through the three lasso tools with Shift+L). Click around the object to place anchor points; Photoshop automatically connects each new point to the previous one with a straight line. Close the selection by clicking the initial point—a small circle appears on the cursor when you are close enough—or double-click anywhere to let Photoshop close it with a straight line back to the start. Unlike the Rectangular Marquee Tool, the Polygonal Lasso Tool handles angled perspective, making it ideal for selecting straight-sided shapes like a billboard shot from an angle.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/lasso-tool/",
+    "slug": "lasso-tool",
+    "image_count": 17,
+    "summary": "Select an object with the Lasso Tool by clicking and dragging a freehand outline around it, then release the mouse button to close the selection—Photoshop draws a straight line between start and end points if they don’t meet. Press L to activate the tool, or Shift+L to cycle through the standard, Polygonal, and Magnetic Lasso Tools. The Lasso Tool itself is imprecise, so improve results by first making a rough selection, then using the Options bar’s Add to Selection and Subtract from Selection modes to refine the edges.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/elliptical-marquee-tool/",
+    "slug": "elliptical-marquee-tool",
+    "image_count": 26,
+    "summary": "Select the Elliptical Marquee Tool from behind the Rectangular Marquee Tool in the Tools panel, or press M (or Shift+M depending on your Preferences) to switch between them. Click and drag to draw an oval or circular selection outline. To create a perfect circle, hold the Shift key while dragging; to draw from the center outward, hold Alt (Win) / Option (Mac). Once the selection is active, you can fill it with white using Edit > Fill, or apply any other effect without damaging the original image. The selection remains editable until you deselect it with Ctrl+D (Win) / Cmd+D (Mac).",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/rectangular-marquee-tool/",
+    "slug": "rectangular-marquee-tool",
+    "image_count": 16,
+    "summary": "Select the Rectangular Marquee Tool from the top of the Tools panel or press M, then click and drag from one corner of a rectangular area to the other to create a selection outline. Hold the spacebar while dragging to reposition the selection on the fly without restarting. Once the marching ants appear, any edit—such as changing color via Image > Adjustments > Hue/Saturation—affects only the selected pixels. The tool works for any rectangle or square, and the selection can be moved or adjusted before releasing the mouse button.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/why-make-selections/",
+    "slug": "why-make-selections",
+    "image_count": 22,
+    "summary": "Selections bridge the gap between how humans and Photoshop see an image. While you recognize objects like apples, Photoshop only sees a grid of colored pixels. To edit a specific area—like changing an apple's color with the Brush Tool—you must first use a selection tool (Rectangular Marquee, Lasso, Magic Wand, or Color Range) to tell Photoshop exactly which pixels to target. Without a selection, any edit affects the entire image. The key caveat is that Photoshop cannot identify objects on its own; you must manually define the pixel boundaries for every adjustment, whether painting, filtering, or applying corrections.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-cs4/arrange-documents/",
+    "slug": "arrange-documents",
+    "image_count": 15,
+    "summary": "Use the Arrange Documents icon in the Application Bar to quickly consolidate all open images into tabbed document windows or choose from new multi-document layouts that tile 2 to 6 images on screen. The menu’s second section offers layout icons—such as 2 Up vertical or horizontal, and 3 Up options—each showing a preview of the arrangement; grayed-out icons become available as you open more images. Tool Tips reveal the exact number of images a layout supports when you hover over an icon.",
+    "in_scope": false,
+    "out_reason": "multi_doc_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-cs4/tabbed-document-windows/",
+    "slug": "tabbed-document-windows",
+    "image_count": 15,
+    "summary": "Open multiple images at once using File > Open with Shift-click to select them all, and they appear nested in a single document with each image’s name shown in a tab above the canvas. Click any tab to switch images, drag tabs left or right to reorder them, or press Ctrl+~ / Command+~ to cycle forward and Ctrl+Shift+~ / Command+Shift+~ to cycle backward (Ctrl+Tab / Control+Tab also works). If too many tabs are open, a double-arrow icon appears to the right, offering a fly-out menu to select any image. To float an image in its own window, drag its tab down and away from the others, or choose Window > Arrange > Float in Window. Note that keyboard shortcuts cycle images in the order they were opened, not the current tab order.",
+    "in_scope": false,
+    "out_reason": "multi_doc_ui"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-cs4/interface/",
+    "slug": "interface",
+    "image_count": 27,
+    "summary": "Navigate Photoshop CS4’s streamlined interface by identifying the Menu Bar at the top, the Tools panel along the left, and the Options Bar below them. The Tools panel defaults to a single column but can be toggled to a double-column layout by clicking the double-arrow icon at its top. Click and hold any tool with a small arrow at its bottom-right corner to reveal hidden, related tools from a fly-out menu. Note that the Mac version includes a Photoshop menu for Preferences, while Windows places Preferences under the Edit menu, and the Analysis and 3D menu headings appear only in the Extended version.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/saving-layer-styles/",
+    "slug": "saving-layer-styles",
+    "image_count": 31,
+    "summary": "Save any combination of layer styles as a custom preset using the Layer Style dialog box's \"New Style\" button or the Styles panel's \"Create New Style\" icon. Apply a saved style instantly by clicking its thumbnail in the Styles panel, which loads all effects—drop shadows, strokes, glows, bevels, and more—onto the active layer. To share or back up presets, use the Styles panel flyout menu's \"Save Styles\" command, which writes a .asl file; load them later via \"Load Styles\" in the same menu. Note that Background layers cannot receive layer styles, so duplicate the layer first with Ctrl+J/Command+J. The stroke's default color is red, so change it via the color swatch in the Layer Style dialog, and set Position to Inside for a border that stays within the layer's edges.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-actions/save-load-actions/",
+    "slug": "save-load-actions",
+    "image_count": 10,
+    "summary": "Save only entire action sets, not individual actions, using the Actions panel menu’s Save Actions command, which writes a .atn file. Reset the panel to defaults with Reset Actions, then reload your saved set via Load Actions; the set reopens exactly as it was when saved.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-actions/record-action/",
+    "slug": "record-action",
+    "image_count": 31,
+    "summary": "Record a \"Soft Glow\" effect as a reusable Photoshop action using the Actions palette. Begin by clicking the New Action Set icon (folder icon) at the palette's bottom to create a custom set like \"My Actions\", then click the New Action icon to open the New Action dialog box. Name the action, assign an optional Function Key shortcut, and ensure it is placed inside your custom set rather than a default set. Once recording starts, perform the effect's steps—Photoshop captures every menu selection, tool use, and panel adjustment. After stopping recording, the action appears in your set and can instantly apply the soft glow to any image.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-actions/editing-an-action/",
+    "slug": "editing-an-action",
+    "image_count": 44,
+    "summary": "Create a new action set by clicking the New Action Set icon (folder icon) at the bottom of the Actions panel, then name it. Hold Alt (Win) / Option (Mac) and drag the Photo Corners action from the Frames set into your new set to copy it, leaving the original untouched. Double-click directly on the action’s name to rename it, then press Enter/Return. Always edit a copy rather than the original, and place it in a custom set instead of Photoshop’s default sets.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-actions/step-through/",
+    "slug": "step-through",
+    "image_count": 41,
+    "summary": "Hold down Ctrl (Win) / Command (Mac) and double-click any step in the Actions panel to play only that single step, advancing the highlight to the next step so you can watch exactly how an action builds its effect on your image and Layers panel. This technique reveals, for example, that the Photo Corners action begins by taking a snapshot stored in the History panel, then converts the image to RGB color mode—a step you can skip if your image is already RGB.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-actions/more-built-in-actions/",
+    "slug": "more-built-in-actions",
+    "image_count": 15,
+    "summary": "Open the Actions palette menu (click the menu icon in the top-right corner of the palette) and load any of the built-in action sets listed at the bottom—Commands, Frames, Image Effects, Text Effects, and more. Once loaded, the set appears below the Default Actions; click the triangle to expand it and see individual actions like Sepia Toning (layer). Select an action and click the Play icon at the bottom of the palette to run it automatically. Note that some actions in these sets duplicate those in the Default Actions set, and an empty dialog toggle icon means the action will run without any prompts.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-actions/default-actions/",
+    "slug": "default-actions",
+    "image_count": 21,
+    "summary": "Open the Actions panel (Window > Actions) and twirl open the Default Actions set by clicking its triangle. To run the Vignette (selection) action, first make a selection around the area you want to keep prominent, then select the action name and click the Play button at the bottom of the panel. Photoshop automatically applies a soft, dark border outside the selection. In Photoshop CS2, the classic default actions are replaced with workspace switchers; load the Sample Actions set from the panel’s fly-out menu to access the same Vignette and other standard actions found in other versions.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-actions/how-to-use-actions/",
+    "slug": "how-to-use-actions",
+    "image_count": 4,
+    "summary": "Open the Actions panel (Window > Actions) and play any pre-installed action by selecting it and clicking the triangular Play button. Record your own actions by clicking the New Action icon, performing steps like resizing or adding a watermark, then clicking Stop. Edit recorded steps by double-clicking a command to change its settings, or toggle dialog on/off to pause during playback. Save actions as .atn files via the panel menu to share or reload later.",
+    "in_scope": false,
+    "out_reason": "actions_automation"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/custom-keyboard-shortcuts/",
+    "slug": "custom-keyboard-shortcuts",
+    "image_count": 15,
+    "summary": "Open the Edit menu, choose Keyboard Shortcuts, and in the dialog box select Application Menus from the Shortcuts For drop-down. Scroll through the list, twirl open Filter, then Blur, and click Gaussian Blur. Type your desired key combination directly into the Shortcut column—for example, Ctrl+Shift+G—then click Accept. Repeat for Unsharp Mask under Filter > Sharpen. Click OK to save the changes to the Photoshop Defaults set. Any shortcut you assign here instantly overrides the built-in shortcuts, so watch for conflicts flagged in red.",
+    "in_scope": false,
+    "out_reason": "custom_shortcuts"
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/elements/fake-layer-mask/",
+    "slug": "fake-layer-mask",
+    "image_count": 19,
+    "summary": "Fake a layer mask in Photoshop Elements by borrowing the built-in mask from an adjustment layer. Open two photos, drag one onto the other with the Move Tool (V), holding Shift to center it. Select the Background layer, then click the New Adjustment Layer icon at the top of the Layers palette and choose Levels (any type works). The adjustment layer appears between the two image layers with its own white layer mask. Alt-click (Option-click on Mac) the mask thumbnail in the Layers palette to view and edit it directly, painting with black to hide and white to reveal the top photo. This technique works because Elements supports layer masks only on adjustment layers, not on normal layers.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/photoshop-layers-essential-shortcuts/",
+    "slug": "photoshop-layers-essential-shortcuts",
+    "image_count": 16,
+    "summary": "Press F7 to toggle the Layers panel open and closed. Create a new layer with Shift+Ctrl+N (Win) / Shift+Command+N (Mac) to open the New Layer dialog, or bypass it with Shift+Ctrl+Alt+N (Win) / Shift+Command+Option+N (Mac). Hold Ctrl (Win) / Command (Mac) and click the New Layer icon to add a layer below the current one, though this fails with the Background layer. Duplicate a layer or selection to a new layer with Ctrl+J (Win) / Command+J (Mac), or add Ctrl+Alt (Win) / Command+Option (Mac) to access the dialog. In CS2+, select all layers except Background with Ctrl+Alt+A (Win) / Command+Option+A (Mac), or right-click a layer and choose Select Similar Layers to grab all of the same type. Select contiguous layers by Shift-clicking the top and bottom, or use Shift+Alt (Win) / Shift+Option (Mac) with bracket keys; select non-contiguous layers by Ctrl-clicking (Win) / Command-clicking (Mac) each one.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/custom-shape-sets/",
+    "slug": "custom-shape-sets",
+    "image_count": 18,
+    "summary": "Open the Preset Manager from the Edit menu, set the Preset Type to Custom Shapes, then click Save Set to save a group of selected shapes as a .csh file. Load a saved set later by clicking Load in the Preset Manager or choosing Load Shapes from the Custom Shape Tool’s shape picker fly-out menu. To organize shapes, Shift-click or Ctrl-click to select multiple thumbnails before saving; the Preset Manager also lets you rename or delete individual shapes. Remember that custom shapes always appear black in the picker regardless of their document color, and saving sets protects against losing shapes in a crash.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/custom-shapes/",
+    "slug": "custom-shapes",
+    "image_count": 42,
+    "summary": "Draw custom shapes in Photoshop by tracing any object with the Pen Tool, then save the resulting path as a reusable custom shape. Select the Pen Tool and ensure the \"Shape layers\" icon is active in the Options Bar—this fills your path with color as you draw, letting you see the shape take form. Click to place anchor points and drag direction handles to create curved segments around your subject. Once the path is closed, go to Edit > Define Custom Shape, name it, and it appears in the Custom Shape Picker for instant reuse. A key caveat: the Pen Tool is essential for anything beyond basic rectangles or ellipses, and tracing works identically to freehand drawing, so no artistic skill is required.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/selections/pen-tool-selections/",
+    "slug": "pen-tool-selections",
+    "image_count": 62,
+    "summary": "Draw precise, editable selections using the Pen Tool by first creating anchor points and path segments that define the shape, then converting the completed path into a selection via the Paths panel's \"Load path as a selection\" button or the Ctrl+Enter (Win) / Cmd+Return (Mac) shortcut. Unlike pixel-based selection tools, the Pen Tool draws vector paths that remain independent of the image—they won't print or appear in saved JPEGs—allowing you to fine-tune curves and straight lines with the Direct Selection Tool (black arrow) before finalizing the selection. The Pen Tool lives in the Tools palette grouped with the Shape and Type tools, not with the Marquee or Lasso tools, because it creates paths rather than pixel selections. Mastering the Pen Tool requires practice, but once learned, the same Bezier-curve logic applies across most graphics and layout programs.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/custom-swatches/",
+    "slug": "custom-swatches",
+    "image_count": 25,
+    "summary": "Open the image you want to sample from, delete all default swatches by Alt/Option-clicking each one in the Swatches panel (the cursor becomes scissors), then select the Eyedropper Tool (I) and click a color to sample it into the Foreground swatch. Click the empty Swatches panel area with the paint bucket cursor, name the swatch in the dialog, and repeat for each color. Save the set via the Swatches panel menu (Save Swatches), and later reload it using Load Swatches or reset defaults with Reset Swatches.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/layers/layer-masks/",
+    "slug": "layer-masks",
+    "image_count": 34,
+    "summary": "Add a layer mask to any layer by clicking the Add Layer Mask icon at the bottom of the Layers panel, then paint with black on the mask to hide areas and white to reveal them, using the Brush Tool for precise control. Unlike the Opacity slider, which fades an entire layer uniformly, a layer mask lets you create partial transparency in specific regions, enabling seamless blends like fading one photo into another. The mask itself stores transparency data as a grayscale image—black conceals, white reveals, and gray gives partial transparency—so you can edit it non-destructively at any time without altering the original pixels.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/basics/preferences-cs3/",
+    "slug": "preferences-cs3",
+    "image_count": 18,
+    "summary": "Open Photoshop CS3’s Preferences via Edit (Win) or Photoshop (Mac) menu, or Ctrl+K / Command+K, then set Image Interpolation to Bicubic Sharper for best results when reducing image size, cropping, or transforming. Disable Export Clipboard to avoid slowdowns and error messages unless you regularly paste Photoshop content into other programs. Optionally, turn off Automatically Launch Bridge if you rarely use it, and adjust Use Shift Key For Tool Switch to control whether pressing Shift cycles through grouped tools.",
+    "in_scope": true
+  },
+  {
+    "url": "https://www.photoshopessentials.com/photoshop-layers-learning-guide/",
+    "slug": "photoshop-layers-learning-guide",
+    "image_count": 0,
+    "summary": "Work through ten layers tutorials organized in a logical sequence, starting with the Layers panel basics and moving through layer types, opacity, blend modes, layer masks, adjustment layers, type layers, layer styles, Smart Objects, and layer comps. Each tutorial builds on the previous one, so you progressively master adding, deleting, reordering, grouping, and merging layers, plus non-destructive editing with masks and Smart Objects. The guide includes links to download print-ready PDFs for each tutorial.",
+    "in_scope": true
+  }
+]
