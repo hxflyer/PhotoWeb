@@ -485,3 +485,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** The Gradient Editor can switch Gradient Type between Solid and Noise.
 **Photoweb behavior:** The editor and renderer implement Solid gradients with color/opacity stops, midpoint diamonds, and smoothness.
 **Rationale:** Noise gradients require a separate randomization/rendering model; the lessons' core Gradient Tool, editor, and rainbow workflows are solid-stop based.
+
+## 2026-05-14 — 22b-live-gradients — Live-gradient controls are endpoint-first
+
+**Photoshop behavior:** Live gradients expose endpoint stops, midpoint diamonds, plus-hover color insertion, stop deletion, double-click color editing, line dragging, and Properties panel controls.
+**Photoweb behavior:** Live Gradient mode creates a non-destructive Gradient Fill layer and supports endpoint scale/angle edits; richer stop and Properties controls remain deferred.
+**Rationale:** The fill-layer contract is the foundational behavior for this cluster; adding the complete on-canvas and Properties editor is a larger interaction surface better built after non-destructive layer creation is stable.
+
+## 2026-05-14 — 22b-live-gradients — Gradient Fill geometry stored as endpoints
+
+**Photoshop behavior:** The Properties panel exposes live-gradient angle, scale, position, and reset alignment controls.
+**Photoweb behavior:** Gradient Fill layers store exact start/end points and repaint from those endpoints.
+**Rationale:** The existing gradient renderer is endpoint-driven, so storing endpoints preserves the drawn result and keeps later angle/scale/position UI derivable.
