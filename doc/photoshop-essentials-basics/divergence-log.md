@@ -198,6 +198,18 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoweb behavior:** No Home Screen; drop on blank workspace opens as new doc.
 **Rationale:** `home_screen` excluded per CLAUDE.md §4.
 
+## 2026-05-14 — 20a-brush-tool — HUD brush controls deferred
+
+**Photoshop behavior:** Alt/right-drag or Control/Option-drag opens a transient HUD brush control; Shift+Alt/right-drag opens the HUD color picker.
+**Photoweb behavior:** Brush size and hardness are available from the Options Bar, bracket shortcuts, and a compact right-click canvas picker. No transient HUD overlay is shown.
+**Rationale:** The core brush controls are reachable through durable UI and keyboard paths. HUD overlays require their own gesture layer and can be added later without changing painting semantics.
+
+## 2026-05-14 — 20a-brush-tool — Compact right-click brush picker
+
+**Photoshop behavior:** Right-clicking with Brush opens the full Brush Preset Picker with preset thumbnails plus Size and Hardness controls.
+**Photoweb behavior:** Right-clicking with Brush or Eraser opens a compact Size / Hardness picker only.
+**Rationale:** Preset authoring and full Brushes panel workflows belong to `20b-brush-presets`; this tick keeps the canvas picker focused on the controls needed for basic painting.
+
 ## 2026-05-13 — 04a-file-open-place — Load Files into Stack omits auto-align + Smart Object options
 
 **Photoshop behavior:** File > Scripts > Load Files into Stack opens a dialog with "Attempt to Automatically Align Source Images" and "Create Smart Object after Loading Layers" checkboxes.
