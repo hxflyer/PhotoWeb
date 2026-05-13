@@ -156,6 +156,7 @@ export interface DialogState {
     isSaveSelectionDialogOpen: boolean;
     isLoadSelectionDialogOpen: boolean;
     isColorRangeDialogOpen: boolean;
+    isFocusAreaDialogOpen: boolean;
     isDefringeDialogOpen: boolean;
 }
 
@@ -738,6 +739,8 @@ export interface PanelsSlice {
     closeLoadSelectionDialog: () => void;
     openColorRangeDialog: () => void;
     closeColorRangeDialog: () => void;
+    openFocusAreaDialog: () => void;
+    closeFocusAreaDialog: () => void;
     openDefringeDialog: () => void;
     closeDefringeDialog: () => void;
 }

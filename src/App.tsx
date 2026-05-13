@@ -29,6 +29,7 @@ import { DefringeDialog } from './components/Dialogs/DefringeDialog';
 import { ScaleEffectsDialog } from './components/Dialogs/ScaleEffectsDialog';
 import { SaveSelectionDialog, LoadSelectionDialog } from './components/Dialogs/SelectionDialogs';
 import { ColorRangeDialog } from './components/Dialogs/ColorRangeDialog';
+import { FocusAreaDialog } from './components/Dialogs/FocusAreaDialog';
 import { BorderSelectionDialog } from './components/Dialogs/BorderSelectionDialog';
 import { SmoothSelectionDialog } from './components/Dialogs/SmoothSelectionDialog';
 import { ExpandSelectionDialog, ContractSelectionDialog } from './components/Dialogs/ExpandSelectionDialog';
@@ -239,7 +240,7 @@ function App() {
         || s.dialogs.isNewLayerDialogOpen
         || s.dialogs.isColorPickerOpen || s.dialogs.isRefineEdgeDialogOpen
         || s.dialogs.isSaveSelectionDialogOpen || s.dialogs.isLoadSelectionDialogOpen
-        || s.dialogs.isColorRangeDialogOpen || s.dialogs.isDefringeDialogOpen
+        || s.dialogs.isColorRangeDialogOpen || s.dialogs.isFocusAreaDialogOpen || s.dialogs.isDefringeDialogOpen
         || s.dialogs.isArbitraryRotationOpen
         || s.dialogs.isTrimOpen || s.dialogs.isFeatherDialogOpen
         || s.dialogs.filterDialog.isOpen || s.dialogs.adjustmentDialog.isOpen;
@@ -1205,6 +1206,7 @@ function App() {
       <SaveSelectionDialog />
       <LoadSelectionDialog />
       <ColorRangeDialog />
+      <FocusAreaDialog isOpen={dialogs.isFocusAreaDialogOpen} onClose={() => gs().closeFocusAreaDialog()} />
       <BorderSelectionDialog />
       <SmoothSelectionDialog />
       <ExpandSelectionDialog />

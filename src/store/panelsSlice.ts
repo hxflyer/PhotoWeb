@@ -117,6 +117,7 @@ export const createPanelsSlice: StateCreator<EditorStore, [], [], PanelsSlice> =
         isSaveSelectionDialogOpen: false,
         isLoadSelectionDialogOpen: false,
         isColorRangeDialogOpen: false,
+        isFocusAreaDialogOpen: false,
         isDefringeDialogOpen: false,
     },
     panelVisibility: loadPanelVisibility(),
@@ -213,6 +214,8 @@ export const createPanelsSlice: StateCreator<EditorStore, [], [], PanelsSlice> =
     closeLoadSelectionDialog: () => set(state => ({ dialogs: { ...state.dialogs, isLoadSelectionDialogOpen: false } })),
     openColorRangeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isColorRangeDialogOpen: true } })),
     closeColorRangeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isColorRangeDialogOpen: false } })),
+    openFocusAreaDialog: () => set(state => ({ dialogs: { ...state.dialogs, isFocusAreaDialogOpen: true } })),
+    closeFocusAreaDialog: () => set(state => ({ dialogs: { ...state.dialogs, isFocusAreaDialogOpen: false } })),
     openDefringeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isDefringeDialogOpen: true } })),
     closeDefringeDialog: () => set(state => ({ dialogs: { ...state.dialogs, isDefringeDialogOpen: false } })),
 });
