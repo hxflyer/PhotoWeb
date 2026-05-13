@@ -8,38 +8,35 @@ ensureStubsRegistered();
 
 afterEach(() => {
     cleanup();
-    document.body.classList.remove('photoweb-standard', 'photoweb-full-with-menu', 'photoweb-full');
+    useEditorStore.getState().setScreenMode('standard');
 });
 
 describe('F key cycles screen modes', () => {
     beforeEach(() => {
         useEditorStore.getState().clearHistory();
         useEditorStore.setState(s => ({ ...s, layers: [], activeLayerId: null, activeTool: 'brush' }));
+        useEditorStore.getState().setScreenMode('standard');
     });
 
     it('F advances through Standard → Full With Menu → Full and wraps back', () => {
         render(<App />);
-        // No mode class initially.
-        const had = document.body.classList.contains('photoweb-standard') ||
-                    document.body.classList.contains('photoweb-full-with-menu') ||
-                    document.body.classList.contains('photoweb-full');
-        expect(had).toBe(false);
-
+        expect(useEditorStore.getState().screenMode).toBe('standard');
         fireEvent.keyDown(window, { key: 'f' });
-        expect(document.body.classList.contains('photoweb-full-with-menu')).toBe(true);
+        expect(useEditorStore.getState().screenMode).toBe('full-with-menu');
         fireEvent.keyDown(window, { key: 'f' });
-        expect(document.body.classList.contains('photoweb-full')).toBe(true);
+        expect(useEditorStore.getState().screenMode).toBe('full');
         fireEvent.keyDown(window, { key: 'f' });
-        expect(document.body.classList.contains('photoweb-standard')).toBe(true);
+        expect(useEditorStore.getState().screenMode).toBe('standard');
     });
 
     it('Shift+F cycles backward', () => {
         render(<App />);
-        // Start fresh: forward once so we're in a known state.
+        // Forward once to leave 'standard' so the backward step is observable.
         fireEvent.keyDown(window, { key: 'f' });
-        // Backward should land on 'standard' (index 0).
+        expect(useEditorStore.getState().screenMode).toBe('full-with-menu');
+        // Backward from 'full-with-menu' returns to 'standard'.
         fireEvent.keyDown(window, { key: 'f', shiftKey: true });
-        expect(document.body.classList.contains('photoweb-standard')).toBe(true);
+        expect(useEditorStore.getState().screenMode).toBe('standard');
     });
 });
 

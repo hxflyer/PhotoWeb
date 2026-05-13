@@ -82,6 +82,9 @@ export const SHORTCUTS: ShortcutEntry[] = [
     { group: 'View', label: 'Toggle Info panel',               keys: 'F8',  action: 'view.togglePanel.info' },
     { group: 'View', label: 'Hide / show all chrome',          keys: 'Tab',  action: 'view.hideChrome.all' },
     { group: 'View', label: 'Hide / show right panels',        keys: '⇧Tab', action: 'view.hideChrome.right' },
+    { group: 'View', label: 'Cycle screen mode forward',       keys: 'F',    action: 'view.screenMode.forward' },
+    { group: 'View', label: 'Cycle screen mode backward',      keys: '⇧F',   action: 'view.screenMode.backward' },
+    { group: 'View', label: 'Exit Full Screen Mode',           keys: 'Esc',  action: 'view.screenMode.exitFull' },
 
     // Tools
     { group: 'Tools', label: 'Move',                            keys: 'V',           action: 'tool.move' },

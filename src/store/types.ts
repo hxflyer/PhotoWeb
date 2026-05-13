@@ -550,12 +550,16 @@ export interface ViewSlice {
     setPanelGroupCollapsed: (groupId: PanelGroupId, collapsed: boolean) => void;
     chromeHidden: ChromeHidden;
     setChromeHidden: (mode: ChromeHidden) => void;
+    screenMode: ScreenMode;
+    setScreenMode: (mode: ScreenMode) => void;
+    cycleScreenMode: (direction: 1 | -1) => void;
 }
 
 export type PanelGroupId = 'top' | 'middle' | 'bottom';
 export type PanelTabOrder = Partial<Record<PanelGroupId, string[]>>;
 export type PanelGroupCollapsed = Partial<Record<PanelGroupId, boolean>>;
 export type ChromeHidden = 'none' | 'all' | 'right';
+export type ScreenMode = 'standard' | 'full-with-menu' | 'full';
 
 export type StatusBarInfoMode = 'documentSizes' | 'documentProfile' | 'documentDimensions' | 'currentTool' | 'layerCount';
 export type PasteboardColor = 'default' | 'black' | 'darkGray' | 'mediumGray' | 'lightGray' | 'custom';

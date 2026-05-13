@@ -107,3 +107,21 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Window menu has F-key shortcuts for ~10 panels (F5 Brush, F6 Color, F7 Layers, F8 Info, F9 Actions, etc.).
 **Photoweb behavior:** Wired F5 Brush Presets, F6 Color, F7 Layers, F8 Info. F9 Actions, F10/F11/F12 etc. not wired because the underlying panels don't exist in photoweb (Actions excluded per scope; others not yet built).
 **Rationale:** Bind F-keys only when the destination panel exists. New panels will pick up their own F-keys in their per-panel clusters.
+
+## 2026-05-13 — 01d-screen-modes — No Full-Screen-Mode warning dialog
+
+**Photoshop behavior:** First time entering Full Screen Mode, Photoshop shows a dialog warning "the interface will be hidden — click Full Screen to accept".
+**Photoweb behavior:** F immediately enters Full Screen; Esc / F exits.
+**Rationale:** Photoshop users who reach for F expect the mode change; the warning is mostly anti-confusion for new users. Adding a one-time dismissible dialog is convenience polish and deferred.
+
+## 2026-05-13 — 01d-screen-modes — No hover-near-edge auto-reveal in Full Screen
+
+**Photoshop behavior:** While in Full Screen Mode, hovering cursor near the LEFT edge reveals the toolbar; near the RIGHT edge reveals the panels.
+**Photoweb behavior:** Tab / Shift+Tab still work to toggle chrome while in any screen mode. No hover-edge reveal.
+**Rationale:** Convenience polish deferred; users have keyboard fallbacks (F, Esc, Tab, Shift+Tab).
+
+## 2026-05-13 — 01d-screen-modes — No multi-document cycling (Ctrl+Tab / Ctrl+Shift+Tab)
+
+**Photoshop behavior:** In Full Screen Mode, Ctrl+Tab cycles forward through open documents; Ctrl+Shift+Tab cycles backward.
+**Photoweb behavior:** Not implemented. Photoweb is single-document per CLAUDE.md §4 (multi_doc_ui excluded).
+**Rationale:** Scope.

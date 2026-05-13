@@ -68,14 +68,8 @@ function isPaintFamily(tool: string): boolean {
   return PAINT_FAMILY_TOOLS.has(tool);
 }
 
-const SCREEN_MODES = ['photoweb-standard', 'photoweb-full-with-menu', 'photoweb-full'] as const;
-let screenModeIndex = 0;
-function cycleScreenMode(dir: 1 | -1): void {
-  const body = document.body;
-  for (const m of SCREEN_MODES) body.classList.remove(m);
-  screenModeIndex = (screenModeIndex + dir + SCREEN_MODES.length) % SCREEN_MODES.length;
-  body.classList.add(SCREEN_MODES[screenModeIndex]);
-}
+// Screen mode state lives in viewSlice; see Toolbar / MenuBar / MainLayout for
+// the menu, toolbar icon, and layout-tracker integrations.
 
 function App() {
   // Narrow subscription: only fields that affect App's JSX (not color, brushSettings, etc.)
@@ -187,6 +181,17 @@ function App() {
         } else {
           s.setChromeHidden(s.chromeHidden === 'none' ? 'all' : 'none');
         }
+        return;
+      }
+
+      // Esc exits Full Screen Mode back to Standard. Only fires in Full
+      // Screen — Esc in Standard is reserved for other handlers (menu
+      // close, gesture cancel, etc.). The `anyDialog` early return above
+      // already prevents this from fighting dialog-Esc handlers.
+      if (!e.shiftKey && e.key === 'Escape' && s.screenMode === 'full') {
+        e.preventDefault();
+        s.setScreenMode('standard');
+        return;
       }
     };
     window.addEventListener('keydown', onKey);
@@ -452,11 +457,11 @@ function App() {
       if (!meta && !e.shiftKey && !e.altKey && key === 'd') { e.preventDefault(); gs().resetColors(); return; }
 
       // F cycles screen modes (Standard / Full Screen With Menu / Full Screen).
-      // Shift+F cycles backward. Toggle a class on <body> that the global
-      // stylesheet uses to hide chrome.
+      // Shift+F cycles backward. Reads through the store so the View menu and
+      // toolbar icon stay in sync.
       if (!meta && !e.altKey && key === 'f') {
         e.preventDefault();
-        cycleScreenMode(e.shiftKey ? -1 : 1);
+        gs().cycleScreenMode(e.shiftKey ? -1 : 1);
         return;
       }
 

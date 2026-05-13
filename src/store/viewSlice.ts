@@ -8,11 +8,14 @@ import type {
     PanelGroupId,
     PanelTabOrder,
     PasteboardColor,
+    ScreenMode,
     StatusBarInfoMode,
     ToolbarColumns,
     ToolId,
     ViewSlice,
 } from './types';
+
+const SCREEN_MODE_ORDER: readonly ScreenMode[] = ['standard', 'full-with-menu', 'full'] as const;
 
 const VIEW_PREFS_STORAGE_KEY = 'photoweb:viewPrefs:v1';
 const CHROME_PREFS_STORAGE_KEY = 'photoweb:chromePrefs:v1';
@@ -32,6 +35,7 @@ interface StoredChromePrefs {
     toolbarGroupActive?: Record<number, ToolId>;
     panelTabOrder?: PanelTabOrder;
     panelGroupCollapsed?: PanelGroupCollapsed;
+    screenMode?: ScreenMode;
 }
 
 // Photoshop's color-theme cycle: Shift+F2 forward (darker -> lighter).
@@ -112,6 +116,7 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
             panelTabOrder: chrome.panelTabOrder ?? {},
             panelGroupCollapsed: chrome.panelGroupCollapsed ?? {},
             chromeHidden: 'none' as ChromeHidden,
+            screenMode: chrome.screenMode ?? 'standard',
         };
     })(),
     zoom: 1,
@@ -327,5 +332,18 @@ export const createViewSlice: StateCreator<EditorStore, [], [], ViewSlice> = (se
     setChromeHidden: (mode) => {
         // Session-only — Photoshop resets to none on next launch.
         set({ chromeHidden: mode });
+    },
+    setScreenMode: (mode) => {
+        persistStoredChromePrefs({ screenMode: mode });
+        set({ screenMode: mode });
+    },
+    cycleScreenMode: (direction) => {
+        const current = get().screenMode;
+        const idx = SCREEN_MODE_ORDER.indexOf(current);
+        const len = SCREEN_MODE_ORDER.length;
+        const nextIdx = ((idx === -1 ? 0 : idx) + direction + len) % len;
+        const next = SCREEN_MODE_ORDER[nextIdx];
+        persistStoredChromePrefs({ screenMode: next });
+        set({ screenMode: next });
     },
 });

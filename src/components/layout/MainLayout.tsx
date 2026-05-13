@@ -24,23 +24,40 @@ export function MainLayout({
 }: MainLayoutProps) {
   const toolbarColumns = useEditorStore(s => s.toolbarColumns);
   const chromeHidden = useEditorStore(s => s.chromeHidden);
+  const screenMode = useEditorStore(s => s.screenMode);
   // 48px = single column (one 36px button + padding). 84px = double column.
   const baseToolbar = toolbarColumns === 2 ? 84 : 48;
-  // Tab hides every chrome surface except the menu bar; Shift+Tab hides
-  // only the right panel column. The grid tracks for hidden surfaces zero
-  // out so the canvas fills the freed space.
+  // Two orthogonal axes:
+  //   screenMode (Standard / Full With Menu Bar / Full) sets the base set
+  //   of chrome surfaces the user picked via F or the View menu.
+  //   chromeHidden (Tab / Shift+Tab) further hides chrome on top of that.
+  // A surface is visible iff BOTH axes allow it.
+  const sm_menuBar    = screenMode !== 'full';
+  const sm_options    = screenMode !== 'full';
+  const sm_toolbar    = screenMode !== 'full';
+  const sm_rightPanel = screenMode !== 'full';
+  const sm_docTab     = screenMode === 'standard';
+  const sm_statusBar  = screenMode === 'standard';
   const hideAll = chromeHidden === 'all';
   const hideRight = chromeHidden === 'right' || hideAll;
-  const toolbarWidth = hideAll ? 0 : baseToolbar;
-  const rightWidth = hideRight ? 0 : 260;
-  const optionsRow = hideAll ? '0px' : '30px';
-  const docTabRow = hideAll ? '0px' : '26px';
-  const statusRow = hideAll ? '0px' : '22px';
+  // Photoshop's Tab hides everything except the menu bar; we match.
+  const showMenuBar    = sm_menuBar;
+  const showOptions    = sm_options    && !hideAll;
+  const showToolbar    = sm_toolbar    && !hideAll;
+  const showRightPanel = sm_rightPanel && !hideRight;
+  const showDocTab     = sm_docTab     && !hideAll;
+  const showStatusBar  = sm_statusBar  && !hideAll;
+  const toolbarWidth = showToolbar ? baseToolbar : 0;
+  const rightWidth = showRightPanel ? 260 : 0;
+  const menuRow    = showMenuBar    ? '24px' : '0px';
+  const optionsRow = showOptions    ? '30px' : '0px';
+  const docTabRow  = showDocTab     ? '26px' : '0px';
+  const statusRow  = showStatusBar  ? '22px' : '0px';
   return (
     <div style={{
       display: 'grid',
       gridTemplateColumns: `${toolbarWidth}px 1fr ${rightWidth}px`,
-      gridTemplateRows: `24px ${optionsRow} ${docTabRow} 1fr ${statusRow}`,
+      gridTemplateRows: `${menuRow} ${optionsRow} ${docTabRow} 1fr ${statusRow}`,
       width: '100vw',
       height: '100vh',
       backgroundColor: 'hsl(var(--bg-dark))',

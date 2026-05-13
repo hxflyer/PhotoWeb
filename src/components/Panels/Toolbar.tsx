@@ -4,6 +4,7 @@ import {
     Wand2, Pencil, Move,
     PenTool, PenLine, MousePointer, Pipette, Type, Hand, ZoomIn,
     Hexagon, Minus, Star, Lasso, ChevronRight, ChevronsLeft, ChevronsRight, Repeat2,
+    Maximize, Maximize2, Minimize2,
 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { loadImage } from '../../utils/imageLoader';
@@ -153,6 +154,10 @@ export function Toolbar() {
     const setToolbarColumns = useEditorStore(s => s.setToolbarColumns);
     const groupActive = useEditorStore(s => s.toolbarGroupActive);
     const setToolbarGroupActive = useEditorStore(s => s.setToolbarGroupActive);
+    const screenMode = useEditorStore(s => s.screenMode);
+    const setScreenMode = useEditorStore(s => s.setScreenMode);
+    const [screenModeFlyoutOpen, setScreenModeFlyoutOpen] = useState(false);
+    const [screenModeFlyoutPos, setScreenModeFlyoutPos] = useState<{ left: number; top: number } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [flyout, setFlyout] = useState<number | null>(null);
@@ -183,6 +188,19 @@ export function Toolbar() {
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, [flyout, closeFlyout]);
+
+    // Close screen-mode flyout on outside click + Esc.
+    useEffect(() => {
+        if (!screenModeFlyoutOpen) return;
+        const close = () => setScreenModeFlyoutOpen(false);
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+        document.addEventListener('mousedown', close);
+        document.addEventListener('keydown', onKey, true);
+        return () => {
+            document.removeEventListener('mousedown', close);
+            document.removeEventListener('keydown', onKey, true);
+        };
+    }, [screenModeFlyoutOpen]);
 
     const selectTool = useCallback((tool: ToolDef) => {
         setTool(tool.id);
@@ -432,6 +450,32 @@ export function Toolbar() {
                 <QuickMaskIcon size={16} />
             </button>
 
+            {/* ── Screen Mode icon (last item at the bottom). Click-and-hold
+                 opens the 3-mode flyout; right-click opens it too. ── */}
+            <button
+                aria-label="Screen Mode"
+                data-testid="toolbar-screen-mode"
+                title="Screen Mode (F)"
+                onClick={(e) => {
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setScreenModeFlyoutPos({ left: rect.right + 2, top: rect.top });
+                    setScreenModeFlyoutOpen(o => !o);
+                }}
+                onContextMenu={(e) => {
+                    e.preventDefault();
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setScreenModeFlyoutPos({ left: rect.right + 2, top: rect.top });
+                    setScreenModeFlyoutOpen(o => !o);
+                }}
+                style={toolBtn(false)}
+            >
+                {screenMode === 'full'
+                    ? <Maximize size={16} />
+                    : screenMode === 'full-with-menu'
+                        ? <Maximize2 size={16} />
+                        : <Minimize2 size={16} />}
+            </button>
+
             {/* ── FG/BG color squares ── */}
             <div style={{ position: 'relative', width: 38, height: 38, margin: '6px auto 4px' }}>
                 {/* Reset to black/white (D) */}
@@ -548,6 +592,62 @@ export function Toolbar() {
                             );
                         });
                     })()}
+                </div>,
+                document.body
+            )}
+
+            {/* Screen Mode flyout — same portal pattern, with `■` indicator
+                next to the active mode (matches Photoshop's toolbar flyout). */}
+            {screenModeFlyoutOpen && screenModeFlyoutPos && createPortal(
+                <div
+                    data-testid="screen-mode-flyout"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    style={{
+                        position: 'fixed',
+                        left: screenModeFlyoutPos.left,
+                        top: screenModeFlyoutPos.top,
+                        backgroundColor: 'hsl(var(--bg-header))',
+                        border: '1px solid hsl(var(--border-light))',
+                        boxShadow: 'var(--shadow-menu)',
+                        zIndex: 9000,
+                        minWidth: 240,
+                        padding: '3px 0',
+                    }}
+                >
+                    {([
+                        { id: 'standard', label: 'Standard Screen Mode', Icon: Minimize2 },
+                        { id: 'full-with-menu', label: 'Full Screen Mode With Menu Bar', Icon: Maximize2 },
+                        { id: 'full', label: 'Full Screen Mode', Icon: Maximize },
+                    ] as const).map(item => {
+                        const isActive = screenMode === item.id;
+                        const ItemIcon = item.Icon;
+                        return (
+                            <div
+                                key={item.id}
+                                data-testid={`screen-mode-flyout-${item.id}`}
+                                onClick={() => {
+                                    setScreenMode(item.id);
+                                    setScreenModeFlyoutOpen(false);
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 10,
+                                    padding: '5px 12px',
+                                    cursor: 'default',
+                                    fontSize: 12,
+                                    color: isActive ? 'white' : 'hsl(var(--text-main))',
+                                    backgroundColor: isActive ? 'hsl(var(--accent-primary))' : 'transparent',
+                                    position: 'relative',
+                                }}
+                                onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'hsl(var(--bg-hover))'; }}
+                                onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                            >
+                                <span style={{ width: 8, textAlign: 'center', fontSize: 10 }}>{isActive ? '■' : ''}</span>
+                                <ItemIcon size={14} />
+                                <span style={{ flex: 1 }}>{item.label}</span>
+                                <span style={{ opacity: 0.6, fontSize: 11 }}>F</span>
+                            </div>
+                        );
+                    })}
                 </div>,
                 document.body
             )}

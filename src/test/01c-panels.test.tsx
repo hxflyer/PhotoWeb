@@ -195,7 +195,7 @@ describe('01c — Tab order persistence', () => {
         const allTabs = ['layers', 'channels', 'paths', 'history', 'properties', 'brush-presets', 'pattern-presets'];
         const positions = allTabs.map(t => {
             const el = getByTestId(`panel-tab-${t}`);
-            return el.getBoundingClientRect ? Array.from(el.parentElement!.children).indexOf(el) : 0;
+            return Array.from(el.parentElement!.children).indexOf(el);
         });
         // Stored tabs come first, fresh ones at the end.
         expect(positions[0]).toBeLessThan(positions[3]); // layers < history
