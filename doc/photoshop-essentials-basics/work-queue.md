@@ -16,7 +16,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 04c-file-save-close        (2) — Save As to protect original, Close / Close All  commit: 5b015f4
 - [x] 05a-image-size             (9) — Image Size dialog: pixels, resolution, resampling  commit: 051dbf6
 - [x] 05b-canvas-size            (1) — Canvas Size dialog, Crop Tool expand  commit: 0c195e9
-- [ ] 05c-rotate-straighten      (1) — Image Rotation, Straighten button, Ruler Tool
+- [x] 05c-rotate-straighten      (1) — Image Rotation, Straighten button, Ruler Tool  commit: 0abaf1f
 - [ ] 06-crop                    (7) — Crop Tool, Perspective Crop, single-layer / circular
 - [ ] 07a-layers-panel           (8) — Layers panel structure, rows, shortcuts
 - [ ] 07b-background-layer       (3) — Locked Background layer, convert-to-normal

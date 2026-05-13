@@ -287,3 +287,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Preserve Details and Preserve Details 2.0 use Adobe's proprietary upscaling algorithms.
 **Photoweb behavior:** The menu exposes both Photoshop labels, but both route to photoweb's deterministic bicubic-smoother resampler.
 **Rationale:** Proprietary/native upscaling and external AI/cloud services are outside scope; the labels preserve Photoshop discoverability while keeping resizing local and deterministic.
+
+## 2026-05-13 — 05c-rotate-straighten — Crop Straighten does not auto-crop after rotation
+
+**Photoshop behavior:** Crop Tool Straighten rotates the image and adjusts the crop boundary so the user can crop away transparent corners.
+**Photoweb behavior:** Crop Straighten rotates the document and reinitializes the crop rectangle for the new canvas size; full crop-box choreography is deferred.
+**Rationale:** The complete crop-boundary behavior belongs to `06-crop`; this tick preserves the Straighten button and Ctrl/Cmd temporary line-drag habit without expanding crop scope.
+
+## 2026-05-13 — 05c-rotate-straighten — Ruler Tool omits measurement readouts and scale calibration
+
+**Photoshop behavior:** Ruler Options Bar includes measurement readouts, measurement scale controls, Straighten Layer, and Clear.
+**Photoweb behavior:** Ruler Tool supports drawing/editing the line plus Straighten Layer and Clear; `Use Measurement Scale` is visible but inactive.
+**Rationale:** Measurement logging/calibration is outside the photo-straightening goal. The lesson's core workflow is preserved: draw/correct a ruler line and straighten the active layer.
