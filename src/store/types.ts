@@ -158,6 +158,20 @@ export interface DialogState {
     isDefringeDialogOpen: boolean;
 }
 
+export interface OpenDocumentRecord {
+    id: string;
+    name: string;
+    width: number;
+    height: number;
+    resolution: number;
+    layers: import('../core/Layer').Layer[];
+    activeLayerId: string | null;
+    selectedLayerIds: string[];
+    layerSelectionAnchorId: string | null;
+    isDirty: boolean;
+    lastSavedHistoryTick: number;
+}
+
 export interface BrushSettings {
     size: number;
     opacity: number;
@@ -230,8 +244,12 @@ export interface DocumentSlice {
     documentName: string;
     isDirty: boolean;
     lastSavedHistoryTick: number;
+    activeDocumentId: string | null;
+    openDocuments: OpenDocumentRecord[];
+    documentLayout: 'tabs' | '2-up-vertical';
     globalLight: GlobalLight;
     clipboardImageInfo: ClipboardImageInfo | null;
+    transferLayerClipboard: import('../core/Layer').Layer | null;
     setGlobalLight: (light: GlobalLight) => void;
     setCanvasSize: (width: number, height: number) => void;
     rotateCanvas: (degrees: number) => void;
@@ -243,6 +261,11 @@ export interface DocumentSlice {
     trimCanvas: (basis: import('../core/imageTransforms').TrimBasis, sides: { top: boolean; right: boolean; bottom: boolean; left: boolean }) => void;
     newDocument: (w: number, h: number, bg: string, name?: string, resolution?: number) => boolean;
     openImageAsDocument: (img: HTMLImageElement, name: string) => boolean;
+    switchDocument: (id: string) => void;
+    arrangeDocuments: (layout: 'tabs' | '2-up-vertical') => void;
+    duplicateLayerToDocument: (layerId: string, documentId: string, name?: string, center?: boolean) => void;
+    copyActiveLayerForTransfer: () => boolean;
+    pasteTransferredLayer: (center?: boolean) => boolean;
     setDocumentName: (name: string) => void;
     setHasAutosave: (has: boolean) => void;
     dismissAutosave: () => void;

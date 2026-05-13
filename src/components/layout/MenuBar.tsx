@@ -113,6 +113,9 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const barRef = useRef<HTMLDivElement>(null);
+  const openDocuments = useEditorStore(s => s.openDocuments);
+  const activeDocumentId = useEditorStore(s => s.activeDocumentId);
+  const documentLayout = useEditorStore(s => s.documentLayout);
 
   // Close on outside click
   useEffect(() => {
@@ -194,10 +197,20 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       })(),
       sep,
       act('Cut', () => document.execCommand('cut'), '⌘X'),
-      act('Copy', () => copyActiveDocumentForClipboard(useEditorStore.getState()), '⌘C'),
+      act('Copy', () => {
+        const s = useEditorStore.getState();
+        s.copyActiveLayerForTransfer();
+        copyActiveDocumentForClipboard(s);
+      }, '⌘C'),
       act('Copy Merged', () => {}, '⌘⇧C', true),
-      act('Paste', () => document.execCommand('paste'), '⌘V'),
-      act('Paste in Place', () => {}, '⌘⇧V', true),
+      act('Paste', () => {
+        const pasted = useEditorStore.getState().pasteTransferredLayer(false);
+        if (!pasted) document.execCommand('paste');
+      }, '⌘V'),
+      act('Paste in Place', () => {
+        const pasted = useEditorStore.getState().pasteTransferredLayer(false);
+        if (!pasted) document.execCommand('paste');
+      }, '⌘⇧V'),
       sep,
       act('Fill…', () => {}, '⇧F5', true),
       act('Stroke…', () => {}, undefined, true),
@@ -369,7 +382,15 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Solid Color…', () => useEditorStore.getState().addFillLayer({ kind: 'solid-color', color: '#ffffff' })),
         act('Gradient…', () => useEditorStore.getState().addFillLayer({ kind: 'gradient', type: 'linear', angle: 0, stops: [{ position: 0, color: '#000000', opacity: 1 }, { position: 1, color: '#ffffff', opacity: 1 }] })),
       ),
-      act('Duplicate Layer…', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.duplicateLayer(s.activeLayerId); }, '⌘J'),
+      sub('Duplicate Layer…',
+        act('Current Document', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.duplicateLayer(s.activeLayerId); }, '⌘J'),
+        ...openDocuments
+          .filter(doc => doc.id !== activeDocumentId)
+          .map(doc => act(doc.name, () => {
+            const s = useEditorStore.getState();
+            if (s.activeLayerId) s.duplicateLayerToDocument(s.activeLayerId, doc.id);
+          })),
+      ),
       sub('Delete',
         act('Layer', () => { const s = useEditorStore.getState(); if (s.activeLayerId) s.removeLayer(s.activeLayerId); }),
         act('Hidden Layers', () => {}, undefined, true),
@@ -616,6 +637,14 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
     ],
 
     Window: [
+      sub('Arrange',
+        chk('Consolidate All to Tabs', () => documentLayout === 'tabs', () => useEditorStore.getState().arrangeDocuments('tabs')),
+        chk('2-up Vertical', () => documentLayout === '2-up-vertical', () => useEditorStore.getState().arrangeDocuments('2-up-vertical')),
+        act('Float All in Windows', () => useEditorStore.getState().arrangeDocuments('2-up-vertical')),
+      ),
+      sep,
+      ...openDocuments.map(doc => chk(doc.name, () => doc.id === activeDocumentId, () => useEditorStore.getState().switchDocument(doc.id))),
+      ...(openDocuments.length > 0 ? [sep] as MI[] : []),
       chk('History', () => useEditorStore.getState().panelVisibility.history, () => useEditorStore.getState().togglePanelVisibility('history')),
       chk('Layers', () => useEditorStore.getState().panelVisibility.layers, () => useEditorStore.getState().togglePanelVisibility('layers'), 'F7'),
       chk('Channels', () => useEditorStore.getState().panelVisibility.channels, () => useEditorStore.getState().togglePanelVisibility('channels')),

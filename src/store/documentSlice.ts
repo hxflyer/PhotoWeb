@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { DocumentSlice, EditorStore } from './types';
+import type { DocumentSlice, EditorStore, OpenDocumentRecord } from './types';
 import {
     rotateCanvas as rotateCanvasHelper,
     rotateCanvasInPlace,
@@ -14,6 +14,8 @@ import {
 } from '../core/imageTransforms';
 import { saveDocument, loadDocument } from '../core/persistence';
 import { Layer as LayerClass } from '../core/Layer';
+import type { Layer as LayerInstance } from '../core/Layer';
+import type { FillLayerData } from '../core/fillLayer';
 
 function copyCanvasContent(dst: HTMLCanvasElement, src: HTMLCanvasElement): void {
     dst.width = src.width;
@@ -21,6 +23,125 @@ function copyCanvasContent(dst: HTMLCanvasElement, src: HTMLCanvasElement): void
     const ctx = dst.getContext('2d')!;
     ctx.clearRect(0, 0, dst.width, dst.height);
     ctx.drawImage(src, 0, 0);
+}
+
+interface LayerWithMeta extends LayerInstance {
+    adjustment?: { id: string; params: Record<string, unknown> };
+    fillData?: FillLayerData;
+}
+
+function cloneLayerForDocument(src: LayerInstance, width = src.canvas.width, height = src.canvas.height, name = src.name, center = false): LayerInstance {
+    const clone = new LayerClass(width, height, name, src.kind) as LayerWithMeta;
+    clone.visible = src.visible;
+    clone.opacity = src.opacity;
+    clone.fill = src.fill;
+    clone.blendMode = src.blendMode;
+    clone.expanded = src.expanded;
+    clone.locks = { ...src.locks };
+    clone.colorTag = src.colorTag;
+    clone.effects = src.effects?.map(e => ({ ...e, params: structuredClone(e.params ?? {}) })) ?? [];
+    clone.typeData = src.typeData ? structuredClone(src.typeData) : null;
+    clone.shapeData = src.shapeData ? structuredClone(src.shapeData) : null;
+    clone.isBackground = false;
+    clone.parentId = null;
+
+    const dx = center ? Math.round((width - src.canvas.width) / 2) : 0;
+    const dy = center ? Math.round((height - src.canvas.height) / 2) : 0;
+    clone.ctx.drawImage(src.canvas, dx, dy);
+
+    const srcMeta = src as LayerWithMeta;
+    if (srcMeta.adjustment) clone.adjustment = { id: srcMeta.adjustment.id, params: structuredClone(srcMeta.adjustment.params ?? {}) };
+    if (srcMeta.fillData) clone.fillData = structuredClone(srcMeta.fillData);
+    if (src.mask) {
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = width;
+        maskCanvas.height = height;
+        const mctx = maskCanvas.getContext('2d');
+        if (mctx) {
+            mctx.drawImage(src.mask.canvas, dx, dy);
+            clone.mask = {
+                canvas: maskCanvas,
+                ctx: mctx,
+                enabled: src.mask.enabled,
+                linked: src.mask.linked,
+                density: src.mask.density,
+                feather: src.mask.feather,
+            };
+        }
+    }
+    clone.markDirty(null);
+    return clone;
+}
+
+function cloneLayers(layers: LayerInstance[]): LayerInstance[] {
+    const idMap = new Map<string, string>();
+    const clones = layers.map(layer => {
+        const clone = cloneLayerForDocument(layer, layer.canvas.width, layer.canvas.height, layer.name);
+        clone.id = layer.id;
+        clone.parentId = layer.parentId;
+        clone.isBackground = layer.isBackground;
+        clone.locks = { ...layer.locks };
+        idMap.set(layer.id, clone.id);
+        return clone;
+    });
+    clones.forEach((clone, index) => {
+        const original = layers[index];
+        clone.parentId = original.parentId ? idMap.get(original.parentId) ?? original.parentId : null;
+    });
+    return clones;
+}
+
+function captureCurrentDocument(state: EditorStore): OpenDocumentRecord | null {
+    if (!state.documentName && state.layers.length === 0) return null;
+    if (state.layers.length === 0) return null;
+    return {
+        id: state.activeDocumentId ?? crypto.randomUUID(),
+        name: state.documentName || 'Untitled',
+        width: state.width,
+        height: state.height,
+        resolution: state.resolution,
+        layers: cloneLayers(state.layers),
+        activeLayerId: state.activeLayerId,
+        selectedLayerIds: [...state.selectedLayerIds],
+        layerSelectionAnchorId: state.layerSelectionAnchorId,
+        isDirty: state.isDirty,
+        lastSavedHistoryTick: state.lastSavedHistoryTick,
+    };
+}
+
+function upsertDocumentRecord(records: OpenDocumentRecord[], record: OpenDocumentRecord | null): OpenDocumentRecord[] {
+    if (!record) return records;
+    const index = records.findIndex(doc => doc.id === record.id);
+    if (index === -1) return [...records, record];
+    const next = [...records];
+    next[index] = record;
+    return next;
+}
+
+function installDocumentRecord(record: OpenDocumentRecord): Partial<EditorStore> {
+    return {
+        activeDocumentId: record.id,
+        documentName: record.name,
+        width: record.width,
+        height: record.height,
+        resolution: record.resolution,
+        layers: cloneLayers(record.layers),
+        activeLayerId: record.activeLayerId,
+        selectedLayerIds: [...record.selectedLayerIds],
+        layerSelectionAnchorId: record.layerSelectionAnchorId,
+        isDirty: record.isDirty,
+        lastSavedHistoryTick: record.lastSavedHistoryTick,
+        selection: {
+            hasSelection: false,
+            mode: 'rect',
+            path: [],
+            polyPoints: [],
+            operations: [],
+            isDraggingSelection: false,
+            isFreeEditMode: false,
+        },
+        quickMaskMode: false,
+    };
 }
 
 // STAB-03: Browser-friendly raster ceiling. 60 MP (~7745x7745 RGBA = ~240MB
@@ -120,8 +241,12 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
     documentName: 'Untitled',
     isDirty: false,
     lastSavedHistoryTick: 0,
+    activeDocumentId: null,
+    openDocuments: [],
+    documentLayout: 'tabs',
     globalLight: { angle: 120, altitude: 30 },
     clipboardImageInfo: null,
+    transferLayerClipboard: null,
 
     setGlobalLight: (light) => {
         const a = Number.isFinite(light.angle) ? light.angle : 120;
@@ -361,6 +486,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
 
     newDocument: (w, h, bg, name, resolution) => {
         if (!guardDocumentSize(w, h, get().reportError)) return false;
+        const currentRecord = captureCurrentDocument(get());
+        const newId = crypto.randomUUID();
         const nextResolution = Number.isFinite(resolution) && resolution !== undefined && resolution > 0 ? resolution : 72;
         let newLayer: LayerClass;
         try {
@@ -388,6 +515,20 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             documentName: trimmedName.length > 0 ? trimmedName : 'Untitled',
             isDirty: false,
             lastSavedHistoryTick: get().historyTick,
+            activeDocumentId: newId,
+            openDocuments: upsertDocumentRecord(upsertDocumentRecord(currentRecord ? get().openDocuments : [], currentRecord), {
+                id: newId,
+                name: trimmedName.length > 0 ? trimmedName : 'Untitled',
+                width: w,
+                height: h,
+                resolution: nextResolution,
+                layers: cloneLayers([newLayer]),
+                activeLayerId: newLayer.id,
+                selectedLayerIds: [newLayer.id],
+                layerSelectionAnchorId: newLayer.id,
+                isDirty: false,
+                lastSavedHistoryTick: get().historyTick,
+            }),
             selection: {
                 ...get().selection,
                 hasSelection: false,
@@ -403,6 +544,20 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
     recordClipboardImageInfo: (info) => set({ clipboardImageInfo: info }),
 
     closeDocument: () => {
+        const state = get();
+        const activeId = state.activeDocumentId;
+        if (activeId) {
+            const activeKnown = state.openDocuments.some(doc => doc.id === activeId);
+            const remaining = state.openDocuments.filter(doc => doc.id !== activeId);
+            if (activeKnown && remaining.length > 0) {
+                const nextActive = remaining[remaining.length - 1];
+                set({
+                    ...installDocumentRecord(nextActive),
+                    openDocuments: remaining,
+                });
+                return;
+            }
+        }
         set({
             layers: [],
             activeLayerId: null,
@@ -413,6 +568,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             width: 0,
             height: 0,
             resolution: 72,
+            activeDocumentId: null,
+            openDocuments: [],
             selection: {
                 ...get().selection,
                 hasSelection: false,
@@ -428,6 +585,8 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         const w = Math.max(1, Math.round(img.naturalWidth || img.width));
         const h = Math.max(1, Math.round(img.naturalHeight || img.height));
         if (!guardDocumentSize(w, h, get().reportError)) return false;
+        const currentRecord = captureCurrentDocument(get());
+        const newId = crypto.randomUUID();
         let newLayer: LayerClass;
         try {
             newLayer = new LayerClass(w, h, 'Background');
@@ -452,6 +611,20 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
             documentName: name,
             isDirty: false,
             lastSavedHistoryTick: get().historyTick,
+            activeDocumentId: newId,
+            openDocuments: upsertDocumentRecord(upsertDocumentRecord(currentRecord ? get().openDocuments : [], currentRecord), {
+                id: newId,
+                name,
+                width: w,
+                height: h,
+                resolution: 72,
+                layers: cloneLayers([newLayer]),
+                activeLayerId: newLayer.id,
+                selectedLayerIds: [newLayer.id],
+                layerSelectionAnchorId: newLayer.id,
+                isDirty: false,
+                lastSavedHistoryTick: get().historyTick,
+            }),
             selection: {
                 ...get().selection,
                 hasSelection: false,
@@ -465,7 +638,96 @@ export const createDocumentSlice: StateCreator<EditorStore, [], [], DocumentSlic
         return true;
     },
 
-    setDocumentName: (name) => set({ documentName: name }),
+    switchDocument: (id) => {
+        const state = get();
+        if (state.activeDocumentId === id) return;
+        const currentRecord = captureCurrentDocument(state);
+        const records = upsertDocumentRecord(state.openDocuments, currentRecord);
+        const target = records.find(doc => doc.id === id);
+        if (!target) return;
+        set({
+            ...installDocumentRecord(target),
+            openDocuments: records,
+        });
+    },
+
+    arrangeDocuments: (layout) => set({ documentLayout: layout }),
+
+    duplicateLayerToDocument: (layerId, documentId, name, center = false) => {
+        const state = get();
+        const src = state.layers.find(layer => layer.id === layerId);
+        if (!src) return;
+        const records = upsertDocumentRecord(state.openDocuments, captureCurrentDocument(state));
+        const target = records.find(doc => doc.id === documentId);
+        if (!target) return;
+        const cloneName = (name && name.trim()) || `${src.name} copy`;
+        if (documentId === state.activeDocumentId) {
+            get().executeDocumentCommand({
+                kind: 'layer-add',
+                label: 'Duplicate Layer',
+                layerId,
+                run: () => {
+                    const fresh = get().layers.find(layer => layer.id === layerId);
+                    if (!fresh) return;
+                    const dup = cloneLayerForDocument(fresh, get().width, get().height, cloneName, center);
+                    set({
+                        layers: [...get().layers, dup],
+                        activeLayerId: dup.id,
+                        selectedLayerIds: [dup.id],
+                        layerSelectionAnchorId: dup.id,
+                        openDocuments: records,
+                    });
+                },
+            });
+            return;
+        }
+        const dup = cloneLayerForDocument(src, target.width, target.height, cloneName, center);
+        const nextTarget: OpenDocumentRecord = {
+            ...target,
+            layers: [...target.layers, dup],
+            activeLayerId: dup.id,
+            selectedLayerIds: [dup.id],
+            layerSelectionAnchorId: dup.id,
+            isDirty: true,
+        };
+        set({ openDocuments: upsertDocumentRecord(records, nextTarget) });
+    },
+
+    copyActiveLayerForTransfer: () => {
+        const state = get();
+        const layer = state.layers.find(item => item.id === state.activeLayerId);
+        if (!layer) return false;
+        set({ transferLayerClipboard: cloneLayerForDocument(layer, layer.canvas.width, layer.canvas.height, layer.name) });
+        return true;
+    },
+
+    pasteTransferredLayer: (center = false) => {
+        const state = get();
+        const src = state.transferLayerClipboard;
+        if (!src || state.width < 1 || state.height < 1) return false;
+        get().executeDocumentCommand({
+            kind: 'layer-add',
+            label: 'Paste Layer',
+            run: () => {
+                const pasted = cloneLayerForDocument(src, get().width, get().height, src.name, center);
+                set({
+                    layers: [...get().layers, pasted],
+                    activeLayerId: pasted.id,
+                    selectedLayerIds: [pasted.id],
+                    layerSelectionAnchorId: pasted.id,
+                });
+            },
+        });
+        return true;
+    },
+
+    setDocumentName: (name) => set((state) => {
+        const record = captureCurrentDocument({ ...state, documentName: name } as EditorStore);
+        return {
+            documentName: name,
+            openDocuments: state.activeDocumentId && record ? upsertDocumentRecord(state.openDocuments, record) : state.openDocuments,
+        };
+    }),
     setHasAutosave: (has) => set({ hasAutosave: has }),
     dismissAutosave: () => set({ hasAutosave: false }),
     markDocumentDirty: () => {

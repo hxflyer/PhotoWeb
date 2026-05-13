@@ -430,7 +430,18 @@ function App() {
       }
       if (meta && key === 'i' && e.altKey && !e.shiftKey) { e.preventDefault(); gs().openImageSizeDialog(); return; }
       if (meta && key === 'c' && e.altKey && !e.shiftKey) { e.preventDefault(); gs().openCanvasSizeDialog(); return; }
-      if (meta && key === 'c' && !e.shiftKey && !e.altKey) { e.preventDefault(); copyActiveDocumentForClipboard(gs()); return; }
+      if (meta && key === 'c' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        const s = gs();
+        s.copyActiveLayerForTransfer();
+        copyActiveDocumentForClipboard(s);
+        return;
+      }
+      if (meta && key === 'v' && !e.altKey) {
+        e.preventDefault();
+        if (!gs().pasteTransferredLayer(false)) document.execCommand('paste');
+        return;
+      }
       if (meta && key === 'i' && !e.shiftKey && !e.altKey) { e.preventDefault(); gs().toggleInvertSelection(); return; }
 
       if (meta && key === '/') { e.preventDefault(); setShortcutsOpen(true); return; }

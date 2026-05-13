@@ -335,3 +335,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** The enhanced Properties panel offers Convert to Frame on type layers, Select Subject / Remove Background on pixel layers, and detailed Rulers & Grids / Guides groups for Background documents.
 **Photoweb behavior:** Convert to Frame is disabled, AI quick actions are absent, and Background Properties focuses on document size plus Image Size, Crop, Trim, and Rotate.
 **Rationale:** Photoweb has no Frame layer model, no AI/object-selection service, and only partial guide/grid infrastructure. The implemented controls preserve local, deterministic Photoshop habits already supported elsewhere in the app.
+
+## 2026-05-13 — 08c-doc-transfer — Arrange commands without floating/live tiled windows
+
+**Photoshop behavior:** Window > Arrange can show multiple live document windows in 2-up layouts or detach them as floating OS windows, and users can drag pixels directly between those live windows.
+**Photoweb behavior:** Multiple documents are real and switchable by tabs; Duplicate Layer and Copy/Paste transfer layers between them. Arrange commands are exposed as state, but this tick does not render simultaneous live viewports or floating windows.
+**Rationale:** The current browser shell has one canvas viewport and one right-side panel stack. Real tiled/floating document windows would be a larger shell rewrite, so this tick preserves the document-transfer workflows that can be made robust inside the existing architecture.
