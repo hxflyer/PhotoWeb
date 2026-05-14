@@ -6,7 +6,7 @@ import { resolveFontFamily, shouldEmitFallbackToast } from '../utils/fontList';
 import { applyTextWarp } from '../utils/textWarp';
 
 export type TypeOrientation = 'horizontal' | 'vertical';
-export type TypeTextMode = 'point' | 'box' | 'path';
+export type TypeTextMode = 'point' | 'box' | 'path' | 'shape';
 
 export interface TypeBounds { x: number; y: number; w: number; h: number }
 
@@ -32,6 +32,7 @@ export interface TypePathShape {
 
 interface TypePathBridge {
     hitSegment: (x: number, y: number) => { path: TypePathShape; point: { x: number; y: number } } | null;
+    hitInterior: (x: number, y: number) => { path: TypePathShape } | null;
     clonePath: (path: TypePathShape) => TypePathShape;
 }
 
@@ -90,6 +91,10 @@ export interface TypeLayerData {
         startOffset: number;
         endOffset?: number;
         flipped: boolean;
+    };
+    /** Text constrained inside a closed path. */
+    shapeText?: {
+        path: TypePathShape;
     };
 }
 
@@ -427,6 +432,32 @@ function pathBounds(samples: PathSample[], pad: number): TypeBounds {
     };
 }
 
+function boundsForTypePath(path: TypePathShape, pad: number): TypeBounds {
+    return pathBounds(flattenTypePath(path), pad);
+}
+
+function traceTypePath(ctx: CanvasRenderingContext2D, path: TypePathShape): void {
+    if (path.anchors.length === 0) return;
+    const first = path.anchors[0];
+    ctx.beginPath();
+    ctx.moveTo(first.x, first.y);
+    for (let i = 1; i < path.anchors.length; i++) {
+        const prev = path.anchors[i - 1];
+        const curr = path.anchors[i];
+        const c1 = prev.outHandle ?? prev;
+        const c2 = curr.inHandle ?? curr;
+        ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, curr.x, curr.y);
+    }
+    if (path.closed && path.anchors.length >= 2) {
+        const prev = path.anchors[path.anchors.length - 1];
+        const curr = path.anchors[0];
+        const c1 = prev.outHandle ?? prev;
+        const c2 = curr.inHandle ?? curr;
+        ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, curr.x, curr.y);
+        ctx.closePath();
+    }
+}
+
 function nearestPathDistance(path: TypePathShape, x: number, y: number): number {
     const samples = flattenTypePath(path);
     let best = samples[0]?.distance ?? 0;
@@ -580,6 +611,29 @@ function makeTypeTool(id: string, label: string, orientation: TypeOrientation): 
                 return;
             }
 
+            const interiorHit = bridge?.hitInterior(point.x, point.y);
+            if (bridge && interiorHit) {
+                const path = bridge.clonePath(interiorHit.path);
+                const bounds = boundsForTypePath(path, 0);
+                const data = addImmediateTypeLayer(store, ctx.getStore, {
+                    id: crypto.randomUUID(),
+                    text: 'text',
+                    textMode: 'shape',
+                    style: { ...defaultTextStyle, color: store.primaryColor },
+                    orientation,
+                    transform: {
+                        x: bounds.x,
+                        y: bounds.y,
+                        width: bounds.w,
+                        height: bounds.h,
+                        rotation: 0,
+                    },
+                    shapeText: { path },
+                });
+                setEditingType(data);
+                return;
+            }
+
             // Otherwise start a fresh text edit at the click point.
             typeToolState.pendingBox = { start: point, current: point, orientation };
             notifyTypeChange();
@@ -702,6 +756,62 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
     else if (aa === 'smooth') textCtx.textRendering = 'optimizeSpeed';
     else textCtx.textRendering = 'auto';
     const lineStep = base.fontSize * lineH;
+    if (data.textMode === 'shape' && data.shapeText?.path) {
+        const b = boundsForTypePath(data.shapeText.path, 0);
+        data.transform = { ...data.transform, x: b.x, y: b.y, width: b.w, height: b.h };
+        ctx.save();
+        traceTypePath(ctx, data.shapeText.path);
+        ctx.clip();
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = base.color;
+        const words = data.text.split(/(\s+)/);
+        let x = b.x + base.indentLeft + base.indentFirst;
+        let y = b.y + base.spaceBefore - base.baselineShift;
+        const maxX = b.x + b.w - base.indentRight;
+        const drawToken = (token: string, index: number) => {
+            const s = styleAtOffset(data, Math.min(data.text.length - 1, index));
+            const out = s.allCaps ? token.toUpperCase() : token;
+            const weight = s.fauxBold ? 700 : s.fontWeight;
+            const fontStyleStr = s.fauxItalic || s.fontStyle === 'italic' ? 'italic' : 'normal';
+            ctx.font = `${fontStyleStr} ${weight} ${s.fontSize}px ${s.fontFamily}`;
+            ctx.fillStyle = s.color;
+            const tracking = (s.letterSpacing / 1000) * s.fontSize;
+            (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${tracking}px`;
+            const w = ctx.measureText(out).width + tracking * out.length;
+            if (x > b.x + base.indentLeft && x + w > maxX && !/^\s+$/.test(token)) {
+                x = b.x + base.indentLeft;
+                y += lineStep;
+            }
+            if (y + s.fontSize <= b.y + b.h - base.spaceAfter) {
+                ctx.fillText(out, x, y - s.baselineShift);
+                if (s.fauxBold) ctx.fillText(out, x + 0.5, y - s.baselineShift);
+            }
+            x += w;
+        };
+        let offset = 0;
+        words.forEach(token => {
+            if (token.includes('\n')) {
+                token.split(/(\n)/).forEach(part => {
+                    if (part === '\n') {
+                        x = b.x + base.indentLeft;
+                        y += lineStep;
+                        offset++;
+                    } else if (part) {
+                        drawToken(part, offset);
+                        offset += part.length;
+                    }
+                });
+                return;
+            }
+            drawToken(token, offset);
+            offset += token.length;
+        });
+        ctx.restore();
+        data.bounds = { x: b.x, y: b.y, w: b.w, h: b.h };
+        ctx.restore();
+        applyWarpToCommittedType(ctx, layerCanvas, data);
+        return;
+    }
     if (data.textMode === 'path' && data.pathText?.path) {
         const samples = flattenTypePath(data.pathText.path);
         const totalLength = samples.at(-1)?.distance ?? 0;

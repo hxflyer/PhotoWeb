@@ -4,7 +4,7 @@ import { Layer } from '../core/Layer';
 import { rerenderShapeLayer } from './shapeRender';
 import { useEditorStore } from '../store/editorStore';
 import { buildSnapCandidates, snapPoint, type SnapTarget } from './snap';
-import { getCustomShapeById } from './customShapes';
+import { CUSTOM_SHAPE_VIEWBOX, getCustomShapeById } from './customShapes';
 import { renderCombinedShapeCanvas, type ShapeBooleanOp } from '../utils/shapeBoolean';
 import { addPath, type PathShape } from './pen';
 import type {
@@ -328,8 +328,66 @@ function shapeDataToPath(data: ShapeData): PathShape | null {
             return anchors.length > 1 ? { id, closed: true, anchors } : null;
         }
         case 'custom':
-            return null;
+            return customShapeDataToPath(data, id);
     }
+}
+
+function customShapeDataToPath(data: Extract<ShapeData, { kind: 'custom' }>, id: string): PathShape | null {
+    const { bounds, pathD } = data;
+    if (bounds.w < 1 || bounds.h < 1) return null;
+    const uniformScale = Math.min(bounds.w / CUSTOM_SHAPE_VIEWBOX, bounds.h / CUSTOM_SHAPE_VIEWBOX);
+    const drawnSize = CUSTOM_SHAPE_VIEWBOX * uniformScale;
+    const offsetX = bounds.x + (bounds.w - drawnSize) / 2;
+    const offsetY = bounds.y + (bounds.h - drawnSize) / 2;
+    const map = (x: number, y: number) => ({ x: offsetX + x * uniformScale, y: offsetY + y * uniformScale });
+    const tokens = pathD.match(/[AaCcLlMmZz]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) ?? [];
+    const anchors: PathShape['anchors'] = [];
+    let i = 0;
+    let cmd = '';
+    let current = { x: 0, y: 0 };
+    let closed = false;
+    const isCmd = (token: string) => /^[AaCcLlMmZz]$/.test(token);
+    const num = () => Number(tokens[i++]);
+    while (i < tokens.length) {
+        if (isCmd(tokens[i])) cmd = tokens[i++];
+        if (cmd === 'M' || cmd === 'm') {
+            if (anchors.length > 0) break;
+            const x = num();
+            const y = num();
+            current = cmd === 'm' ? { x: current.x + x, y: current.y + y } : { x, y };
+            anchors.push({ ...map(current.x, current.y), type: 'corner' });
+            cmd = cmd === 'm' ? 'l' : 'L';
+        } else if (cmd === 'L' || cmd === 'l') {
+            const x = num();
+            const y = num();
+            current = cmd === 'l' ? { x: current.x + x, y: current.y + y } : { x, y };
+            anchors.push({ ...map(current.x, current.y), type: 'corner' });
+        } else if (cmd === 'C' || cmd === 'c') {
+            const c1 = { x: num(), y: num() };
+            const c2 = { x: num(), y: num() };
+            const end = { x: num(), y: num() };
+            const absC1 = cmd === 'c' ? { x: current.x + c1.x, y: current.y + c1.y } : c1;
+            const absC2 = cmd === 'c' ? { x: current.x + c2.x, y: current.y + c2.y } : c2;
+            const absEnd = cmd === 'c' ? { x: current.x + end.x, y: current.y + end.y } : end;
+            const prev = anchors[anchors.length - 1];
+            if (prev) prev.outHandle = map(absC1.x, absC1.y);
+            anchors.push({ ...map(absEnd.x, absEnd.y), inHandle: map(absC2.x, absC2.y), type: 'smooth' });
+            current = absEnd;
+        } else if (cmd === 'A' || cmd === 'a') {
+            // Arc-to is approximated as a straight segment for editable path mode.
+            num(); num(); num(); num(); num();
+            const x = num();
+            const y = num();
+            current = cmd === 'a' ? { x: current.x + x, y: current.y + y } : { x, y };
+            anchors.push({ ...map(current.x, current.y), type: 'corner' });
+        } else if (cmd === 'Z' || cmd === 'z') {
+            closed = true;
+            break;
+        } else {
+            break;
+        }
+    }
+    return anchors.length >= 2 ? { id, closed, anchors } : null;
 }
 
 function drawPixelShape(

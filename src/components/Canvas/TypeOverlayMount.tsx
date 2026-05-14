@@ -60,7 +60,7 @@ export function TypeOverlayMount() {
             style={editing.style}
             initialValue={editing.text}
             styleRuns={editing.styleRuns}
-            textMode={editing.textMode ?? 'point'}
+            textMode={editing.textMode === 'shape' ? 'box' : editing.textMode ?? 'point'}
             zoom={viewportZoom}
             onChange={(v, styleRuns) => setEditingType({ ...editing, text: v, styleRuns })}
             onTransformChange={(transform) => setEditingType({ ...editing, transform })}
@@ -119,7 +119,7 @@ function RichTypeText({ data }: { data: TypeLayerData }) {
 function TypeLayerVisual({ layer }: { layer: Layer }) {
     const data = layer.typeData as TypeLayerData | null;
     if (!data) return null;
-    if ((data.textMode ?? 'point') === 'path') return null;
+    if ((data.textMode ?? 'point') === 'path' || (data.textMode ?? 'point') === 'shape') return null;
     const style = data.style;
     const transform = [
         `translate(${data.transform.x}px, ${data.transform.y}px)`,

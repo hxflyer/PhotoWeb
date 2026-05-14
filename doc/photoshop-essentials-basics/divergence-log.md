@@ -527,3 +527,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Any Custom Shape drawn in Path mode becomes an editable path that can receive type.
 **Photoweb behavior:** Geometric Shape tools in Path mode create editable paths for type-on-path; Custom Shape path-mode conversion is deferred.
 **Rationale:** Converting arbitrary SVG custom-shape presets into Pen-style anchors requires a dedicated geometry parser planned with the custom-shape preset cluster; geometric paths cover the current type-on-path lesson workflow.
+
+## 2026-05-14 — 25b-type-shape-interop — Custom Shape arcs become line anchors in Path mode
+
+**Photoshop behavior:** Custom Shape paths preserve exact curve and arc geometry as editable vector paths.
+**Photoweb behavior:** Built-in Custom Shape presets convert to editable Pen-style anchors, with SVG arc commands approximated as line segments.
+**Rationale:** Browser `Path2D` arc commands are not directly introspectable as Pen anchors; line approximation keeps the path editable and supports the type-frame workflow without adding a full SVG arc-to-Bezier converter.
+
+## 2026-05-14 — 25b-type-shape-interop — Shape text uses clipped paragraph layout
+
+**Photoshop behavior:** Text inside a path uses Photoshop's full text composer to fit lines to arbitrary path interiors.
+**Photoweb behavior:** Shape text wraps inside the path bounds and clips to the closed path.
+**Rationale:** Canvas2D does not expose Photoshop-level path-aware text composition; bounds wrapping plus clipping preserves the visible text-frame behavior for the lesson workflow.

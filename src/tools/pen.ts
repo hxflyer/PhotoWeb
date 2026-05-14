@@ -262,8 +262,44 @@ export function hitAnyPathSegment(x: number, y: number): { path: PathShape; segm
     return null;
 }
 
+function flattenedPathPoints(path: PathShape, samplesPerSegment = 24): P[] {
+    if (path.anchors.length < 2) return [];
+    const out: P[] = [{ x: path.anchors[0].x, y: path.anchors[0].y }];
+    const segments = path.closed ? path.anchors.length : path.anchors.length - 1;
+    for (let i = 0; i < segments; i++) {
+        const a = path.anchors[i];
+        const b = path.anchors[(i + 1) % path.anchors.length];
+        const { c1, c2 } = segmentControlPoints(a, b);
+        for (let s = 1; s <= samplesPerSegment; s++) out.push(bezier(a, c1, c2, b, s / samplesPerSegment));
+    }
+    return out;
+}
+
+function pointInPolygon(point: P, polygon: P[]): boolean {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const a = polygon[i];
+        const b = polygon[j];
+        const crosses = (a.y > point.y) !== (b.y > point.y)
+            && point.x < ((b.x - a.x) * (point.y - a.y)) / ((b.y - a.y) || 0.0001) + a.x;
+        if (crosses) inside = !inside;
+    }
+    return inside;
+}
+
+export function hitAnyClosedPathInterior(x: number, y: number): { path: PathShape } | null {
+    const point = { x, y };
+    for (const path of pathStore.paths) {
+        if (!path.closed || path.anchors.length < 3) continue;
+        if (hitSegment(x, y, path)) continue;
+        if (pointInPolygon(point, flattenedPathPoints(path))) return { path };
+    }
+    return null;
+}
+
 bindTypePathBridge({
     hitSegment: (x, y) => hitAnyPathSegment(x, y),
+    hitInterior: (x, y) => hitAnyClosedPathInterior(x, y),
     clonePath: clonePathShape,
 });
 
