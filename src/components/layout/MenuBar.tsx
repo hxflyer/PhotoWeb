@@ -133,6 +133,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
   const openDocuments = useEditorStore(s => s.openDocuments);
   const activeDocumentId = useEditorStore(s => s.activeDocumentId);
   const documentLayout = useEditorStore(s => s.documentLayout);
+  const activeLayer = useEditorStore(s => s.layers.find(l => l.id === s.activeLayerId));
 
   // Close on outside click
   useEffect(() => {
@@ -239,7 +240,7 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         window.dispatchEvent(new Event('photoweb:open-fill-path'));
       }, undefined, !getActivePath()),
       sep,
-      act('Free Transform', onFreeTransform, '⌘T'),
+      act(activeLayer?.kind === 'shape' ? 'Free Transform Path' : 'Free Transform', onFreeTransform, '⌘T'),
       sub('Transform',
         act('Scale', () => {}, undefined, true),
         act('Rotate', () => {}, undefined, true),

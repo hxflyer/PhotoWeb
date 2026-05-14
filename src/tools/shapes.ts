@@ -1,6 +1,7 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { Layer } from '../core/Layer';
+import { captureLayerRegion, createPixelHistoryAction } from '../core/history';
 import { rerenderShapeLayer } from './shapeRender';
 import { useEditorStore } from '../store/editorStore';
 import { buildSnapCandidates, snapPoint, type SnapTarget } from './snap';
@@ -643,8 +644,12 @@ function makeShapeTool(id: string, label: string, kind: ShapeKind): Tool {
             const store = ctx.getStore();
             const layer = store.layers.find(l => l.id === layerId);
             if (!layer) return;
+            const rect = { x: 0, y: 0, width: layer.canvas.width, height: layer.canvas.height };
+            const before = captureLayerRegion(layer, rect);
             drawPixelShape(layer.ctx, dragKind, anchor, current, store.primaryColor, modifiers);
             layer.markDirty(null);
+            store.commitHistory(createPixelHistoryAction(layer, rect, before, `Draw ${labelForKind(dragKind)} Pixels`));
+            ctx.requestRender();
         },
     };
 }

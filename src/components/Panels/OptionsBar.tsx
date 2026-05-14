@@ -2121,7 +2121,9 @@ function ShapeOptions({ showPresets = false }: { showPresets?: boolean } = {}) {
                 {(['shape', 'path', 'pixels'] as const).map(m => (
                     <button
                         key={m}
+                        data-testid={`shape-tool-mode-${m}`}
                         className={`opts-btn${opts.mode === m ? ' active' : ''}`}
+                        title={m === 'shape' ? 'Shape mode creates an editable vector Shape layer' : m === 'path' ? 'Path mode creates a Work Path without adding a layer' : 'Pixels mode paints directly on the active layer'}
                         onClick={() => update({ mode: m })}
                     >{m === 'shape' ? 'Shape' : m === 'path' ? 'Path' : 'Pixels'}</button>
                 ))}
