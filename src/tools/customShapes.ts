@@ -14,6 +14,19 @@ export interface CustomShapeGroup {
     id: string;
     name: string;
     shapes: CustomShape[];
+    user?: boolean;
+}
+
+interface StoredCustomShapeGroup {
+    id: string;
+    name: string;
+    shapes: CustomShape[];
+}
+
+export interface CustomShapeSetPayload {
+    version: 1;
+    kind: 'photoweb-custom-shape-set';
+    group: StoredCustomShapeGroup;
 }
 
 const HEART = 'M50,86 C20,66 6,46 6,28 C6,16 14,8 26,8 C36,8 44,14 50,24 C56,14 64,8 74,8 C86,8 94,16 94,28 C94,46 80,66 50,86 Z';
@@ -124,21 +137,137 @@ const GROUPS: CustomShapeGroup[] = [
     },
 ];
 
-const LIBRARY: CustomShape[] = GROUPS.flatMap(group => group.shapes);
+const USER_GROUPS_KEY = 'photoweb:custom-shape-groups:v1';
+
+function cloneShape(shape: CustomShape): CustomShape {
+    return { ...shape };
+}
+
+function loadUserGroups(): StoredCustomShapeGroup[] {
+    if (typeof localStorage === 'undefined') return [];
+    try {
+        const raw = localStorage.getItem(USER_GROUPS_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw) as StoredCustomShapeGroup[];
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter(group => group && typeof group.id === 'string' && Array.isArray(group.shapes));
+    } catch {
+        return [];
+    }
+}
+
+let userGroups: StoredCustomShapeGroup[] = loadUserGroups();
+
+function persistUserGroups(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        localStorage.setItem(USER_GROUPS_KEY, JSON.stringify(userGroups));
+    } catch {
+        // Browser storage can be disabled or full; the in-memory list still works for this session.
+    }
+}
+
+function allGroups(): CustomShapeGroup[] {
+    return [
+        ...GROUPS,
+        ...userGroups.map(group => ({ ...group, user: true })),
+    ];
+}
+
+function allShapes(): CustomShape[] {
+    return allGroups().flatMap(group => group.shapes);
+}
+
+function slugify(value: string): string {
+    const slug = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return slug || 'shape';
+}
 
 export function getCustomShapeLibrary(): CustomShape[] {
-    return LIBRARY.map(s => ({ ...s }));
+    return allShapes().map(cloneShape);
 }
 
 export function getCustomShapeGroups(): CustomShapeGroup[] {
-    return GROUPS.map(group => ({
+    return allGroups().map(group => ({
         ...group,
-        shapes: group.shapes.map(shape => ({ ...shape })),
+        shapes: group.shapes.map(cloneShape),
     }));
 }
 
 export function getCustomShapeById(id: string): CustomShape | null {
-    return LIBRARY.find(s => s.id === id) ?? null;
+    return allShapes().find(s => s.id === id) ?? null;
+}
+
+export function addUserCustomShape(name: string, pathD: string, groupName = 'Custom Shapes'): CustomShape {
+    const cleanName = name.trim() || 'Custom Shape';
+    let group = userGroups.find(item => item.name === groupName);
+    if (!group) {
+        group = { id: `user-${slugify(groupName)}`, name: groupName, shapes: [] };
+        userGroups = [...userGroups, group];
+    }
+    const idBase = `user-${slugify(cleanName)}`;
+    let id = idBase;
+    let suffix = 2;
+    const existingIds = new Set(allShapes().map(shape => shape.id));
+    while (existingIds.has(id)) id = `${idBase}-${suffix++}`;
+    const shape = { id, name: cleanName, pathD };
+    group.shapes = [...group.shapes, shape];
+    persistUserGroups();
+    return cloneShape(shape);
+}
+
+export function resetUserCustomShapes(): void {
+    userGroups = [];
+    persistUserGroups();
+}
+
+export function exportCustomShapeSet(groupId: string): string | null {
+    const group = allGroups().find(item => item.id === groupId);
+    if (!group) return null;
+    const payload: CustomShapeSetPayload = {
+        version: 1,
+        kind: 'photoweb-custom-shape-set',
+        group: {
+            id: group.user ? group.id : `user-${group.id}`,
+            name: group.name,
+            shapes: group.shapes.map(cloneShape),
+        },
+    };
+    return JSON.stringify(payload);
+}
+
+export function importCustomShapeSet(serialized: string): CustomShapeGroup | null {
+    try {
+        const payload = JSON.parse(serialized) as CustomShapeSetPayload;
+        if (payload.kind !== 'photoweb-custom-shape-set' || !payload.group || !Array.isArray(payload.group.shapes)) return null;
+        const baseName = payload.group.name?.trim() || 'Imported Shapes';
+        const group: StoredCustomShapeGroup = {
+            id: `user-${slugify(baseName)}`,
+            name: baseName,
+            shapes: payload.group.shapes
+                .filter(shape => shape && typeof shape.name === 'string' && typeof shape.pathD === 'string')
+                .map(shape => ({ id: `user-${slugify(shape.name)}`, name: shape.name, pathD: shape.pathD })),
+        };
+        if (group.shapes.length === 0) return null;
+        const existingGroupIds = new Set(userGroups.map(item => item.id));
+        let nextGroupId = group.id;
+        let groupSuffix = 2;
+        while (existingGroupIds.has(nextGroupId)) nextGroupId = `${group.id}-${groupSuffix++}`;
+        group.id = nextGroupId;
+        const existingShapeIds = new Set(allShapes().map(shape => shape.id));
+        group.shapes = group.shapes.map(shape => {
+            let id = shape.id;
+            let suffix = 2;
+            while (existingShapeIds.has(id)) id = `${shape.id}-${suffix++}`;
+            existingShapeIds.add(id);
+            return { ...shape, id };
+        });
+        userGroups = [...userGroups, group];
+        persistUserGroups();
+        return { ...group, user: true, shapes: group.shapes.map(cloneShape) };
+    } catch {
+        return null;
+    }
 }
 
 export const CUSTOM_SHAPE_VIEWBOX = 100;

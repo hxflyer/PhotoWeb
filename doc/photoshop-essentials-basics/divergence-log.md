@@ -557,3 +557,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Dropping a Shapes panel preset can vary layer placement and fill/stroke depending on whether it lands on the background, an existing shape, or another target.
 **Photoweb behavior:** Dropping a Shapes panel preset creates a new Shape layer at the drop point using the current Custom Shape Tool fill and stroke options.
 **Rationale:** Target-sensitive drop styling spans hit-testing, layer ordering, and shape-to-shape style inheritance. The implemented behavior lands the core drag-to-document workflow while keeping follow-up styling rules explicit.
+
+## 2026-05-14 — 27b-custom-shape-presets — Custom shape sets use Photoweb JSON
+
+**Photoshop behavior:** Preset Manager saves and loads custom shape sets as native `.csh` files through OS file dialogs.
+**Photoweb behavior:** Custom shape sets export/import as Photoweb JSON copied from or pasted into browser prompts.
+**Rationale:** `.csh` is a Photoshop preset format and not part of the browser storage model. JSON preserves reusable shape-set workflows and keeps the data inspectable until a broader file-based preset manager exists.

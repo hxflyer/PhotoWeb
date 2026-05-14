@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronRight, Plus } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { CUSTOM_SHAPE_VIEWBOX, getCustomShapeGroups, type CustomShape } from '../../tools/customShapes';
@@ -18,6 +18,12 @@ export function ShapesPanel() {
     const [, force] = useState(0);
     const { width, height } = useEditorStore();
     const activeId = getShapeOptions().customShapeId;
+
+    useEffect(() => {
+        const onChanged = () => force(t => t + 1);
+        window.addEventListener('photoweb:custom-shapes-changed', onChanged);
+        return () => window.removeEventListener('photoweb:custom-shapes-changed', onChanged);
+    }, []);
 
     const pickShape = (shape: CustomShape) => {
         setShapeOptions({ customShapeId: shape.id });

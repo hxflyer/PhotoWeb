@@ -9,6 +9,7 @@ import { createWorkPathFromLayer } from '../../tools/textToPath';
 import { convertActiveLayerToShape } from '../../tools/typeCommands';
 import { getActivePath } from '../../tools/pen';
 import { drawCanvasWithBlendMode } from '../../core/blendModes';
+import { defineActiveLayerAsCustomShape, loadCustomShapeSetFromJson, saveCustomShapeSetAsJson } from '../../tools/customShapePresets';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MI =
@@ -260,6 +261,31 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       act('Define Brush Preset…', () => {
         window.dispatchEvent(new Event('photoweb:define-brush-preset'));
       }),
+      act('Define Custom Shape…', () => {
+        const store = useEditorStore.getState();
+        const layer = store.layers.find(item => item.id === store.activeLayerId);
+        const name = window.prompt('Shape Name', layer?.name ?? 'Custom Shape');
+        if (!name) return;
+        const id = defineActiveLayerAsCustomShape(name);
+        store.addToast(id ? `Defined custom shape "${name}"` : 'Select a Shape layer first', id ? 'success' : 'error');
+      }, undefined, activeLayer?.kind !== 'shape'),
+      sub('Presets',
+        act('Save Custom Shape Set…', () => {
+          const json = saveCustomShapeSetAsJson('user-custom-shapes');
+          if (!json) {
+            useEditorStore.getState().addToast('No custom shape set to save', 'error');
+            return;
+          }
+          void navigator.clipboard?.writeText(json).catch(() => {});
+          useEditorStore.getState().addToast('Custom shape set JSON copied', 'success');
+        }),
+        act('Load Custom Shape Set…', () => {
+          const json = window.prompt('Paste custom shape set JSON');
+          if (!json) return;
+          const ok = loadCustomShapeSetFromJson(json);
+          useEditorStore.getState().addToast(ok ? 'Custom shape set loaded' : 'Could not load custom shape set', ok ? 'success' : 'error');
+        }),
+      ),
       act('Define Pattern…', () => {
         const store = useEditorStore.getState();
         const layer = store.layers.find(l => l.id === store.activeLayerId);

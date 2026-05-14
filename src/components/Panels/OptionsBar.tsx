@@ -2053,6 +2053,11 @@ function CustomShapePresetPicker() {
         if (groupShapes[0]) setShapeOptions({ customShapeId: groupShapes[0].id });
         force(t => t + 1);
     };
+    useEffect(() => {
+        const onChanged = () => force(t => t + 1);
+        window.addEventListener('photoweb:custom-shapes-changed', onChanged);
+        return () => window.removeEventListener('photoweb:custom-shapes-changed', onChanged);
+    }, []);
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
             {S.label('Shape:')}
