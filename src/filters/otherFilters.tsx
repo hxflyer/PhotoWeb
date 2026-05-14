@@ -89,3 +89,111 @@ registerFilter<HighPassParams>({
         );
     },
 });
+
+// ── Offset ────────────────────────────────────────────────────────────────
+// Moves pixels by a signed offset. Wrap Around is the pattern-tile workhorse
+// used to check seams by pushing center content into the corners.
+
+export interface OffsetParams {
+    horizontal: number;
+    vertical: number;
+    undefinedAreas: 'wrap' | 'transparent' | 'repeat-edge';
+}
+
+registerFilter<OffsetParams>({
+    id: 'other-offset',
+    label: 'Offset',
+    defaultParams: { horizontal: 0, vertical: 0, undefinedAreas: 'wrap' },
+    apply({ horizontal, vertical, undefinedAreas }: OffsetParams, { image, width, height }: FilterApplyContext): ImageData {
+        const dx = Math.round(horizontal);
+        const dy = Math.round(vertical);
+        const out = new ImageData(width, height);
+        const src = image.data;
+        const dst = out.data;
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let sx = x - dx;
+                let sy = y - dy;
+                if (undefinedAreas === 'wrap') {
+                    sx = ((sx % width) + width) % width;
+                    sy = ((sy % height) + height) % height;
+                } else if (undefinedAreas === 'repeat-edge') {
+                    sx = Math.max(0, Math.min(width - 1, sx));
+                    sy = Math.max(0, Math.min(height - 1, sy));
+                } else if (sx < 0 || sx >= width || sy < 0 || sy >= height) {
+                    continue;
+                }
+                const si = (sy * width + sx) * 4;
+                const di = (y * width + x) * 4;
+                dst[di] = src[si];
+                dst[di + 1] = src[si + 1];
+                dst[di + 2] = src[si + 2];
+                dst[di + 3] = src[si + 3];
+            }
+        }
+        return out;
+    },
+    renderUI(params, onChange) {
+        const p = params as OffsetParams;
+        const update = (next: Partial<OffsetParams>) => onChange({ ...p, ...next });
+        const inputStyle = {
+            width: 88,
+            background: 'rgba(0,0,0,0.2)',
+            color: '#f4f4f4',
+            border: '1px solid #777',
+            padding: '4px 6px',
+        };
+        return (
+            <div style={{ display: 'grid', gap: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 96 }}>Horizontal</span>
+                    <input
+                        data-testid="offset-horizontal"
+                        type="number"
+                        value={p.horizontal}
+                        onChange={e => update({ horizontal: Number(e.target.value) })}
+                        style={inputStyle}
+                    />
+                    <span>pixels</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 96 }}>Vertical</span>
+                    <input
+                        data-testid="offset-vertical"
+                        type="number"
+                        value={p.vertical}
+                        onChange={e => update({ vertical: Number(e.target.value) })}
+                        style={inputStyle}
+                    />
+                    <span>pixels</span>
+                </label>
+                <fieldset style={{ border: '1px solid #777', padding: 10 }}>
+                    <legend>Undefined Areas</legend>
+                    <label style={{ display: 'block', marginBottom: 6 }}>
+                        <input
+                            data-testid="offset-wrap"
+                            type="radio"
+                            checked={p.undefinedAreas === 'wrap'}
+                            onChange={() => update({ undefinedAreas: 'wrap' })}
+                        /> Wrap Around
+                    </label>
+                    <label style={{ display: 'block', marginBottom: 6 }}>
+                        <input
+                            type="radio"
+                            checked={p.undefinedAreas === 'repeat-edge'}
+                            onChange={() => update({ undefinedAreas: 'repeat-edge' })}
+                        /> Repeat Edge Pixels
+                    </label>
+                    <label style={{ display: 'block' }}>
+                        <input
+                            type="radio"
+                            checked={p.undefinedAreas === 'transparent'}
+                            onChange={() => update({ undefinedAreas: 'transparent' })}
+                        /> Set to Transparent
+                    </label>
+                </fieldset>
+            </div>
+        );
+    },
+});

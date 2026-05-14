@@ -41,6 +41,7 @@ import { NewGuideDialog } from './components/Dialogs/NewGuideDialog';
 import { StorageUsageDialog } from './components/Dialogs/StorageUsageDialog';
 import { StrokePathDialog } from './components/Dialogs/StrokePathDialog';
 import { FillPathDialog } from './components/Dialogs/FillPathDialog';
+import { FillDialog } from './components/Dialogs/FillDialog';
 import { FadeDialog } from './components/Dialogs/FadeDialog';
 import { LayerStyleDialog } from './components/Dialogs/LayerStyleDialog';
 import { RequirementsOverlay } from './components/Overlay/RequirementsOverlay';
@@ -158,6 +159,7 @@ function App() {
   const [storageOpen, setStorageOpen] = useState(false);
   const [strokePathOpen, setStrokePathOpen] = useState(false);
   const [fillPathOpen, setFillPathOpen] = useState(false);
+  const [fillDialogOpen, setFillDialogOpen] = useState(false);
   const [fadeDialogOpen, setFadeDialogOpen] = useState(false);
   const [layerStyleDialog, setLayerStyleDialog] = useState<{ layerId: string; tab: string } | null>(null);
   const [defineBrushTip, setDefineBrushTip] = useState<BrushTipData | null>(null);
@@ -284,7 +286,8 @@ function App() {
     const openPrefs = () => setPreferencesOpen(true);
     const openStorage = () => setStorageOpen(true);
     const openStroke = () => setStrokePathOpen(true);
-    const openFill = () => setFillPathOpen(true);
+    const openFillPath = () => setFillPathOpen(true);
+    const openFillDialog = () => setFillDialogOpen(true);
     const defineBrush = () => {
       const s = useEditorStore.getState();
       const layer = s.layers.find(l => l.id === s.activeLayerId);
@@ -310,7 +313,8 @@ function App() {
     window.addEventListener('photoweb:open-preferences', openPrefs);
     window.addEventListener('photoweb:open-storage-usage', openStorage);
     window.addEventListener('photoweb:open-stroke-path', openStroke);
-    window.addEventListener('photoweb:open-fill-path', openFill);
+    window.addEventListener('photoweb:open-fill-path', openFillPath);
+    window.addEventListener('photoweb:open-fill', openFillDialog);
     window.addEventListener('photoweb:define-brush-preset', defineBrush);
     window.addEventListener('photoweb:open-fade', openFade);
     window.addEventListener('photoweb:open-layer-style', openLayerStyle);
@@ -318,7 +322,8 @@ function App() {
       window.removeEventListener('photoweb:open-preferences', openPrefs);
       window.removeEventListener('photoweb:open-storage-usage', openStorage);
       window.removeEventListener('photoweb:open-stroke-path', openStroke);
-      window.removeEventListener('photoweb:open-fill-path', openFill);
+      window.removeEventListener('photoweb:open-fill-path', openFillPath);
+      window.removeEventListener('photoweb:open-fill', openFillDialog);
       window.removeEventListener('photoweb:define-brush-preset', defineBrush);
       window.removeEventListener('photoweb:open-fade', openFade);
       window.removeEventListener('photoweb:open-layer-style', openLayerStyle);
@@ -1270,6 +1275,7 @@ function App() {
       <StorageUsageDialog isOpen={storageOpen} onClose={() => setStorageOpen(false)} />
       <StrokePathDialog open={strokePathOpen} onClose={() => setStrokePathOpen(false)} />
       <FillPathDialog open={fillPathOpen} onClose={() => setFillPathOpen(false)} />
+      <FillDialog isOpen={fillDialogOpen} onClose={() => setFillDialogOpen(false)} />
       <FadeDialog
         isOpen={fadeDialogOpen}
         snapshot={gs().lastEffect}

@@ -10,6 +10,7 @@ import { convertActiveLayerToShape } from '../../tools/typeCommands';
 import { getActivePath } from '../../tools/pen';
 import { drawCanvasWithBlendMode } from '../../core/blendModes';
 import { defineActiveLayerAsCustomShape, loadCustomShapeSetFromJson, saveCustomShapeSetAsJson } from '../../tools/customShapePresets';
+import { defineActiveLayerAsPattern } from '../../tools/patterns';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MI =
@@ -231,7 +232,9 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         if (!pasted) document.execCommand('paste');
       }, '⌘⇧V'),
       sep,
-      act('Fill…', () => {}, '⇧F5', true),
+      act('Fill…', () => {
+        window.dispatchEvent(new Event('photoweb:open-fill'));
+      }, '⇧F5', !activeLayer),
       act('Stroke…', () => {}, undefined, true),
       sep,
       act('Stroke Path…', () => {
@@ -288,42 +291,11 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
       ),
       act('Define Pattern…', () => {
         const store = useEditorStore.getState();
-        const layer = store.layers.find(l => l.id === store.activeLayerId);
-        if (!layer) return;
         const name = window.prompt('Pattern name', 'New Pattern');
         if (!name) return;
-        const sel = store.selection;
-        const hasSel = sel.hasSelection && (sel.operations.length > 0 || sel.path.length > 1);
-        if (hasSel) {
-            let minX = layer.canvas.width, minY = layer.canvas.height, maxX = 0, maxY = 0;
-            for (const op of sel.operations) {
-                if (op.type === 'rect' && op.path.length === 2) {
-                    const [a, b] = op.path;
-                    minX = Math.min(minX, Math.floor(Math.min(a.x, b.x)));
-                    minY = Math.min(minY, Math.floor(Math.min(a.y, b.y)));
-                    maxX = Math.max(maxX, Math.ceil(Math.max(a.x, b.x)));
-                    maxY = Math.max(maxY, Math.ceil(Math.max(a.y, b.y)));
-                } else {
-                    for (const p of op.path) {
-                        minX = Math.min(minX, Math.floor(p.x));
-                        minY = Math.min(minY, Math.floor(p.y));
-                        maxX = Math.max(maxX, Math.ceil(p.x));
-                        maxY = Math.max(maxY, Math.ceil(p.y));
-                    }
-                }
-            }
-            minX = Math.max(0, minX); minY = Math.max(0, minY);
-            maxX = Math.min(layer.canvas.width, maxX);
-            maxY = Math.min(layer.canvas.height, maxY);
-            const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
-            const c = document.createElement('canvas');
-            c.width = w; c.height = h;
-            c.getContext('2d')!.drawImage(layer.canvas, minX, minY, w, h, 0, 0, w, h);
-            store.definePattern(name, c);
-        } else {
-            store.definePattern(name, layer.canvas);
-        }
-      }),
+        const id = defineActiveLayerAsPattern(name);
+        store.addToast(id ? `Defined pattern "${name}"` : 'Select a layer first', id ? 'success' : 'error');
+      }, undefined, !activeLayer),
       sep,
       sub('Preferences',
         act('General…', () => window.dispatchEvent(new Event('photoweb:open-preferences'))),
@@ -645,6 +617,11 @@ export function MenuBar({ onNew, onSaveAs, onFreeTransform, onWarp, onOpenFile, 
         act('Lens Flare…', () => openFilter('render-lens-flare', { brightness: 100, lensType: '105mm' })),
       ),
       sub('Other',
+        act('Offset…', () => {
+          const s = useEditorStore.getState();
+          const layer = s.layers.find(item => item.id === s.activeLayerId);
+          openFilter('other-offset', { horizontal: layer ? Math.round(layer.canvas.width / 2) : 0, vertical: layer ? Math.round(layer.canvas.height / 2) : 0, undefinedAreas: 'wrap' });
+        }, undefined, !activeLayer),
         act('High Pass…', () => openFilter('other-high-pass', { radius: 3 })),
       ),
     ],

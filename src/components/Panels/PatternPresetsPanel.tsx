@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { decodePatternPreset, getPatternTile } from '../../store/toolsSlice';
 import type { PatternPreset } from '../../store/types';
+import { defineActiveLayerAsPattern } from '../../tools/patterns';
 import { DefinePatternDialog } from '../Dialogs/DefinePatternDialog';
 
 interface ContextMenuState {
@@ -43,10 +44,7 @@ function PatternThumbnail({ preset }: { preset: PatternPreset }) {
 }
 
 function captureActiveAsPattern(name: string): void {
-    const store = useEditorStore.getState();
-    const layer = store.layers.find(l => l.id === store.activeLayerId);
-    if (!layer) return;
-    store.definePattern(name, layer.canvas);
+    defineActiveLayerAsPattern(name);
 }
 
 export function PatternPresetsPanel() {

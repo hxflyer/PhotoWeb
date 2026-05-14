@@ -563,3 +563,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Preset Manager saves and loads custom shape sets as native `.csh` files through OS file dialogs.
 **Photoweb behavior:** Custom shape sets export/import as Photoweb JSON copied from or pasted into browser prompts.
 **Rationale:** `.csh` is a Photoshop preset format and not part of the browser storage model. JSON preserves reusable shape-set workflows and keeps the data inspectable until a broader file-based preset manager exists.
+
+## 2026-05-14 — 28-patterns — Pattern presets use browser-local PNG tiles
+
+**Photoshop behavior:** Pattern presets can be saved and loaded as Photoshop preset files and are available through Photoshop's full preset manager.
+**Photoweb behavior:** Pattern presets are stored as PNG data URL tiles in browser-local state and reused by the Pattern Presets panel, Edit > Fill, Paint Bucket, and pattern effects.
+**Rationale:** Native `.pat` preset IO is outside the current browser-local model. PNG tiles preserve the repeating-pattern workflow while keeping fills deterministic and testable.
+
+## 2026-05-14 — 28-patterns — Edit Fill covers lesson-critical contents
+
+**Photoshop behavior:** Edit > Fill includes many content modes, blending controls, preserve transparency, and history/content-aware variants.
+**Photoweb behavior:** Edit > Fill supports Foreground Color, Background Color, Pattern, Opacity, and Preserve Transparency.
+**Rationale:** The repeating-pattern lessons need color and pattern contents. The compact dialog keeps that workflow available without presenting unsupported Photoshop-only fill engines.
