@@ -201,6 +201,31 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
         return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     }, [handleSbMove, handleHueMove]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const sampleFromCanvas = (e: PointerEvent) => {
+            const target = e.target as Node | null;
+            if (target && dialogRef.current?.contains(target)) return;
+            const element = document.elementFromPoint(e.clientX, e.clientY);
+            const canvas = element instanceof HTMLCanvasElement
+                ? element
+                : element?.closest?.('canvas[data-photoweb-canvas]') as HTMLCanvasElement | null;
+            if (!canvas || canvas.dataset.photowebCanvas !== 'true') return;
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor(((e.clientX - rect.left) / rect.width) * canvas.width);
+            const y = Math.floor(((e.clientY - rect.top) / rect.height) * canvas.height);
+            if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            updateFromRgb(pixel[0], pixel[1], pixel[2]);
+            e.preventDefault();
+            e.stopPropagation();
+        };
+        document.addEventListener('pointerdown', sampleFromCanvas, true);
+        return () => document.removeEventListener('pointerdown', sampleFromCanvas, true);
+    }, [isOpen, dialogRef, updateFromRgb]);
+
     if (!isOpen) return null;
 
     const sbX = hsb[1];
@@ -223,6 +248,7 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
         <div style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            pointerEvents: 'none',
         }}>
             <div
                 ref={dialogRef}
@@ -247,6 +273,7 @@ export function ColorPickerDialog({ isOpen, initialColor, title = 'Color Picker'
                     fontSize: 12,
                     boxShadow: 'var(--shadow-menu)',
                     fontFamily: 'var(--font-sans)',
+                    pointerEvents: 'auto',
                 }}
             >
                 {/* Title */}

@@ -1603,7 +1603,13 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
             )}
 
             <div data-photoweb-document style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'center', boxShadow: '0 0 20px rgba(0,0,0,0.5)', background: 'white', position: 'relative', overflow: 'visible' }}>
-                <canvas ref={canvasRef} width={width} height={height} style={{ width: `${width}px`, height: `${height}px`, display: 'block', imageRendering: 'auto' }} />
+                <canvas
+                    ref={canvasRef}
+                    data-photoweb-canvas="true"
+                    width={width}
+                    height={height}
+                    style={{ width: `${width}px`, height: `${height}px`, display: 'block', imageRendering: 'auto' }}
+                />
                 <canvas
                     ref={overlayCanvasRef}
                     width={width + overlayPad.left + overlayPad.right}

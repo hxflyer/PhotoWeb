@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import {
     Circle, Lasso, Magnet, Pentagon, Square, Layers, ZoomIn, ZoomOut,
@@ -30,6 +30,7 @@ import {
     getBackgroundEraserOptions, setBackgroundEraserOptions,
     type BackgroundEraserSampling, type BackgroundEraserLimits,
 } from '../../tools/backgroundEraser';
+import { FontPicker } from './FontPicker';
 import {
     getSpotHealingOptions, setSpotHealingOptions, type SpotHealingType,
 } from '../../tools/spotHealing';
@@ -56,6 +57,12 @@ import {
 } from '../../tools/eyedropper';
 import { clearRulerMeasurement, getRulerMeasurement, straightenRulerMeasurement } from '../../tools/ruler';
 import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
+import {
+    getEditingStyle, getTypeVersion, subscribeTypeTool, typeToolState, updateEditingStyle,
+} from '../../tools/type';
+import {
+    applyCharacterPanelEdit, commitCoalescedTypeEdit,
+} from '../../tools/typeCommands';
 import type { BlendModeId } from '../../core/blendModes';
 import type { PaintSymmetryMode } from '../../store/types';
 import {
@@ -1730,43 +1737,117 @@ function PenOptions() {
 }
 
 function TypeOptions() {
-    const { primaryColor, openColorPicker } = useEditorStore();
+    useSyncExternalStore(subscribeTypeTool, getTypeVersion);
+    const state = useEditorStore();
+    const s = getEditingStyle();
+    const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+    const sharedLayerId = activeLayer?.kind === 'type' ? activeLayer.id : undefined;
+    const styleLabel = s.fontStyle === 'italic'
+        ? (s.fontWeight >= 700 ? 'Bold Italic' : 'Italic')
+        : (s.fontWeight >= 700 ? 'Bold' : 'Regular');
+    const update = (patch: Parameters<typeof updateEditingStyle>[0], label = 'Edit Type Style') => {
+        if (typeToolState.editing) {
+            updateEditingStyle(patch);
+            return;
+        }
+        if (activeLayer?.kind === 'type' && activeLayer.typeData) {
+            applyCharacterPanelEdit(label, patch);
+            commitCoalescedTypeEdit();
+            return;
+        }
+        updateEditingStyle(patch);
+    };
+    const setStyle = (label: string) => {
+        const patch = label === 'Bold Italic'
+            ? { fontWeight: 700, fontStyle: 'italic' as const }
+            : label === 'Bold'
+                ? { fontWeight: 700, fontStyle: 'normal' as const }
+                : label === 'Italic'
+                    ? { fontWeight: 400, fontStyle: 'italic' as const }
+                    : { fontWeight: 400, fontStyle: 'normal' as const };
+        update(patch, 'Edit Font Style');
+    };
     return (
         <>
             {/* Font family */}
-            <input type="text" defaultValue="Helvetica" className="opts-input" style={{ width: 130 }} placeholder="Font" />
+            <FontPicker
+                testIdPrefix="type-options-font-picker"
+                layerId={sharedLayerId}
+                value={s.fontFamily}
+                onChange={fontFamily => update({ fontFamily }, 'Edit Font Family')}
+                onCommit={commitCoalescedTypeEdit}
+                style={{ width: 130 }}
+            />
             {S.sep()}
             {/* Style */}
-            <select className="opts-input" style={{ width: 70 }}>
-                <option>Regular</option>
-                <option>Bold</option>
-                <option>Italic</option>
-                <option>Bold Italic</option>
+            <select
+                data-testid="type-options-font-style"
+                className="opts-input"
+                style={{ width: 86 }}
+                value={styleLabel}
+                onChange={e => setStyle(e.target.value)}
+            >
+                {['Regular', 'Bold', 'Italic', 'Bold Italic'].map(label => <option key={label}>{label}</option>)}
             </select>
             {S.sep()}
             {/* Size */}
-            <input type="number" min={1} max={1000} defaultValue={12} className="opts-input" style={{ width: 42 }} />
+            <input
+                data-testid="type-options-font-size"
+                type="number"
+                min={1}
+                max={1000}
+                value={s.fontSize}
+                onChange={e => update({ fontSize: Math.max(1, Number(e.target.value) || 1) }, 'Edit Font Size')}
+                className="opts-input"
+                style={{ width: 52 }}
+            />
             <span className="opts-label">pt</span>
             {S.sep()}
+            <select
+                data-testid="type-options-antialias"
+                className="opts-input"
+                style={{ width: 80 }}
+                value={s.antiAlias ?? 'crisp'}
+                onChange={e => update({ antiAlias: e.target.value as typeof s.antiAlias }, 'Edit Anti-Aliasing')}
+            >
+                <option value="none">None</option>
+                <option value="sharp">Sharp</option>
+                <option value="crisp">Crisp</option>
+                <option value="strong">Strong</option>
+                <option value="smooth">Smooth</option>
+            </select>
+            {S.sep()}
             {/* Bold / Italic / Underline */}
-            <button className="opts-btn" title="Bold (⌘B)"><Bold size={13} /></button>
-            <button className="opts-btn" title="Italic (⌘I)"><Italic size={13} /></button>
-            <button className="opts-btn" title="Underline (⌘U)"><Underline size={13} /></button>
+            <button data-testid="type-options-bold" className={`opts-btn${s.fontWeight >= 700 || s.fauxBold ? ' active' : ''}`} title="Bold" onClick={() => update({ fontWeight: s.fontWeight >= 700 ? 400 : 700 }, 'Edit Font Style')}><Bold size={13} /></button>
+            <button data-testid="type-options-italic" className={`opts-btn${s.fontStyle === 'italic' || s.fauxItalic ? ' active' : ''}`} title="Italic" onClick={() => update({ fontStyle: s.fontStyle === 'italic' ? 'normal' : 'italic' }, 'Edit Font Style')}><Italic size={13} /></button>
+            <button data-testid="type-options-underline" className={`opts-btn${s.underline ? ' active' : ''}`} title="Underline" onClick={() => update({ underline: !s.underline }, 'Toggle Underline')}><Underline size={13} /></button>
             {S.sep()}
             {/* Alignment */}
-            <button className="opts-btn" title="Align Left"><AlignLeft size={13} /></button>
-            <button className="opts-btn" title="Align Center"><AlignCenter size={13} /></button>
-            <button className="opts-btn" title="Align Right"><AlignRight size={13} /></button>
+            <button data-testid="type-options-align-left" className={`opts-btn${s.textAlign === 'left' ? ' active' : ''}`} title="Align Left" onClick={() => update({ textAlign: 'left' }, 'Edit Text Alignment')}><AlignLeft size={13} /></button>
+            <button data-testid="type-options-align-center" className={`opts-btn${s.textAlign === 'center' ? ' active' : ''}`} title="Align Center" onClick={() => update({ textAlign: 'center' }, 'Edit Text Alignment')}><AlignCenter size={13} /></button>
+            <button data-testid="type-options-align-right" className={`opts-btn${s.textAlign === 'right' ? ' active' : ''}`} title="Align Right" onClick={() => update({ textAlign: 'right' }, 'Edit Text Alignment')}><AlignRight size={13} /></button>
             {S.sep()}
             {/* Color swatch */}
             <div
+                data-testid="type-options-color-swatch"
                 title="Text Color"
-                onClick={() => openColorPicker('primary')}
-                style={{ width: 20, height: 20, backgroundColor: primaryColor, border: '1px solid hsl(var(--border-light))', cursor: 'pointer', flexShrink: 0 }}
+                onClick={() => state.openColorPicker('type')}
+                style={{ width: 20, height: 20, backgroundColor: s.color, border: '1px solid hsl(var(--border-light))', cursor: 'pointer', flexShrink: 0 }}
             />
             {S.sep()}
             <button className="opts-btn" title="Create Warp Text"><WarpTextIcon size={13} /></button>
-            <button className="opts-btn" title="Toggle Character/Paragraph Panels"><Layers size={13} /></button>
+            <button
+                data-testid="type-options-toggle-panels"
+                className="opts-btn"
+                title="Show Character/Paragraph Panels"
+                onClick={() => {
+                    state.setPanelVisibility('character', true);
+                    state.setPanelVisibility('paragraph', true);
+                    state.setPanelGroupCollapsed('middle', false);
+                }}
+            >
+                <Layers size={13} />
+            </button>
         </>
     );
 }

@@ -509,3 +509,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Dragging swatches onto document contents can create clipped or non-clipped Solid Color fill layers, directly recolor type/shape layers, or add Color Overlay effects depending on layer type and modifier keys.
 **Photoweb behavior:** Swatches can be selected for foreground/background, saved into groups, dragged as color payloads, and dropped into the Swatches panel, but document-layer drop application remains unavailable.
 **Rationale:** Photoshop's swatch drop behavior spans fill layers, layer hit-testing, type/shape source data, clipping masks, and layer effects. This tick lands the palette/sampling workflow first without introducing partial layer mutations.
+
+## 2026-05-14 — 24-type-basics — Area type overflow marker deferred
+
+**Photoshop behavior:** Area type shows an overflow plus marker when text exceeds the box bounds.
+**Photoweb behavior:** The browser text editor prevents additional non-delete input once a box is overflowing and preserves the last accepted fitting text.
+**Rationale:** A faithful overflow marker requires a separate text layout overflow model; preventing hidden overflow preserves the usable area-type workflow without implying unsupported hidden text state.
+
+## 2026-05-14 — 24-type-basics — Kerning and OpenType controls are limited
+
+**Photoshop behavior:** Character panel kerning and OpenType feature buttons route through Adobe's full font engine.
+**Photoweb behavior:** Tracking, leading, scale, baseline, faux styles, caps, super/sub, underline, strikethrough, and anti-aliasing are active; kerning and advanced OpenType controls remain visible but disabled or metrics-only.
+**Rationale:** Browser Canvas2D and contenteditable do not expose Photoshop-level kerning/OpenType feature control consistently. Active controls cover the lesson's common typography edits while avoiding fake toggles.
