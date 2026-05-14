@@ -51,5 +51,5 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 26a-shape-concepts         (4) — Vector vs pixel, Tool Mode  commit: 73c6181
 - [x] 26b-geometric-shapes       (4) — Rectangle/Ellipse/Triangle/Polygon/Line + combine  commit: 416f8ce
 - [x] 27a-custom-shape-tool      (4) — Custom Shape Tool, Shapes panel  commit: 2780f44
-- [ ] 27b-custom-shape-presets   (2) — Define Custom Shape, save / load sets
+- [x] 27b-custom-shape-presets   (2) — Define Custom Shape, save / load sets  commit: c8d9396
 - [ ] 28-patterns                (3) — Define Pattern, fill, tile recipes
