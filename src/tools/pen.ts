@@ -42,6 +42,7 @@ import { Layer } from '../core/Layer';
 import { useEditorStore } from '../store/editorStore';
 import { rerenderShapeLayer } from './shapeRender';
 import { CUSTOM_SHAPE_VIEWBOX } from './customShapes';
+import { bindTypePathBridge } from './type';
 
 export type PenMode = 'path' | 'shape' | 'pixels';
 
@@ -98,6 +99,19 @@ export function getActivePath(): PathShape | null {
 }
 export function getActivePathId(): string | null { return pathStore.activeId; }
 export function setActivePath(id: string | null): void { pathStore.activeId = id; }
+export function clonePathShape(path: PathShape): PathShape {
+    return {
+        id: path.id,
+        closed: path.closed,
+        anchors: path.anchors.map(a => ({
+            x: a.x,
+            y: a.y,
+            type: a.type,
+            inHandle: a.inHandle ? { ...a.inHandle } : undefined,
+            outHandle: a.outHandle ? { ...a.outHandle } : undefined,
+        })),
+    };
+}
 export function addPath(path: PathShape): void {
     pathStore.paths.push(path);
     pathStore.activeId = path.id;
@@ -239,6 +253,19 @@ function hitAnyPath(x: number, y: number): { path: PathShape; anchorIndex?: numb
     }
     return null;
 }
+
+export function hitAnyPathSegment(x: number, y: number): { path: PathShape; segmentIndex: number; t: number; point: P } | null {
+    for (const path of pathStore.paths) {
+        const hit = hitSegment(x, y, path);
+        if (hit) return { path, segmentIndex: hit.segmentIndex, t: hit.t, point: hit.point };
+    }
+    return null;
+}
+
+bindTypePathBridge({
+    hitSegment: (x, y) => hitAnyPathSegment(x, y),
+    clonePath: clonePathShape,
+});
 
 function splitSegment(path: PathShape, segIndex: number, t: number): void {
     const a = path.anchors[segIndex];

@@ -6,7 +6,7 @@ import { resolveFontFamily, shouldEmitFallbackToast } from '../utils/fontList';
 import { applyTextWarp } from '../utils/textWarp';
 
 export type TypeOrientation = 'horizontal' | 'vertical';
-export type TypeTextMode = 'point' | 'box';
+export type TypeTextMode = 'point' | 'box' | 'path';
 
 export interface TypeBounds { x: number; y: number; w: number; h: number }
 
@@ -14,6 +14,30 @@ export interface TypeStyleRun {
     start: number;
     end: number;
     style: Partial<TextStyle>;
+}
+
+export interface TypePathAnchor {
+    x: number;
+    y: number;
+    inHandle?: { x: number; y: number };
+    outHandle?: { x: number; y: number };
+    type: 'corner' | 'smooth';
+}
+
+export interface TypePathShape {
+    id: string;
+    closed: boolean;
+    anchors: TypePathAnchor[];
+}
+
+interface TypePathBridge {
+    hitSegment: (x: number, y: number) => { path: TypePathShape; point: { x: number; y: number } } | null;
+    clonePath: (path: TypePathShape) => TypePathShape;
+}
+
+let typePathBridge: TypePathBridge | null = null;
+export function bindTypePathBridge(bridge: TypePathBridge | null): void {
+    typePathBridge = bridge;
 }
 
 /**
@@ -60,6 +84,13 @@ export interface TypeLayerData {
     targetLayerId?: string;
     /** Photoshop's Warp Text settings. When `style === 'none'` (or absent), no warp is applied. */
     warp?: TypeWarp;
+    /** Text-on-path payload. Stored as a path copy so saved documents remain stable if the original path changes. */
+    pathText?: {
+        path: TypePathShape;
+        startOffset: number;
+        endOffset?: number;
+        flipped: boolean;
+    };
 }
 
 interface TypeToolState {
@@ -314,6 +345,148 @@ export const defaultTextStyle: TextStyle = {
 
 function p(e: ToolPointerEvent) { return { x: e.canvasX, y: e.canvasY }; }
 
+interface PathSample {
+    x: number;
+    y: number;
+    distance: number;
+    angle: number;
+}
+
+function cubicAt(p0: { x: number; y: number }, p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }, t: number): { x: number; y: number } {
+    const u = 1 - t;
+    return {
+        x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+        y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+    };
+}
+
+function flattenTypePath(path: TypePathShape, samplesPerSegment = 24): PathSample[] {
+    const anchors = path.anchors;
+    if (anchors.length < 2) return [];
+    const out: PathSample[] = [{ x: anchors[0].x, y: anchors[0].y, distance: 0, angle: 0 }];
+    let distance = 0;
+    const segments = path.closed ? anchors.length : anchors.length - 1;
+    for (let i = 0; i < segments; i++) {
+        const a = anchors[i];
+        const b = anchors[(i + 1) % anchors.length];
+        const c1 = a.outHandle ?? a;
+        const c2 = b.inHandle ?? b;
+        let prev = { x: a.x, y: a.y };
+        for (let s = 1; s <= samplesPerSegment; s++) {
+            const pt = cubicAt(a, c1, c2, b, s / samplesPerSegment);
+            const dx = pt.x - prev.x;
+            const dy = pt.y - prev.y;
+            const step = Math.hypot(dx, dy);
+            if (step > 0.001) {
+                distance += step;
+                out.push({ x: pt.x, y: pt.y, distance, angle: Math.atan2(dy, dx) });
+            }
+            prev = pt;
+        }
+    }
+    if (out.length > 1) out[0].angle = out[1].angle;
+    return out;
+}
+
+function samplePathAt(samples: PathSample[], distance: number): PathSample | null {
+    if (samples.length === 0) return null;
+    if (distance <= 0) return samples[0];
+    const last = samples[samples.length - 1];
+    if (distance >= last.distance) return last;
+    for (let i = 1; i < samples.length; i++) {
+        const a = samples[i - 1];
+        const b = samples[i];
+        if (distance <= b.distance) {
+            const span = Math.max(0.0001, b.distance - a.distance);
+            const t = (distance - a.distance) / span;
+            return {
+                x: a.x + (b.x - a.x) * t,
+                y: a.y + (b.y - a.y) * t,
+                distance,
+                angle: b.angle,
+            };
+        }
+    }
+    return last;
+}
+
+function pathBounds(samples: PathSample[], pad: number): TypeBounds {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    samples.forEach(pt => {
+        minX = Math.min(minX, pt.x);
+        minY = Math.min(minY, pt.y);
+        maxX = Math.max(maxX, pt.x);
+        maxY = Math.max(maxY, pt.y);
+    });
+    if (!Number.isFinite(minX)) return { x: 0, y: 0, w: 1, h: 1 };
+    return {
+        x: minX - pad,
+        y: minY - pad,
+        w: Math.max(1, maxX - minX + pad * 2),
+        h: Math.max(1, maxY - minY + pad * 2),
+    };
+}
+
+function nearestPathDistance(path: TypePathShape, x: number, y: number): number {
+    const samples = flattenTypePath(path);
+    let best = samples[0]?.distance ?? 0;
+    let bestD = Infinity;
+    samples.forEach(sample => {
+        const d = Math.hypot(sample.x - x, sample.y - y);
+        if (d < bestD) {
+            bestD = d;
+            best = sample.distance;
+        }
+    });
+    return best;
+}
+
+function typePathHandlePositions(data: TypeLayerData): { start: PathSample; end: PathSample } | null {
+    if (data.textMode !== 'path' || !data.pathText?.path) return null;
+    const samples = flattenTypePath(data.pathText.path);
+    const total = samples.at(-1)?.distance ?? 0;
+    if (samples.length < 2 || total <= 0) return null;
+    const start = samplePathAt(samples, Math.max(0, Math.min(total, data.pathText.startOffset)));
+    const end = samplePathAt(samples, Math.max(0, Math.min(total, data.pathText.endOffset ?? total)));
+    return start && end ? { start, end } : null;
+}
+
+export function hitTypePathHandleAt(layers: Layer[], x: number, y: number, threshold = 8): { layer: Layer; handle: 'start' | 'end' } | null {
+    for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (!layer.visible || layer.kind !== 'type') continue;
+        const data = layer.typeData as TypeLayerData | null;
+        if (!data) continue;
+        const handles = typePathHandlePositions(data);
+        if (!handles) continue;
+        if (Math.hypot(handles.start.x - x, handles.start.y - y) <= threshold) return { layer, handle: 'start' };
+        if (Math.hypot(handles.end.x - x, handles.end.y - y) <= threshold) return { layer, handle: 'end' };
+    }
+    return null;
+}
+
+export function moveTypePathHandle(layer: Layer, handle: 'start' | 'end', point: { x: number; y: number }): void {
+    const data = layer.typeData as TypeLayerData | null;
+    if (!data?.pathText?.path) return;
+    const samples = flattenTypePath(data.pathText.path);
+    const total = samples.at(-1)?.distance ?? 0;
+    if (samples.length < 2 || total <= 0) return;
+    const distance = Math.max(0, Math.min(total, nearestPathDistance(data.pathText.path, point.x, point.y)));
+    const nearest = samplePathAt(samples, distance);
+    if (nearest) {
+        const nx = -Math.sin(nearest.angle);
+        const ny = Math.cos(nearest.angle);
+        const signedSide = (point.x - nearest.x) * nx + (point.y - nearest.y) * ny;
+        data.pathText.flipped = signedSide > 0;
+    }
+    if (handle === 'start') {
+        data.pathText.startOffset = Math.min(distance, data.pathText.endOffset ?? total);
+    } else {
+        data.pathText.endOffset = Math.max(distance, data.pathText.startOffset);
+    }
+    rerenderTypeLayer(layer);
+}
+
 /** Hit-test: returns the topmost type layer whose stored bounds contain (x, y), or null. */
 export function findTypeLayerAt(layers: Layer[], x: number, y: number): Layer | null {
     // Iterate top-down (reverse order) so the topmost layer wins.
@@ -377,6 +550,33 @@ function makeTypeTool(id: string, label: string, orientation: TypeOrientation): 
                 });
                 store.setActiveLayer(hit.id);
                 getStoreRef?.().forceRender();
+                return;
+            }
+
+            const bridge = typePathBridge;
+            const pathHit = bridge?.hitSegment(point.x, point.y);
+            if (bridge && pathHit) {
+                const path = bridge.clonePath(pathHit.path);
+                const data = addImmediateTypeLayer(store, ctx.getStore, {
+                    id: crypto.randomUUID(),
+                    text: 'text',
+                    textMode: 'path',
+                    style: { ...defaultTextStyle, color: store.primaryColor },
+                    orientation,
+                    transform: {
+                        x: pathHit.point.x,
+                        y: pathHit.point.y - defaultTextStyle.fontSize,
+                        width: 0,
+                        height: defaultTextStyle.fontSize * 1.4,
+                        rotation: 0,
+                    },
+                    pathText: {
+                        path,
+                        startOffset: nearestPathDistance(path, pathHit.point.x, pathHit.point.y),
+                        flipped: false,
+                    },
+                });
+                setEditingType(data);
                 return;
             }
 
@@ -450,6 +650,25 @@ export const verticalTypeTool = makeTypeTool('type-vertical', 'Vertical Type', '
 registerTool(horizontalTypeTool);
 registerTool(verticalTypeTool);
 
+function applyWarpToCommittedType(ctx: CanvasRenderingContext2D, layerCanvas: HTMLCanvasElement, data: TypeLayerData): void {
+    if (!data.warp || data.warp.style === 'none' || !data.bounds) return;
+    const b = data.bounds;
+    const margin = 4;
+    const x0 = Math.max(0, Math.floor(b.x - margin));
+    const y0 = Math.max(0, Math.floor(b.y - margin));
+    const w = Math.min(layerCanvas.width - x0, Math.ceil(b.w + margin * 2));
+    const h = Math.min(layerCanvas.height - y0, Math.ceil(b.h + margin * 2));
+    if (w <= 0 || h <= 0) return;
+    const snap = document.createElement('canvas');
+    snap.width = w;
+    snap.height = h;
+    const snapCtx = snap.getContext('2d');
+    if (!snapCtx) return;
+    snapCtx.drawImage(layerCanvas, x0, y0, w, h, 0, 0, w, h);
+    ctx.clearRect(x0, y0, w, h);
+    applyTextWarp(ctx, snap, data.warp, { x: x0, y: y0, w, h });
+}
+
 /**
  * Rasterize a type layer's text onto its layer canvas. Clears any previously
  * rasterized text first, then writes the new text and updates `data.bounds` so
@@ -482,11 +701,57 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
     else if (aa === 'strong') textCtx.textRendering = 'optimizeLegibility';
     else if (aa === 'smooth') textCtx.textRendering = 'optimizeSpeed';
     else textCtx.textRendering = 'auto';
+    const lineStep = base.fontSize * lineH;
+    if (data.textMode === 'path' && data.pathText?.path) {
+        const samples = flattenTypePath(data.pathText.path);
+        const totalLength = samples.at(-1)?.distance ?? 0;
+        if (samples.length > 1 && totalLength > 0) {
+            let cursor = Math.max(0, Math.min(totalLength, data.pathText.startOffset));
+            const maxDistance = Math.min(totalLength, data.pathText.endOffset ?? totalLength);
+            for (let i = 0; i < data.text.length; i++) {
+                const raw = data.text[i];
+                if (raw === '\n') continue;
+                const s = styleAtOffset(data, i);
+                const ch = s.allCaps ? raw.toUpperCase() : raw;
+                const weight = s.fauxBold ? 700 : s.fontWeight;
+                const fontStyleStr = s.fauxItalic || s.fontStyle === 'italic' ? 'italic' : 'normal';
+                ctx.font = `${fontStyleStr} ${weight} ${s.fontSize}px ${s.fontFamily}`;
+                ctx.fillStyle = s.color;
+                const tracking = (s.letterSpacing / 1000) * s.fontSize;
+                (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${tracking}px`;
+                const advance = ctx.measureText(ch).width + tracking;
+                const centerDistance = cursor + advance / 2;
+                if (centerDistance > maxDistance) break;
+                const sample = samplePathAt(samples, centerDistance);
+                if (!sample) break;
+                const normalOffset = (data.pathText.flipped ? 1 : -1) * (s.baselineShift || 0);
+                const angle = sample.angle + (data.pathText.flipped ? Math.PI : 0);
+                ctx.save();
+                ctx.translate(
+                    sample.x + Math.cos(angle - Math.PI / 2) * normalOffset,
+                    sample.y + Math.sin(angle - Math.PI / 2) * normalOffset,
+                );
+                ctx.rotate(angle);
+                ctx.textBaseline = 'alphabetic';
+                ctx.fillText(ch, -advance / 2, 0);
+                if (s.fauxBold) ctx.fillText(ch, -advance / 2 + 0.5, 0);
+                if (s.underline) ctx.fillRect(-advance / 2, s.fontSize * 0.1, Math.max(1, advance), Math.max(1, s.fontSize / 16));
+                if (s.strikethrough) ctx.fillRect(-advance / 2, -s.fontSize * 0.3, Math.max(1, advance), Math.max(1, s.fontSize / 16));
+                ctx.restore();
+                cursor += advance;
+            }
+            data.bounds = pathBounds(samples, Math.max(base.fontSize, lineStep));
+        } else {
+            data.bounds = { x: data.transform.x, y: data.transform.y, w: 1, h: Math.max(1, base.fontSize) };
+        }
+        ctx.restore();
+        applyWarpToCommittedType(ctx, layerCanvas, data);
+        return;
+    }
     ctx.translate(data.transform.x, data.transform.y);
     ctx.rotate(data.transform.rotation);
     ctx.scale(base.scaleX, base.scaleY);
     ctx.textBaseline = 'top';
-    const lineStep = base.fontSize * lineH;
 
     let maxLineWidth = 0;
     let lineCount = 1;
@@ -596,28 +861,7 @@ export function commitTypeLayer(layerCanvas: HTMLCanvasElement, data: TypeLayerD
 
     // Warp Text: snapshot the rasterized glyphs, clear, and re-apply through
     // the warp displacement function. Skipped when warp is unset or style='none'.
-    if (data.warp && data.warp.style !== 'none' && data.bounds) {
-        const b = data.bounds;
-        // Snapshot the area of the bounds (plus a small margin so warp can
-        // pull pixels in from neighboring rows).
-        const margin = 4;
-        const x0 = Math.max(0, Math.floor(b.x - margin));
-        const y0 = Math.max(0, Math.floor(b.y - margin));
-        const w = Math.min(layerCanvas.width - x0, Math.ceil(b.w + margin * 2));
-        const h = Math.min(layerCanvas.height - y0, Math.ceil(b.h + margin * 2));
-        if (w > 0 && h > 0) {
-            const snap = document.createElement('canvas');
-            snap.width = w;
-            snap.height = h;
-            const snapCtx = snap.getContext('2d');
-            if (snapCtx) {
-                snapCtx.drawImage(layerCanvas, x0, y0, w, h, 0, 0, w, h);
-                // Clear the bounds region and re-paint via the warp.
-                ctx.clearRect(x0, y0, w, h);
-                applyTextWarp(ctx, snap, data.warp, { x: x0, y: y0, w, h });
-            }
-        }
-    }
+    applyWarpToCommittedType(ctx, layerCanvas, data);
 }
 
 

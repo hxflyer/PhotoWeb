@@ -521,3 +521,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Character panel kerning and OpenType feature buttons route through Adobe's full font engine.
 **Photoweb behavior:** Tracking, leading, scale, baseline, faux styles, caps, super/sub, underline, strikethrough, and anti-aliasing are active; kerning and advanced OpenType controls remain visible but disabled or metrics-only.
 **Rationale:** Browser Canvas2D and contenteditable do not expose Photoshop-level kerning/OpenType feature control consistently. Active controls cover the lesson's common typography edits while avoiding fake toggles.
+
+## 2026-05-14 — 25a-type-on-path-warp — Custom Shape path-mode anchors deferred
+
+**Photoshop behavior:** Any Custom Shape drawn in Path mode becomes an editable path that can receive type.
+**Photoweb behavior:** Geometric Shape tools in Path mode create editable paths for type-on-path; Custom Shape path-mode conversion is deferred.
+**Rationale:** Converting arbitrary SVG custom-shape presets into Pen-style anchors requires a dedicated geometry parser planned with the custom-shape preset cluster; geometric paths cover the current type-on-path lesson workflow.

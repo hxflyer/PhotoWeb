@@ -113,10 +113,10 @@ export function applyTextWarp(
         const v = y / rows;
         for (let x = 0; x < cols; x++) {
             const u = x / cols;
-            const { du, dv } = displacementForStyle(warp.style, u, v);
+            const { du, dv } = displacementForStyle(warp.style, warp.horizontal ? u : v, warp.horizontal ? v : u);
             // Sample source at (x - dx, y - dy) — inverse warp.
-            const sxOff = du * bendScaleX + (u - 0.5) * dhScale;
-            const syOff = dv * bendScaleY + (v - 0.5) * dvScale;
+            const sxOff = (warp.horizontal ? du : dv) * bendScaleX + (u - 0.5) * dhScale;
+            const syOff = (warp.horizontal ? dv : du) * bendScaleY + (v - 0.5) * dvScale;
             const sx = x - sxOff;
             const sy = y - syOff;
             if (sx < 0 || sy < 0 || sx >= srcBounds.w || sy >= srcBounds.h) continue;

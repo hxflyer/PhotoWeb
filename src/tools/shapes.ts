@@ -6,6 +6,7 @@ import { useEditorStore } from '../store/editorStore';
 import { buildSnapCandidates, snapPoint, type SnapTarget } from './snap';
 import { getCustomShapeById } from './customShapes';
 import { renderCombinedShapeCanvas, type ShapeBooleanOp } from '../utils/shapeBoolean';
+import { addPath, type PathShape } from './pen';
 import type {
     ShapeData,
     ShapeFill,
@@ -267,6 +268,70 @@ function buildShapeData(
     }
 }
 
+function shapeDataToPath(data: ShapeData): PathShape | null {
+    const id = crypto.randomUUID();
+    const k = 0.5522847498307936;
+    switch (data.kind) {
+        case 'rect':
+        case 'rounded-rect': {
+            const { x, y, w, h } = data.bounds;
+            if (w < 1 || h < 1) return null;
+            return {
+                id,
+                closed: true,
+                anchors: [
+                    { x, y, type: 'corner' },
+                    { x: x + w, y, type: 'corner' },
+                    { x: x + w, y: y + h, type: 'corner' },
+                    { x, y: y + h, type: 'corner' },
+                ],
+            };
+        }
+        case 'ellipse': {
+            const { x, y, w, h } = data.bounds;
+            if (w < 1 || h < 1) return null;
+            const cx = x + w / 2;
+            const cy = y + h / 2;
+            const rx = w / 2;
+            const ry = h / 2;
+            return {
+                id,
+                closed: true,
+                anchors: [
+                    { x: cx + rx, y: cy, type: 'smooth', inHandle: { x: cx + rx, y: cy - k * ry }, outHandle: { x: cx + rx, y: cy + k * ry } },
+                    { x: cx, y: cy + ry, type: 'smooth', inHandle: { x: cx + k * rx, y: cy + ry }, outHandle: { x: cx - k * rx, y: cy + ry } },
+                    { x: cx - rx, y: cy, type: 'smooth', inHandle: { x: cx - rx, y: cy + k * ry }, outHandle: { x: cx - rx, y: cy - k * ry } },
+                    { x: cx, y: cy - ry, type: 'smooth', inHandle: { x: cx - k * rx, y: cy - ry }, outHandle: { x: cx + k * rx, y: cy - ry } },
+                ],
+            };
+        }
+        case 'line':
+            return {
+                id,
+                closed: false,
+                anchors: [
+                    { x: data.p0.x, y: data.p0.y, type: 'corner' },
+                    { x: data.p1.x, y: data.p1.y, type: 'corner' },
+                ],
+            };
+        case 'polygon': {
+            const points = data.star ? data.sides * 2 : data.sides;
+            const anchors = Array.from({ length: points }, (_, i) => {
+                const angle = (-Math.PI / 2) + (i * 2 * Math.PI) / points;
+                const radius = data.star && i % 2 === 1 ? data.radius * data.starRatio : data.radius;
+                return {
+                    x: data.center.x + radius * Math.cos(angle + data.rotation),
+                    y: data.center.y + radius * Math.sin(angle + data.rotation),
+                    type: 'corner' as const,
+                };
+            });
+            return anchors.length > 1 ? { id, closed: true, anchors } : null;
+        }
+        case 'custom':
+            return null;
+    }
+}
+
 function drawPixelShape(
     ctx: CanvasRenderingContext2D,
     kind: ShapeKind,
@@ -502,6 +567,17 @@ function makeShapeTool(id: string, label: string, kind: ShapeKind): Tool {
             publishShapeSnapTargets(undefined, undefined);
             if (options.mode === 'shape') {
                 commitShapeLayer(ctx, dragKind, anchor, current, modifiers);
+                return;
+            }
+            if (options.mode === 'path') {
+                const store = ctx.getStore();
+                const data = buildShapeData(dragKind, anchor, current, store.primaryColor, modifiers);
+                const path = data ? shapeDataToPath(data) : null;
+                if (path) {
+                    addPath(path);
+                    ctx.requestRender();
+                    window.dispatchEvent(new Event('photoweb:paths-changed'));
+                }
                 return;
             }
             // Pixels mode: paint directly onto the active layer.

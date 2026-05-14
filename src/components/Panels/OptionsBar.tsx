@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import {
     Circle, Lasso, Magnet, Pentagon, Square, Layers, ZoomIn, ZoomOut,
@@ -59,9 +59,11 @@ import { clearRulerMeasurement, getRulerMeasurement, straightenRulerMeasurement 
 import { getPenOptions, setPenOptions, type PenMode } from '../../tools/pen';
 import {
     getEditingStyle, getTypeVersion, subscribeTypeTool, typeToolState, updateEditingStyle,
+    type TypeLayerData, type TypeWarp, type TypeWarpStyle,
 } from '../../tools/type';
 import {
-    applyCharacterPanelEdit, commitCoalescedTypeEdit,
+    applyCharacterPanelEdit, applyCoalescedDataPatch, beginCoalescedTypeEdit,
+    cancelCoalescedTypeEdit, commitCoalescedTypeEdit,
 } from '../../tools/typeCommands';
 import type { BlendModeId } from '../../core/blendModes';
 import type { PaintSymmetryMode } from '../../store/types';
@@ -1736,12 +1738,156 @@ function PenOptions() {
     );
 }
 
+const WARP_TEXT_STYLES: { value: TypeWarpStyle; label: string }[] = [
+    { value: 'none', label: 'None' },
+    { value: 'arc', label: 'Arc' },
+    { value: 'arc-lower', label: 'Arc Lower' },
+    { value: 'arc-upper', label: 'Arc Upper' },
+    { value: 'arch', label: 'Arch' },
+    { value: 'bulge', label: 'Bulge' },
+    { value: 'shell-lower', label: 'Shell Lower' },
+    { value: 'shell-upper', label: 'Shell Upper' },
+    { value: 'flag', label: 'Flag' },
+    { value: 'wave', label: 'Wave' },
+    { value: 'fish', label: 'Fish' },
+    { value: 'rise', label: 'Rise' },
+    { value: 'fisheye', label: 'Fisheye' },
+    { value: 'inflate', label: 'Inflate' },
+    { value: 'squeeze', label: 'Squeeze' },
+    { value: 'twist', label: 'Twist' },
+];
+
+const DEFAULT_WARP: TypeWarp = {
+    style: 'none',
+    bend: 0,
+    distortH: 0,
+    distortV: 0,
+    horizontal: true,
+};
+
+function WarpTextDialog({ initialWarp, onPreview, onApply, onClose }: { initialWarp?: TypeWarp; onPreview: (warp: TypeWarp) => void; onApply: () => void; onClose: () => void }) {
+    const [warp, setWarp] = useState<TypeWarp>({ ...DEFAULT_WARP, ...initialWarp });
+    useEffect(() => {
+        onPreview(warp);
+    }, [warp, onPreview]);
+    const setNumber = (key: 'bend' | 'distortH' | 'distortV', value: number) => {
+        setWarp(current => ({ ...current, [key]: Math.max(-100, Math.min(100, Number.isFinite(value) ? value : 0)) }));
+    };
+    return (
+        <div
+            data-testid="warp-text-dialog"
+            role="dialog"
+            aria-modal="true"
+            style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 5000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0, 0, 0, 0.35)',
+            }}
+            onMouseDown={e => {
+                if (e.target === e.currentTarget) onClose();
+            }}
+        >
+            <div
+                style={{
+                    width: 340,
+                    background: 'hsl(var(--panel-bg))',
+                    border: '1px solid hsl(var(--border-light))',
+                    boxShadow: '0 18px 50px rgba(0,0,0,.35)',
+                    color: 'hsl(var(--text-primary))',
+                    padding: 14,
+                    display: 'grid',
+                    gap: 10,
+                }}
+            >
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Warp Text</div>
+                <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>
+                    Style
+                    <select
+                        data-testid="warp-text-style"
+                        className="opts-input"
+                        value={warp.style}
+                        onChange={e => setWarp(current => ({ ...current, style: e.target.value as TypeWarpStyle }))}
+                    >
+                        {WARP_TEXT_STYLES.map(style => <option key={style.value} value={style.value}>{style.label}</option>)}
+                    </select>
+                </label>
+                <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="warp-text-horizontal"
+                            type="radio"
+                            checked={warp.horizontal}
+                            onChange={() => setWarp(current => ({ ...current, horizontal: true }))}
+                        />
+                        Horizontal
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="warp-text-vertical"
+                            type="radio"
+                            checked={!warp.horizontal}
+                            onChange={() => setWarp(current => ({ ...current, horizontal: false }))}
+                        />
+                        Vertical
+                    </label>
+                </div>
+                {[
+                    ['Bend', 'bend'],
+                    ['Horizontal Distortion', 'distortH'],
+                    ['Vertical Distortion', 'distortV'],
+                ].map(([label, key]) => (
+                    <label key={key} style={{ display: 'grid', gridTemplateColumns: '1fr 70px', gap: 8, alignItems: 'center', fontSize: 11 }}>
+                        <span>{label}</span>
+                        <input
+                            data-testid={`warp-text-${key}`}
+                            className="opts-input"
+                            type="number"
+                            min={-100}
+                            max={100}
+                            value={warp[key as 'bend' | 'distortH' | 'distortV']}
+                            onChange={e => setNumber(key as 'bend' | 'distortH' | 'distortV', Number(e.target.value))}
+                        />
+                        <input
+                            data-testid={`warp-text-${key}-range`}
+                            style={{ gridColumn: '1 / span 2', accentColor: 'hsl(var(--accent-primary))' }}
+                            type="range"
+                            min={-100}
+                            max={100}
+                            value={warp[key as 'bend' | 'distortH' | 'distortV']}
+                            onChange={e => setNumber(key as 'bend' | 'distortH' | 'distortV', Number(e.target.value))}
+                        />
+                    </label>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <button data-testid="warp-text-cancel" className="opts-btn" onClick={onClose}>Cancel</button>
+                    <button
+                        data-testid="warp-text-ok"
+                        className="opts-btn active"
+                        onClick={() => {
+                            onApply();
+                        }}
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function TypeOptions() {
     useSyncExternalStore(subscribeTypeTool, getTypeVersion);
+    const [warpDialogOpen, setWarpDialogOpen] = useState(false);
+    const [warpDialogInitial, setWarpDialogInitial] = useState<TypeWarp | undefined>(undefined);
     const state = useEditorStore();
     const s = getEditingStyle();
     const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
     const sharedLayerId = activeLayer?.kind === 'type' ? activeLayer.id : undefined;
+    const activeTypeData = activeLayer?.kind === 'type' ? activeLayer.typeData as TypeLayerData | null : null;
     const styleLabel = s.fontStyle === 'italic'
         ? (s.fontWeight >= 700 ? 'Bold Italic' : 'Italic')
         : (s.fontWeight >= 700 ? 'Bold' : 'Regular');
@@ -1767,6 +1913,26 @@ function TypeOptions() {
                     : { fontWeight: 400, fontStyle: 'normal' as const };
         update(patch, 'Edit Font Style');
     };
+    const openWarpDialog = () => {
+        if (!sharedLayerId) return;
+        setWarpDialogInitial(activeTypeData?.warp);
+        beginCoalescedTypeEdit(sharedLayerId, 'Warp Text');
+        setWarpDialogOpen(true);
+    };
+    const closeWarpDialog = useCallback((commit: boolean) => {
+        if (sharedLayerId) {
+            if (commit) {
+                commitCoalescedTypeEdit();
+            } else {
+                applyCoalescedDataPatch(sharedLayerId, 'Warp Text', { warp: warpDialogInitial });
+                cancelCoalescedTypeEdit();
+            }
+        }
+        setWarpDialogOpen(false);
+    }, [sharedLayerId, warpDialogInitial]);
+    const previewWarp = useCallback((warp: TypeWarp) => {
+        if (sharedLayerId) applyCoalescedDataPatch(sharedLayerId, 'Warp Text', { warp });
+    }, [sharedLayerId]);
     return (
         <>
             {/* Font family */}
@@ -1835,7 +2001,23 @@ function TypeOptions() {
                 style={{ width: 20, height: 20, backgroundColor: s.color, border: '1px solid hsl(var(--border-light))', cursor: 'pointer', flexShrink: 0 }}
             />
             {S.sep()}
-            <button className="opts-btn" title="Create Warp Text"><WarpTextIcon size={13} /></button>
+            <button
+                data-testid="type-options-warp-text"
+                className="opts-btn"
+                title="Create Warp Text"
+                disabled={!sharedLayerId}
+                onClick={openWarpDialog}
+            >
+                <WarpTextIcon size={13} />
+            </button>
+            {warpDialogOpen && sharedLayerId && (
+                <WarpTextDialog
+                    initialWarp={warpDialogInitial}
+                    onPreview={previewWarp}
+                    onApply={() => closeWarpDialog(true)}
+                    onClose={() => closeWarpDialog(false)}
+                />
+            )}
             <button
                 data-testid="type-options-toggle-panels"
                 className="opts-btn"

@@ -119,6 +119,7 @@ function RichTypeText({ data }: { data: TypeLayerData }) {
 function TypeLayerVisual({ layer }: { layer: Layer }) {
     const data = layer.typeData as TypeLayerData | null;
     if (!data) return null;
+    if ((data.textMode ?? 'point') === 'path') return null;
     const style = data.style;
     const transform = [
         `translate(${data.transform.x}px, ${data.transform.y}px)`,

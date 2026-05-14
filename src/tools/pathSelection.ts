@@ -1,13 +1,12 @@
 import type { Tool, ToolPointerEvent } from './Tool';
 import { registerTool } from './registry';
 import { getActivePath, getPaths, removePath, renderPathOverlay, setActivePath } from './pen';
+import { useEditorStore } from '../store/editorStore';
+import { hitTypePathHandleAt, moveTypePathHandle } from './type';
 
-interface DragState {
-    pathId: string;
-    anchorIndex: number | null;
-    handle: 'in' | 'out' | null;
-    last: { x: number; y: number };
-}
+type DragState =
+    | { kind: 'path'; pathId: string; anchorIndex: number | null; handle: 'in' | 'out' | null; last: { x: number; y: number } }
+    | { kind: 'type-path'; layerId: string; handle: 'start' | 'end'; last: { x: number; y: number } };
 
 const drag: { state: DragState | null } = { state: null };
 
@@ -41,22 +40,23 @@ export const pathSelectionTool: Tool = {
         const hit = pickAnchor(point);
         if (hit) {
             setActivePath(hit.pathId);
-            drag.state = { pathId: hit.pathId, anchorIndex: null, handle: null, last: point };
+            drag.state = { kind: 'path', pathId: hit.pathId, anchorIndex: null, handle: null, last: point };
         }
     },
     onPointerMove: (e) => {
-        if (!drag.state) return;
+        const current = drag.state;
+        if (!current || current.kind !== 'path') return;
         const point = p(e);
-        const dx = point.x - drag.state.last.x;
-        const dy = point.y - drag.state.last.y;
-        const path = getPaths().find(p => p.id === drag.state!.pathId);
+        const dx = point.x - current.last.x;
+        const dy = point.y - current.last.y;
+        const path = getPaths().find(p => p.id === current.pathId);
         if (!path) return;
         path.anchors.forEach(a => {
             a.x += dx; a.y += dy;
             if (a.inHandle) { a.inHandle.x += dx; a.inHandle.y += dy; }
             if (a.outHandle) { a.outHandle.x += dx; a.outHandle.y += dy; }
         });
-        drag.state.last = point;
+        current.last = point;
     },
     onPointerUp: () => { drag.state = null; },
     onKeyDown: (e) => {
@@ -78,39 +78,58 @@ export const directSelectionTool: Tool = {
     onPointerDown: (e) => {
         if (e.button !== 0) return;
         const point = p(e);
+        const typeHandle = hitTypePathHandleAt(useEditorStore.getState().layers, point.x, point.y);
+        if (typeHandle) {
+            useEditorStore.getState().setActiveLayer(typeHandle.layer.id);
+            drag.state = { kind: 'type-path', layerId: typeHandle.layer.id, handle: typeHandle.handle, last: point };
+            return;
+        }
         const hit = pickAnchor(point);
         if (hit) {
             setActivePath(hit.pathId);
-            drag.state = { pathId: hit.pathId, anchorIndex: hit.anchorIndex, handle: hit.handle, last: point };
+            drag.state = { kind: 'path', pathId: hit.pathId, anchorIndex: hit.anchorIndex, handle: hit.handle, last: point };
         }
     },
     onPointerMove: (e) => {
-        if (!drag.state) return;
+        const current = drag.state;
+        if (!current) return;
+        if (current.kind === 'type-path') {
+            const state = useEditorStore.getState();
+            const layer = state.layers.find(l => l.id === current.layerId);
+            if (!layer) return;
+            const point = p(e);
+            moveTypePathHandle(layer, current.handle, point);
+            current.last = point;
+            useEditorStore.setState(s => ({ layers: [...s.layers] }));
+            return;
+        }
         const path = getActivePath();
-        if (!path || drag.state.anchorIndex === null) return;
-        const anchor = path.anchors[drag.state.anchorIndex];
+        if (current.kind !== 'path') return;
+        if (!path || current.anchorIndex === null) return;
+        const anchor = path.anchors[current.anchorIndex];
         if (!anchor) return;
         const point = p(e);
-        if (drag.state.handle === 'in' && anchor.inHandle) {
+        if (current.handle === 'in' && anchor.inHandle) {
             anchor.inHandle.x = point.x;
             anchor.inHandle.y = point.y;
-        } else if (drag.state.handle === 'out' && anchor.outHandle) {
+        } else if (current.handle === 'out' && anchor.outHandle) {
             anchor.outHandle.x = point.x;
             anchor.outHandle.y = point.y;
         } else {
-            const dx = point.x - drag.state.last.x;
-            const dy = point.y - drag.state.last.y;
+            const dx = point.x - current.last.x;
+            const dy = point.y - current.last.y;
             anchor.x += dx; anchor.y += dy;
             if (anchor.inHandle) { anchor.inHandle.x += dx; anchor.inHandle.y += dy; }
             if (anchor.outHandle) { anchor.outHandle.x += dx; anchor.outHandle.y += dy; }
         }
-        drag.state.last = point;
+        current.last = point;
     },
     onPointerUp: () => { drag.state = null; },
     onKeyDown: (e) => {
         if (e.key === 'Backspace' || e.key === 'Delete') {
+            if (drag.state?.kind === 'type-path') return;
             const path = getActivePath();
-            if (!path || drag.state?.anchorIndex == null) {
+            if (!path || drag.state?.kind !== 'path' || drag.state.anchorIndex == null) {
                 // No specific anchor → delete the whole path.
                 if (path) {
                     e.rawEvent.preventDefault();
