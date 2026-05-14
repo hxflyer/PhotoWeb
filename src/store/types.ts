@@ -726,7 +726,7 @@ export type PanelId =
     | 'color' | 'swatches' | 'adjustments'
     | 'properties' | 'character' | 'paragraph'
     | 'navigator' | 'info' | 'tools'
-    | 'brush-presets' | 'pattern-presets' | 'styles';
+    | 'brush-presets' | 'pattern-presets' | 'shapes' | 'styles';
 
 export type PanelVisibility = Record<PanelId, boolean>;
 

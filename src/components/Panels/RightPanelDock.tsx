@@ -11,6 +11,7 @@ import { ParagraphPanel } from './ParagraphPanel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { BrushPresetsPanel } from './BrushPresetsPanel';
 import { PatternPresetsPanel } from './PatternPresetsPanel';
+import { ShapesPanel } from './ShapesPanel';
 import { StylesPanel } from './StylesPanel';
 import { NavigatorPanel } from './NavigatorPanel';
 import { InfoPanel } from './InfoPanel';
@@ -85,6 +86,7 @@ const TAB_LABELS: Record<string, string> = {
     properties: 'Properties',
     'brush-presets': 'Brushes',
     'pattern-presets': 'Pattern Presets',
+    shapes: 'Shapes',
     styles: 'Styles',
 };
 
@@ -367,7 +369,7 @@ export function RightPanelDock() {
 
     const topVisibleTabs = (['navigator', 'info', 'color', 'swatches', 'adjustments'] as const).filter(t => panelVisibility[t]);
     const textVisibleTabs = (['character', 'paragraph'] as const).filter(t => panelVisibility[t]);
-    const bottomVisibleTabs = (['layers', 'channels', 'paths', 'history', 'properties', 'brush-presets', 'pattern-presets', 'styles'] as const).filter(t => panelVisibility[t]);
+    const bottomVisibleTabs = (['layers', 'channels', 'paths', 'history', 'properties', 'brush-presets', 'pattern-presets', 'shapes', 'styles'] as const).filter(t => panelVisibility[t]);
     const activeTopTab = topVisibleTabs.includes(topTab as never) ? topTab : topVisibleTabs[0];
     const activeTextTab = textVisibleTabs.includes(textTab as never) ? textTab : textVisibleTabs[0];
     const activeBottomTab = bottomVisibleTabs.includes(bottomTab as never) ? bottomTab : bottomVisibleTabs[0];
@@ -415,6 +417,7 @@ export function RightPanelDock() {
                     {activeBottomTab === 'properties' && <PropertiesPanel />}
                     {activeBottomTab === 'brush-presets' && <BrushPresetsPanel />}
                     {activeBottomTab === 'pattern-presets' && <PatternPresetsPanel />}
+                    {activeBottomTab === 'shapes' && <ShapesPanel />}
                     {activeBottomTab === 'styles' && <StylesPanel />}
                 </PanelGroupChrome>
             )}

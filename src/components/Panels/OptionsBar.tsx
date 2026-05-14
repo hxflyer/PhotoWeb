@@ -49,7 +49,7 @@ import { getMarqueeOptions, setMarqueeOptions } from '../../tools/marquee';
 import { getMagneticLassoOptions, setMagneticLassoOptions } from '../../tools/magneticLasso';
 import { getMoveOptions, setMoveOptions } from '../../tools/move';
 import { getShapeOptions, setShapeOptions } from '../../tools/shapes';
-import { getCustomShapeLibrary, CUSTOM_SHAPE_VIEWBOX } from '../../tools/customShapes';
+import { getCustomShapeGroups, getCustomShapeLibrary, CUSTOM_SHAPE_VIEWBOX } from '../../tools/customShapes';
 import { getCropOptions, setCropOptions, type CropAspectId, type CropOverlayId } from '../../tools/crop';
 import {
     getEyedropperOptions, setEyedropperOptions,
@@ -2037,11 +2037,65 @@ function TypeOptions() {
 
 function CustomShapePresetPicker() {
     const [, force] = useState(0);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [groupId, setGroupId] = useState<string>('all');
     const opts = getShapeOptions();
-    const library = getCustomShapeLibrary();
+    const groups = getCustomShapeGroups();
+    const library = groupId === 'all'
+        ? getCustomShapeLibrary()
+        : groups.find(group => group.id === groupId)?.shapes ?? getCustomShapeLibrary();
+    const loadGroup = (nextGroupId: string) => {
+        const groupShapes = nextGroupId === 'all'
+            ? getCustomShapeLibrary()
+            : groups.find(group => group.id === nextGroupId)?.shapes ?? [];
+        setGroupId(nextGroupId);
+        setMenuOpen(false);
+        if (groupShapes[0]) setShapeOptions({ customShapeId: groupShapes[0].id });
+        force(t => t + 1);
+    };
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
             {S.label('Shape:')}
+            <button
+                type="button"
+                data-testid="custom-shape-picker-gear"
+                className="opts-btn"
+                title="Custom Shape picker menu"
+                onClick={() => setMenuOpen(open => !open)}
+                style={{ width: 22, height: 22, padding: 0 }}
+            >
+                <Layers size={13} />
+            </button>
+            {menuOpen && (
+                <div
+                    data-testid="custom-shape-picker-menu"
+                    style={{
+                        position: 'absolute',
+                        left: 42,
+                        top: 24,
+                        zIndex: 20,
+                        minWidth: 150,
+                        padding: 4,
+                        background: 'hsl(var(--bg-header))',
+                        border: '1px solid hsl(var(--border-light))',
+                        boxShadow: 'var(--shadow-menu)',
+                    }}
+                >
+                    <button type="button" data-testid="custom-shape-load-all" className="opts-btn" style={{ display: 'block', width: '100%', textAlign: 'left' }} onClick={() => loadGroup('all')}>All Shapes</button>
+                    {groups.map(group => (
+                        <button
+                            key={group.id}
+                            type="button"
+                            data-testid={`custom-shape-load-${group.id}`}
+                            className="opts-btn"
+                            style={{ display: 'block', width: '100%', textAlign: 'left' }}
+                            onClick={() => loadGroup(group.id)}
+                        >
+                            {group.name}
+                        </button>
+                    ))}
+                </div>
+            )}
             <div
                 data-testid="custom-shape-picker"
                 style={{

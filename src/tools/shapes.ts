@@ -587,6 +587,52 @@ function commitShapeLayer(
     options.combineMode = 'new';
 }
 
+export function addCustomShapeLayerFromPreset(
+    presetId: string,
+    center: { x: number; y: number },
+    size = 96,
+): string | null {
+    const preset = getCustomShapeById(presetId);
+    if (!preset) return null;
+    const store = useEditorStore.getState();
+    const side = Math.max(8, size);
+    const bounds = {
+        x: Math.max(0, Math.min(store.width - side, center.x - side / 2)),
+        y: Math.max(0, Math.min(store.height - side, center.y - side / 2)),
+        w: side,
+        h: side,
+    };
+    const data: ShapeData = {
+        kind: 'custom',
+        presetId: preset.id,
+        pathD: preset.pathD,
+        bounds,
+        fill: makeFill(options.fill ?? store.primaryColor),
+        stroke: makeStroke(options.stroke, options.strokeWidth),
+        combineMode: 'new',
+    };
+    const id = crypto.randomUUID();
+    store.executeDocumentCommand({
+        kind: 'layer-add',
+        label: `Add ${preset.name}`,
+        run: () => {
+            const state = useEditorStore.getState();
+            const newLayer = new Layer(state.width, state.height, preset.name, 'shape');
+            newLayer.id = id;
+            newLayer.shapeData = data;
+            rerenderShapeLayer(newLayer);
+            useEditorStore.setState({
+                layers: [...state.layers, newLayer],
+                activeLayerId: newLayer.id,
+                selectedLayerIds: [newLayer.id],
+                layerSelectionAnchorId: newLayer.id,
+                activeLayerEditTarget: 'layer',
+            });
+        },
+    });
+    return id;
+}
+
 function labelForOp(op: ShapeBooleanOp): string {
     switch (op) {
         case 'combine': return 'Combine';

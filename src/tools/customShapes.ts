@@ -10,6 +10,12 @@ export interface CustomShape {
     pathD: string;
 }
 
+export interface CustomShapeGroup {
+    id: string;
+    name: string;
+    shapes: CustomShape[];
+}
+
 const HEART = 'M50,86 C20,66 6,46 6,28 C6,16 14,8 26,8 C36,8 44,14 50,24 C56,14 64,8 74,8 C86,8 94,16 94,28 C94,46 80,66 50,86 Z';
 
 const STAR_5 = (() => {
@@ -72,19 +78,63 @@ const GEAR = (() => {
 
 const CHECKMARK = 'M14,52 L38,76 L86,20 L74,12 L38,54 L22,40 Z';
 
-const LIBRARY: CustomShape[] = [
-    { id: 'heart', name: 'Heart', pathD: HEART },
-    { id: 'star-5pt', name: '5-Point Star', pathD: STAR_5 },
-    { id: 'star-7pt', name: '7-Point Star', pathD: STAR_7 },
-    { id: 'arrow-down-circle', name: 'Down Arrow Circle', pathD: ARROW_DOWN_CIRCLE },
-    { id: 'lightning-bolt', name: 'Lightning Bolt', pathD: LIGHTNING_BOLT },
-    { id: 'speech-bubble', name: 'Speech Bubble', pathD: SPEECH_BUBBLE },
-    { id: 'gear', name: 'Gear', pathD: GEAR },
-    { id: 'checkmark', name: 'Checkmark', pathD: CHECKMARK },
+const ARROW_RIGHT = 'M6,42 L58,42 L58,24 L94,50 L58,76 L58,58 L6,58 Z';
+const BANNER_RIBBON = 'M8,18 L92,18 L82,50 L92,82 L8,82 L18,50 Z M22,30 L78,30 L78,70 L22,70 Z';
+const BADGE = 'M50,4 L62,24 L86,20 L78,44 L96,60 L72,66 L70,92 L50,76 L30,92 L28,66 L4,60 L22,44 L14,20 L38,24 Z';
+const PAW_PRINT = 'M34,48 C24,48 18,58 18,68 C18,80 30,88 50,88 C70,88 82,80 82,68 C82,58 76,48 66,48 C58,48 56,56 50,56 C44,56 42,48 34,48 Z M23,18 C16,18 12,25 12,34 C12,42 17,48 24,48 C31,48 35,41 35,32 C35,24 30,18 23,18 Z M50,10 C42,10 38,18 38,28 C38,38 43,45 50,45 C57,45 62,38 62,28 C62,18 58,10 50,10 Z M77,18 C70,18 65,24 65,32 C65,41 69,48 76,48 C83,48 88,42 88,34 C88,25 84,18 77,18 Z';
+const FISH = 'M8,50 C24,22 62,22 82,50 C62,78 24,78 8,50 Z M82,50 L96,34 L96,66 Z M28,44 A5,5 0 1,1 27.99,44 Z';
+
+const GROUPS: CustomShapeGroup[] = [
+    {
+        id: 'basics',
+        name: 'Default Shapes',
+        shapes: [
+            { id: 'heart', name: 'Heart', pathD: HEART },
+            { id: 'star-5pt', name: '5-Point Star', pathD: STAR_5 },
+            { id: 'star-7pt', name: '7-Point Star', pathD: STAR_7 },
+            { id: 'lightning-bolt', name: 'Lightning Bolt', pathD: LIGHTNING_BOLT },
+            { id: 'speech-bubble', name: 'Speech Bubble', pathD: SPEECH_BUBBLE },
+            { id: 'gear', name: 'Gear', pathD: GEAR },
+            { id: 'checkmark', name: 'Checkmark', pathD: CHECKMARK },
+        ],
+    },
+    {
+        id: 'arrows',
+        name: 'Arrows',
+        shapes: [
+            { id: 'arrow-down-circle', name: 'Down Arrow Circle', pathD: ARROW_DOWN_CIRCLE },
+            { id: 'arrow-right', name: 'Right Arrow', pathD: ARROW_RIGHT },
+        ],
+    },
+    {
+        id: 'banners',
+        name: 'Banners',
+        shapes: [
+            { id: 'banner-ribbon', name: 'Ribbon Banner', pathD: BANNER_RIBBON },
+            { id: 'badge', name: 'Badge', pathD: BADGE },
+        ],
+    },
+    {
+        id: 'animals',
+        name: 'Animals',
+        shapes: [
+            { id: 'paw-print', name: 'Paw Print', pathD: PAW_PRINT },
+            { id: 'fish', name: 'Fish', pathD: FISH },
+        ],
+    },
 ];
+
+const LIBRARY: CustomShape[] = GROUPS.flatMap(group => group.shapes);
 
 export function getCustomShapeLibrary(): CustomShape[] {
     return LIBRARY.map(s => ({ ...s }));
+}
+
+export function getCustomShapeGroups(): CustomShapeGroup[] {
+    return GROUPS.map(group => ({
+        ...group,
+        shapes: group.shapes.map(shape => ({ ...shape })),
+    }));
 }
 
 export function getCustomShapeById(id: string): CustomShape | null {

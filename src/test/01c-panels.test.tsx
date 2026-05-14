@@ -27,7 +27,7 @@ afterEach(() => {
             color: true, swatches: true, adjustments: true,
             properties: true, character: true, paragraph: true,
             navigator: true, info: true, tools: true,
-            'brush-presets': true, 'pattern-presets': true, styles: true,
+            'brush-presets': true, 'pattern-presets': true, shapes: true, styles: true,
         },
     });
 });
@@ -62,7 +62,7 @@ describe('01c — Close affordances (☰ menu + right-click tab)', () => {
         fireEvent.click(getByTestId('panel-group-menu-bottom'));
         fireEvent.mouseDown(getByTestId('panel-menu-close-tab-group-bottom'));
         const v = useEditorStore.getState().panelVisibility;
-        for (const k of ['layers', 'channels', 'paths', 'history', 'properties', 'brush-presets', 'pattern-presets'] as const) {
+        for (const k of ['layers', 'channels', 'paths', 'history', 'properties', 'brush-presets', 'pattern-presets', 'shapes'] as const) {
             expect(v[k]).toBe(false);
         }
     });

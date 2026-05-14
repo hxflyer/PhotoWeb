@@ -545,3 +545,15 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Combine, Subtract, Intersect, and Exclude add editable subpaths to one Shape layer's vector mask.
 **Photoweb behavior:** When a shape operation is applied to an active Shape layer, Photoweb renders the combined silhouette into that layer and converts it to raster content.
 **Rationale:** The current `ShapeData` model stores one geometric primitive per Shape layer. Rasterizing the boolean result preserves the visible add/subtract/intersect/exclude result without inventing a partial compound-vector data model.
+
+## 2026-05-14 — 27a-custom-shape-tool — Compact built-in shape sets
+
+**Photoshop behavior:** The Custom Shape picker and Shapes panel can load Adobe's full installed custom-shape libraries, including large Legacy Shapes and More sets.
+**Photoweb behavior:** Photoweb ships compact built-in Default Shapes, Arrows, Banners, and Animals groups backed by browser-native SVG path data.
+**Rationale:** Adobe's preset libraries and `.csh` assets are proprietary. Compact built-ins preserve the picker, set-loading, and Shapes panel workflow without depending on unavailable assets.
+
+## 2026-05-14 — 27a-custom-shape-tool — Shapes panel drops use current tool styling
+
+**Photoshop behavior:** Dropping a Shapes panel preset can vary layer placement and fill/stroke depending on whether it lands on the background, an existing shape, or another target.
+**Photoweb behavior:** Dropping a Shapes panel preset creates a new Shape layer at the drop point using the current Custom Shape Tool fill and stroke options.
+**Rationale:** Target-sensitive drop styling spans hit-testing, layer ordering, and shape-to-shape style inheritance. The implemented behavior lands the core drag-to-document workflow while keeping follow-up styling rules explicit.

@@ -20,6 +20,7 @@ import { getBrushDynamicsOptions, resolveBrushDynamicDabs } from '../../utils/br
 import { paintSymmetryPoints } from '../../utils/paintSymmetry';
 import { getCropRect } from '../../tools/crop';
 import { getSelectionToolOperation } from '../../tools/selectionModifiers';
+import { addCustomShapeLayerFromPreset } from '../../tools/shapes';
 
 // Custom Cursor SVGs
 const CURSOR_ADD = `url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L12 22M2 12L22 12" stroke="white" stroke-width="4"/><path d="M12 2L12 22M2 12L22 12" stroke="black" stroke-width="2"/></svg>') 12 12, crosshair`;
@@ -1507,13 +1508,17 @@ function ViewportComponent({ toolsBlocked = false }: ViewportProps) {
         clearSelection();
     };
 
-    // Handle image / .pwbdoc file drop. Routes through the shared ingest
-    // pipeline: each image adds as a layer; if no document is open, the
-    // first image opens a new document. .pwbdoc native files take the
-    // load-from-localStorage path.
+    // Handle Shapes panel drops and image / .pwbdoc file drops.
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        const customShapeId = e.dataTransfer.getData('application/x-photoweb-custom-shape');
+        if (customShapeId) {
+            const coords = getCanvasCoords(e);
+            addCustomShapeLayerFromPreset(customShapeId, coords);
+            requestRender();
+            return;
+        }
         const files = Array.from(e.dataTransfer.files);
         if (files.length === 0) return;
         void ingestFiles(files, { treatFirstAsNewDoc: true }).then(summary => {
