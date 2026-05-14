@@ -46,7 +46,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 22b-live-gradients         (1) — Live Gradients (non-destructive layer)  commit: 3586a9e
 - [x] 23-color-swatches          (3) — Eyedropper, Swatches panel, swatches-from-image  commit: 6f0b52e
 - [x] 24-type-basics             (6) — Type Tool, point/area, Character/Paragraph panels  commit: 50ac250
-- [ ] 25a-type-on-path-warp      (3) — Type on path, Warp Text
+- [x] 25a-type-on-path-warp      (3) — Type on path, Warp Text  commit: 7475671
 - [ ] 25b-type-shape-interop     (2) — Type-in-shape, Convert to Shape
 - [ ] 26a-shape-concepts         (4) — Vector vs pixel, Tool Mode
 - [ ] 26b-geometric-shapes       (4) — Rectangle/Ellipse/Triangle/Polygon/Line + combine
