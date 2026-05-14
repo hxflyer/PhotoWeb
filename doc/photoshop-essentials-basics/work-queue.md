@@ -48,7 +48,7 @@ When a tick succeeds, change `[ ]` → `[x]` and append `  commit: <sha>` on the
 - [x] 24-type-basics             (6) — Type Tool, point/area, Character/Paragraph panels  commit: 50ac250
 - [x] 25a-type-on-path-warp      (3) — Type on path, Warp Text  commit: 7475671
 - [x] 25b-type-shape-interop     (2) — Type-in-shape, Convert to Shape  commit: e4e0be9
-- [ ] 26a-shape-concepts         (4) — Vector vs pixel, Tool Mode
+- [x] 26a-shape-concepts         (4) — Vector vs pixel, Tool Mode  commit: 73c6181
 - [ ] 26b-geometric-shapes       (4) — Rectangle/Ellipse/Triangle/Polygon/Line + combine
 - [ ] 27a-custom-shape-tool      (4) — Custom Shape Tool, Shapes panel
 - [ ] 27b-custom-shape-presets   (2) — Define Custom Shape, save / load sets
