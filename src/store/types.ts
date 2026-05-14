@@ -68,6 +68,8 @@ export interface ShapePolygonData {
     rotation: number;
     fill: ShapeFill | null;
     stroke: ShapeStroke | null;
+    /** Live Shape corner radius used by Triangle / Polygon tools. */
+    cornerRadius?: number;
     /** Round the outer (and inner, for stars) vertices via quadratic curves. */
     smoothCorners?: boolean;
     /** Round only the inner-star vertices (star mode). */
@@ -221,6 +223,7 @@ export type ToolId =
     | 'shape-rectangle'
     | 'shape-rounded-rectangle'
     | 'shape-ellipse'
+    | 'shape-triangle'
     | 'shape-polygon'
     | 'shape-line'
     | 'shape-custom'

@@ -539,3 +539,9 @@ Each entry is one departure. Keep entries terse — one paragraph at most.
 **Photoshop behavior:** Text inside a path uses Photoshop's full text composer to fit lines to arbitrary path interiors.
 **Photoweb behavior:** Shape text wraps inside the path bounds and clips to the closed path.
 **Rationale:** Canvas2D does not expose Photoshop-level path-aware text composition; bounds wrapping plus clipping preserves the visible text-frame behavior for the lesson workflow.
+
+## 2026-05-14 — 26b-geometric-shapes — Shape boolean ops rasterize composites
+
+**Photoshop behavior:** Combine, Subtract, Intersect, and Exclude add editable subpaths to one Shape layer's vector mask.
+**Photoweb behavior:** When a shape operation is applied to an active Shape layer, Photoweb renders the combined silhouette into that layer and converts it to raster content.
+**Rationale:** The current `ShapeData` model stores one geometric primitive per Shape layer. Rasterizing the boolean result preserves the visible add/subtract/intersect/exclude result without inventing a partial compound-vector data model.

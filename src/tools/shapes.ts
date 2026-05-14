@@ -25,7 +25,7 @@ function publishShapeSnapTargets(xSnap: SnapTarget | undefined, ySnap: SnapTarge
 }
 
 export type ShapeMode = 'shape' | 'path' | 'pixels';
-export type ShapeKind = 'rectangle' | 'rounded-rectangle' | 'ellipse' | 'polygon' | 'line' | 'custom';
+export type ShapeKind = 'rectangle' | 'rounded-rectangle' | 'ellipse' | 'triangle' | 'polygon' | 'line' | 'custom';
 export type ShapeCombineMode = 'new' | 'combine' | 'subtract' | 'intersect' | 'exclude';
 
 export interface ShapeOptions {
@@ -216,6 +216,25 @@ function buildShapeData(
             if (bounds.w < 1 || bounds.h < 1) return null;
             return { kind: 'ellipse', bounds, fill, stroke, combineMode };
         }
+        case 'triangle': {
+            const geom = resolvePolygonGeom(anchor, current, modifiers.shift, modifiers.alt);
+            if (geom.radius < 1) return null;
+            return {
+                kind: 'polygon',
+                center: geom.center,
+                radius: geom.radius,
+                sides: 3,
+                star: false,
+                starRatio: 1,
+                rotation: 0,
+                fill,
+                stroke,
+                cornerRadius: options.cornerRadius,
+                smoothCorners: options.cornerRadius > 0,
+                smoothIndents: false,
+                combineMode,
+            };
+        }
         case 'polygon': {
             const geom = resolvePolygonGeom(anchor, current, modifiers.shift, modifiers.alt);
             if (geom.radius < 1) return null;
@@ -231,12 +250,14 @@ function buildShapeData(
                 rotation: 0,
                 fill,
                 stroke,
+                cornerRadius: options.cornerRadius,
                 combineMode,
             };
         }
         case 'line': {
             const ends = resolveLineEndpoints(anchor, current, modifiers.shift);
             if (Math.hypot(ends.p1.x - ends.p0.x, ends.p1.y - ends.p0.y) < 1) return null;
+            const lineColor = options.stroke ?? fillColor;
             return {
                 kind: 'line',
                 p0: ends.p0,
@@ -245,7 +266,7 @@ function buildShapeData(
                 arrowStart: options.lineArrowStart,
                 arrowEnd: options.lineArrowEnd,
                 arrowSize: options.lineArrowSize,
-                stroke: makeLineStroke(fillColor, options.lineWeight),
+                stroke: makeLineStroke(lineColor, options.lineWeight),
                 combineMode,
             };
         }
@@ -416,7 +437,8 @@ function drawPixelShape(
         const shaftStart = { x: ends.p0.x, y: ends.p0.y };
         const shaftEnd = { x: ends.p1.x, y: ends.p1.y };
         ctx.lineWidth = options.lineWeight;
-        ctx.strokeStyle = fill;
+        const lineColor = options.stroke ?? fill;
+        ctx.strokeStyle = lineColor;
         if (len > 0) {
             const ux = dx / len, uy = dy / len;
             if (options.lineArrowStart) {
@@ -439,7 +461,7 @@ function drawPixelShape(
                 ctx.lineTo(tip.x - dirX * headLen + perpX * wing, tip.y - dirY * headLen + perpY * wing);
                 ctx.lineTo(tip.x - dirX * headLen - perpX * wing, tip.y - dirY * headLen - perpY * wing);
                 ctx.closePath();
-                ctx.fillStyle = fill;
+                ctx.fillStyle = lineColor;
                 ctx.fill();
             };
             if (options.lineArrowEnd) drawArrow({ x: ends.p1.x, y: ends.p1.y }, ux, uy);
@@ -465,22 +487,24 @@ function drawPixelShape(
         ctx.closePath();
     } else if (kind === 'ellipse') {
         ctx.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, b.h / 2, 0, 0, Math.PI * 2);
-    } else if (kind === 'polygon') {
+    } else if (kind === 'polygon' || kind === 'triangle') {
         const geom = resolvePolygonGeom(anchor, current, modifiers.shift, modifiers.alt);
         const cx = geom.center.x, cy = geom.center.y, r = geom.radius;
-        if (options.polygonStar) {
+        const sides = kind === 'triangle' ? 3 : options.polygonSides;
+        const star = kind === 'polygon' && options.polygonStar;
+        if (star) {
             const innerR = r * Math.max(0.05, Math.min(1, options.polygonStarRatio));
-            const points = options.polygonSides * 2;
+            const points = sides * 2;
             for (let i = 0; i < points; i++) {
-                const angle = (-Math.PI / 2) + (i * Math.PI) / options.polygonSides;
+                const angle = (-Math.PI / 2) + (i * Math.PI) / sides;
                 const radius = i % 2 === 0 ? r : innerR;
                 const px = cx + radius * Math.cos(angle);
                 const py = cy + radius * Math.sin(angle);
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
             }
         } else {
-            for (let i = 0; i < options.polygonSides; i++) {
-                const angle = (-Math.PI / 2) + (i * 2 * Math.PI) / options.polygonSides;
+            for (let i = 0; i < sides; i++) {
+                const angle = (-Math.PI / 2) + (i * 2 * Math.PI) / sides;
                 const px = cx + r * Math.cos(angle);
                 const py = cy + r * Math.sin(angle);
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
@@ -577,6 +601,7 @@ function labelForKind(kind: ShapeKind): string {
         case 'rectangle': return 'Rectangle';
         case 'rounded-rectangle': return 'Rounded Rectangle';
         case 'ellipse': return 'Ellipse';
+        case 'triangle': return 'Triangle';
         case 'polygon': return options.polygonStar ? 'Star' : 'Polygon';
         case 'line': return 'Line';
         case 'custom': return 'Custom Shape';
@@ -657,6 +682,7 @@ function makeShapeTool(id: string, label: string, kind: ShapeKind): Tool {
 export const rectangleShapeTool = makeShapeTool('shape-rectangle', 'Rectangle', 'rectangle');
 export const roundedRectShapeTool = makeShapeTool('shape-rounded-rectangle', 'Rounded Rectangle', 'rounded-rectangle');
 export const ellipseShapeTool = makeShapeTool('shape-ellipse', 'Ellipse', 'ellipse');
+export const triangleShapeTool = makeShapeTool('shape-triangle', 'Triangle', 'triangle');
 export const polygonShapeTool = makeShapeTool('shape-polygon', 'Polygon', 'polygon');
 export const lineShapeTool = makeShapeTool('shape-line', 'Line', 'line');
 export const customShapeTool = makeShapeTool('shape-custom', 'Custom Shape', 'custom');
@@ -665,6 +691,7 @@ export const customShapeTool = makeShapeTool('shape-custom', 'Custom Shape', 'cu
     rectangleShapeTool,
     roundedRectShapeTool,
     ellipseShapeTool,
+    triangleShapeTool,
     polygonShapeTool,
     lineShapeTool,
     customShapeTool,

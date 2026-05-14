@@ -118,6 +118,7 @@ function SelectionOperationButtons({ compact = false }: { compact?: boolean }) {
 }
 
 const SHAPE_OP_BUTTONS = [
+    { title: 'New Shape Layer', Icon: SelectionNewIcon, mode: 'new' as const },
     { title: 'Combine Shapes', Icon: ShapeCombineIcon, mode: 'combine' as const },
     { title: 'Subtract Front Shape', Icon: ShapeSubtractIcon, mode: 'subtract' as const },
     { title: 'Intersect Shape Areas', Icon: ShapeIntersectIcon, mode: 'intersect' as const },
@@ -134,10 +135,10 @@ function ShapeOperationButtons({ shortTitles = false }: { shortTitles?: boolean 
                     key={title}
                     data-testid={`shape-op-${mode}`}
                     className={`opts-btn${opts.combineMode === mode ? ' active' : ''}`}
-                    title={`${shortTitles ? title.replace(' Shapes', '').replace(' Shape Areas', '').replace(' Overlapping Shapes', '') : title} — applies to the next shape created in this session. Combining existing layers is not yet supported.`}
+                    title={`${shortTitles ? title.replace(' Shapes', '').replace(' Shape Areas', '').replace(' Overlapping Shapes', '').replace(' Shape Layer', '') : title} - combines with the active Shape layer when available; otherwise applies to the next shape.`}
                     onClick={() => {
                         const current = getShapeOptions().combineMode;
-                        setShapeOptions({ combineMode: current === mode ? 'new' : mode });
+                        setShapeOptions({ combineMode: mode === 'new' || current === mode ? 'new' : mode });
                         force(t => t + 1);
                     }}
                 >
@@ -2073,10 +2074,17 @@ function CustomShapePresetPicker() {
     );
 }
 
-function ShapeOptions({ showPresets = false }: { showPresets?: boolean } = {}) {
+function ShapeOptions({ showPresets = false, activeTool = '' }: { showPresets?: boolean; activeTool?: string } = {}) {
     const [, force] = useState(0);
     const opts = getShapeOptions();
     const update = (next: Parameters<typeof setShapeOptions>[0]) => { setShapeOptions(next); force(t => t + 1); };
+    const showCornerRadius = activeTool === 'shape-rounded-rectangle' || activeTool === 'shape-triangle' || activeTool === 'shape-polygon';
+    const isPolygon = activeTool === 'shape-polygon';
+    const isLine = activeTool === 'shape-line';
+    const readNumber = (value: string, fallback: number) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
     const fillSwatch = (
         <label style={{ display: 'inline-block', position: 'relative', cursor: 'pointer' }}>
             <span style={{
@@ -2129,6 +2137,8 @@ function ShapeOptions({ showPresets = false }: { showPresets?: boolean } = {}) {
                 ))}
             </div>
             {S.sep()}
+            <ShapeOperationButtons />
+            {S.sep()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {S.label('Fill:')}
                 {fillSwatch}
@@ -2161,6 +2171,141 @@ function ShapeOptions({ showPresets = false }: { showPresets?: boolean } = {}) {
                 title="Stroke width (px)"
             />
             <span className="opts-label">px</span>
+            {showCornerRadius && (
+                <>
+                    {S.sep()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Radius:')}
+                        <input
+                            data-testid="shape-corner-radius-input"
+                            type="number"
+                            min={0}
+                            max={500}
+                            value={opts.cornerRadius}
+                            onChange={e => update({ cornerRadius: Math.max(0, readNumber(e.target.value, opts.cornerRadius)) })}
+                            className="opts-input"
+                            style={{ width: 46 }}
+                            title={activeTool === 'shape-rounded-rectangle' ? 'Rounded Rectangle corner radius' : 'Triangle / Polygon corner radius'}
+                        />
+                        <span className="opts-label">px</span>
+                    </div>
+                </>
+            )}
+            {isPolygon && (
+                <>
+                    {S.sep()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Sides:')}
+                        <input
+                            data-testid="shape-polygon-sides-input"
+                            type="number"
+                            min={3}
+                            max={100}
+                            value={opts.polygonSides}
+                            onChange={e => update({ polygonSides: Math.max(3, Math.min(100, Math.round(readNumber(e.target.value, opts.polygonSides)))) })}
+                            className="opts-input"
+                            style={{ width: 44 }}
+                            title="Polygon sides"
+                        />
+                    </div>
+                    <label className="opts-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="shape-polygon-star-checkbox"
+                            type="checkbox"
+                            checked={opts.polygonStar}
+                            onChange={e => update({ polygonStar: e.target.checked })}
+                            style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                        />
+                        Star
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Ratio:')}
+                        <input
+                            data-testid="shape-polygon-star-ratio-input"
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={Math.round(opts.polygonStarRatio * 100)}
+                            onChange={e => update({ polygonStarRatio: Math.max(0.01, Math.min(1, readNumber(e.target.value, opts.polygonStarRatio * 100) / 100)) })}
+                            className="opts-input"
+                            style={{ width: 44 }}
+                            title="Star Ratio (%)"
+                        />
+                        <span className="opts-label">%</span>
+                    </div>
+                    <label className="opts-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="shape-polygon-smooth-corners"
+                            type="checkbox"
+                            checked={opts.polygonSmoothCorners}
+                            onChange={e => update({ polygonSmoothCorners: e.target.checked })}
+                            style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                        />
+                        Smooth Corners
+                    </label>
+                    <label className="opts-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="shape-polygon-smooth-indents"
+                            type="checkbox"
+                            checked={opts.polygonSmoothIndents}
+                            onChange={e => update({ polygonSmoothIndents: e.target.checked })}
+                            style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                        />
+                        Smooth Indents
+                    </label>
+                </>
+            )}
+            {isLine && (
+                <>
+                    {S.sep()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {S.label('Weight:')}
+                        <input
+                            data-testid="shape-line-weight-input"
+                            type="number"
+                            min={1}
+                            max={500}
+                            value={opts.lineWeight}
+                            onChange={e => update({ lineWeight: Math.max(1, readNumber(e.target.value, opts.lineWeight)) })}
+                            className="opts-input"
+                            style={{ width: 46 }}
+                            title="Line weight"
+                        />
+                        <span className="opts-label">px</span>
+                    </div>
+                    <label className="opts-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="shape-line-arrow-start"
+                            type="checkbox"
+                            checked={opts.lineArrowStart}
+                            onChange={e => update({ lineArrowStart: e.target.checked })}
+                            style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                        />
+                        Start
+                    </label>
+                    <label className="opts-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                            data-testid="shape-line-arrow-end"
+                            type="checkbox"
+                            checked={opts.lineArrowEnd}
+                            onChange={e => update({ lineArrowEnd: e.target.checked })}
+                            style={{ accentColor: 'hsl(var(--accent-primary))' }}
+                        />
+                        End
+                    </label>
+                    <input
+                        data-testid="shape-line-arrow-size-input"
+                        type="number"
+                        min={2}
+                        max={20}
+                        value={opts.lineArrowSize}
+                        onChange={e => update({ lineArrowSize: Math.max(2, readNumber(e.target.value, opts.lineArrowSize)) })}
+                        className="opts-input"
+                        style={{ width: 42 }}
+                        title="Arrowhead size"
+                    />
+                </>
+            )}
             {showPresets && (
                 <>
                     {S.sep()}
@@ -2244,7 +2389,7 @@ export function OptionsBar() {
         'path-selection': 'Path Selection', 'direct-selection': 'Direct Selection',
         'type-horizontal': 'Type', 'type-vertical': 'Vertical Type',
         'shape-rectangle': 'Rectangle', 'shape-rounded-rectangle': 'Rounded Rectangle',
-        'shape-ellipse': 'Ellipse', 'shape-polygon': 'Polygon',
+        'shape-ellipse': 'Ellipse', 'shape-triangle': 'Triangle', 'shape-polygon': 'Polygon',
         'shape-line': 'Line', 'shape-custom': 'Custom Shape',
         'hand': 'Hand', 'zoom': 'Zoom',
     };
@@ -2290,9 +2435,10 @@ export function OptionsBar() {
             case 'shape-rectangle':
             case 'shape-rounded-rectangle':
             case 'shape-ellipse':
+            case 'shape-triangle':
             case 'shape-polygon':
-            case 'shape-line': return <ShapeOptions />;
-            case 'shape-custom': return <ShapeOptions showPresets />;
+            case 'shape-line': return <ShapeOptions activeTool={activeTool} />;
+            case 'shape-custom': return <ShapeOptions showPresets activeTool={activeTool} />;
             case 'hand': return <HandOptions />;
             case 'zoom': return <ZoomOptions />;
             default: return null;

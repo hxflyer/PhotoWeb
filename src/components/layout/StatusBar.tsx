@@ -41,6 +41,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   'shape-rectangle': 'Rectangle',
   'shape-rounded-rectangle': 'Rounded Rectangle',
   'shape-ellipse': 'Ellipse',
+  'shape-triangle': 'Triangle',
   'shape-polygon': 'Polygon',
   'shape-line': 'Line',
   'shape-custom': 'Custom Shape',
